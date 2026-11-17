@@ -68,9 +68,6 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
               priority
               className="h-9 w-auto shrink-0 object-contain drop-shadow-[0_0_14px_rgba(34,211,238,0.28)] transition-transform group-hover:scale-[1.02] sm:h-10"
             />
-            <span className="hidden rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-300 sm:inline-block">
-              MVP
-            </span>
           </Link>
 
           {/* Desktop Navigation (lg+) */}
