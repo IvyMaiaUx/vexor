@@ -31,6 +31,17 @@ export interface SupabaseAuthRecoveryClient {
     data: { claims: RecoveryJwtClaims } | null;
     error: { message?: string; status?: number; code?: string } | null;
   }>;
+  verifyOtp?: (params: {
+    email: string;
+    token: string;
+    type: "recovery";
+  }) => Promise<{
+    data: {
+      user: { id: string; email?: string | null } | null;
+      session: unknown;
+    };
+    error: { message?: string; status?: number; code?: string } | null;
+  }>;
   updateUser: (attributes: { password: string }) => Promise<{
     data: { user: { id: string; email?: string | null } | null };
     error: { message?: string; status?: number; code?: string } | null;
@@ -334,6 +345,91 @@ export async function updatePasswordWithSupabase(
     }
 
     return { status: "updated" };
+  } catch {
+    return { status: "error", errorCode: "network_error" };
+  }
+}
+
+export interface VerifyRecoveryOtpInput {
+  email: string;
+  token: string;
+  authClient?: Pick<
+    SupabaseAuthRecoveryClient,
+    "verifyOtp" | "getUser" | "getClaims"
+  >;
+}
+
+export type VerifyRecoveryOtpResult =
+  | {
+      status: "verified";
+    }
+  | {
+      status: "error";
+      errorCode:
+        | "invalid_email"
+        | "invalid_code"
+        | "code_expired"
+        | "rate_limited"
+        | "network_error";
+    };
+
+/**
+ * Verifies a 6-to-8 digit email OTP recovery token via `supabase.auth.verifyOtp()`
+ * and validates that the resulting session carries the `recovery` AMR claim.
+ */
+export async function verifyRecoveryOtp(
+  input: VerifyRecoveryOtpInput
+): Promise<VerifyRecoveryOtpResult> {
+  const normalizedEmail = input.email.trim().toLowerCase();
+  if (!normalizedEmail || !EMAIL_REGEX.test(normalizedEmail)) {
+    return { status: "error", errorCode: "invalid_email" };
+  }
+
+  const normalizedToken = input.token.trim().replace(/\s+/g, "");
+  if (!/^\d{6,8}$/.test(normalizedToken)) {
+    return { status: "error", errorCode: "invalid_code" };
+  }
+
+  const authClient = input.authClient ?? createClient().auth;
+  if (typeof authClient.verifyOtp !== "function") {
+    return { status: "error", errorCode: "network_error" };
+  }
+
+  try {
+    const { error } = await authClient.verifyOtp({
+      email: normalizedEmail,
+      token: normalizedToken,
+      type: "recovery",
+    });
+
+    if (error) {
+      const code = (error.code ?? "").toLowerCase();
+      const msg = (error.message ?? "").toLowerCase();
+
+      if (error.status === 429 || code.includes("rate_limit")) {
+        return { status: "error", errorCode: "rate_limited" };
+      }
+
+      if (isNetworkOrUnavailableError(error)) {
+        return { status: "error", errorCode: "network_error" };
+      }
+
+      if (code === "otp_expired" || msg.includes("expired")) {
+        return { status: "error", errorCode: "code_expired" };
+      }
+
+      return { status: "error", errorCode: "invalid_code" };
+    }
+
+    const sessionStatus = await validateRecoverySession(authClient);
+    if (sessionStatus === "network_error") {
+      return { status: "error", errorCode: "network_error" };
+    }
+    if (sessionStatus === "invalid") {
+      return { status: "error", errorCode: "invalid_code" };
+    }
+
+    return { status: "verified" };
   } catch {
     return { status: "error", errorCode: "network_error" };
   }

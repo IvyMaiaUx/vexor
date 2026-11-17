@@ -196,6 +196,15 @@ export interface Dictionary {
       simulationNotice: string;
       simulationLinkCta: string;
       backToLogin: string;
+      otpLabel: string;
+      otpPlaceholder: string;
+      otpHint: string;
+      verifyAndResetButton: string;
+      verifyingAndResettingButton: string;
+      resendCodeButton: string;
+      changeEmailButton: string;
+      invalidOtpError: string;
+      expiredOtpError: string;
     };
     resetPasswordPage: {
       eyebrow: string;
@@ -1326,18 +1335,27 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         eyebrow: "RECUPERAÇÃO DE ACESSO",
         title: "Recuperar Senha",
         subtitle:
-          "Informe o e-mail cadastrado na sua conta Vexor para receber as instruções de redefinição segura.",
+          "Informe o e-mail cadastrado na sua conta Vexor para receber um código de verificação.",
         emailLabel: "E-mail Cadastrado *",
         emailPlaceholder: "analista@exemplo.com",
-        emailHint: "Enviaremos um link temporário para definição de uma nova credencial.",
-        submitButton: "Enviar Link de Recuperação",
-        submittingButton: "Processando envio seguro...",
+        emailHint: "Enviaremos um código numérico temporário para redefinir sua senha aqui mesmo.",
+        submitButton: "Enviar Código de Recuperação",
+        submittingButton: "Enviando código...",
         antiEnumerationNotice:
-          "Se existir uma conta associada a este e-mail, as instruções de recuperação foram despachadas. Verifique sua caixa de entrada e pasta de spam.",
+          "Se existir uma conta associada a este e-mail, enviamos um código de verificação. Verifique sua caixa de entrada e pasta de spam.",
         simulationNotice:
           "Ambiente de Desenvolvimento: Em produção, o envio é despachado via Supabase Auth com token assinado e expiração de 1 hora.",
         simulationLinkCta: "Acessar tela de redefinição de teste →",
         backToLogin: "Voltar para a tela de login",
+        otpLabel: "Código de Verificação *",
+        otpPlaceholder: "000000",
+        otpHint: "Digite o código de 6 dígitos recebido no seu e-mail.",
+        verifyAndResetButton: "Verificar Código e Atualizar Senha",
+        verifyingAndResettingButton: "Validando código e salvando senha...",
+        resendCodeButton: "Reenviar código",
+        changeEmailButton: "Alterar e-mail",
+        invalidOtpError: "Código de verificação inválido. Confira os dígitos e tente novamente.",
+        expiredOtpError: "O código expirou. Clique em \"Reenviar código\" para receber um novo.",
       },
       resetPasswordPage: {
         eyebrow: "REDEFINIÇÃO DE CREDENCIAL",
@@ -2729,18 +2747,27 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         eyebrow: "ACCESS RECOVERY",
         title: "Recover Password",
         subtitle:
-          "Enter the email associated with your Vexor account to receive secure recovery instructions.",
+          "Enter the email associated with your Vexor account to receive a verification code.",
         emailLabel: "Registered Email *",
         emailPlaceholder: "analyst@example.com",
-        emailHint: "We will send a temporary link to establish a new credential.",
-        submitButton: "Send Recovery Link",
-        submittingButton: "Processing secure dispatch...",
+        emailHint: "We will send a temporary numeric code so you can reset your password right here.",
+        submitButton: "Send Recovery Code",
+        submittingButton: "Sending code...",
         antiEnumerationNotice:
-          "If an account is associated with this email, recovery instructions have been dispatched. Please check your inbox and spam folder.",
+          "If an account is associated with this email, a verification code has been dispatched. Please check your inbox and spam folder.",
         simulationNotice:
           "Development Environment: In production, emails are dispatched via Supabase Auth with signed tokens and 1-hour expiration.",
         simulationLinkCta: "Open test reset screen →",
         backToLogin: "Back to sign in",
+        otpLabel: "Verification Code *",
+        otpPlaceholder: "000000",
+        otpHint: "Enter the 6-digit code received in your email.",
+        verifyAndResetButton: "Verify Code & Update Password",
+        verifyingAndResettingButton: "Verifying code & saving password...",
+        resendCodeButton: "Resend code",
+        changeEmailButton: "Change email",
+        invalidOtpError: "Invalid verification code. Check the digits and try again.",
+        expiredOtpError: "This code has expired. Click \"Resend code\" to get a new one.",
       },
       resetPasswordPage: {
         eyebrow: "CREDENTIAL RESET",
