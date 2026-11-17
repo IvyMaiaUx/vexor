@@ -19,8 +19,9 @@
 import type { FeaturedResourceItem } from "@/config/site";
 import { FEATURED_RESOURCES } from "@/config/site";
 import type { AuthUserProfile } from "@/features/auth/validation";
-import { DEMO_PROFILES } from "@/features/auth/use-auth-store";
 import type { ForumPost, ForumTopic } from "@/features/forum/types";
+
+const MOCK_ADMIN_USERS: AuthUserProfile[] = [];
 import { INITIAL_POSTS, INITIAL_TOPICS } from "@/features/forum/seed-topics";
 import type {
   AdminActionResult,
@@ -560,7 +561,7 @@ export class AdminService implements IAdminService {
     suspendedOnly?: boolean;
   }): Promise<AuthUserProfile[]> {
     this.ensureInitialized();
-    let users = [...DEMO_PROFILES];
+    let users = [...MOCK_ADMIN_USERS];
 
     if (typeof window !== "undefined") {
       try {

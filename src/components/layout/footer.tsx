@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { siteConfig, type SupportedLocale } from "@/config/site";
+import { useAuthStore } from "@/features/auth/use-auth-store";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 interface FooterProps {
@@ -9,8 +12,14 @@ interface FooterProps {
 }
 
 export function Footer({ locale, dict }: FooterProps) {
+  const user = useAuthStore((s) => s.user);
+
   return (
-    <footer className="border-t border-slate-800/80 bg-[#050811] pb-16 sm:pb-0">
+    <footer
+      className={`border-t border-slate-800/80 bg-[#050811] ${
+        user ? "pb-16 sm:pb-0" : ""
+      }`}
+    >
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           {/* Brand + Description */}
@@ -41,44 +50,56 @@ export function Footer({ locale, dict }: FooterProps) {
               <ul className="mt-3 space-y-2 text-sm text-slate-400">
                 <li>
                   <Link
-                    href="/catalog"
+                    href="/"
                     className="transition-colors hover:text-cyan-400"
                   >
-                    {dict.nav.catalog}
+                    {dict.nav.home}
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href="/catalog/bookmarks"
-                    className="transition-colors hover:text-cyan-400"
-                  >
-                    {dict.nav.bookmarks}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/#categories"
-                    className="transition-colors hover:text-cyan-400"
-                  >
-                    {dict.nav.categories}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/forum"
-                    className="transition-colors hover:text-cyan-400"
-                  >
-                    {dict.nav.forum}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/cybercrime-research"
-                    className="transition-colors hover:text-cyan-400"
-                  >
-                    {dict.cybercrimeResearchPage.title}
-                  </Link>
-                </li>
+                {user && (
+                  <>
+                    <li>
+                      <Link
+                        href="/catalog"
+                        className="transition-colors hover:text-cyan-400"
+                      >
+                        {dict.nav.catalog}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/catalog/bookmarks"
+                        className="transition-colors hover:text-cyan-400"
+                      >
+                        {dict.nav.bookmarks}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/#categories"
+                        className="transition-colors hover:text-cyan-400"
+                      >
+                        {dict.nav.categories}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/forum"
+                        className="transition-colors hover:text-cyan-400"
+                      >
+                        {dict.nav.forum}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/cybercrime-research"
+                        className="transition-colors hover:text-cyan-400"
+                      >
+                        {dict.cybercrimeResearchPage.title}
+                      </Link>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
 
@@ -103,14 +124,16 @@ export function Footer({ locale, dict }: FooterProps) {
                     {dict.nav.signUp}
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href="/catalog/submit"
-                    className="transition-colors hover:text-cyan-400"
-                  >
-                    {dict.nav.submitResource}
-                  </Link>
-                </li>
+                {user && (
+                  <li>
+                    <Link
+                      href="/catalog/submit"
+                      className="transition-colors hover:text-cyan-400"
+                    >
+                      {dict.nav.submitResource}
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <a
                     href={siteConfig.githubRepoUrl}
@@ -141,9 +164,6 @@ export function Footer({ locale, dict }: FooterProps) {
 
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-slate-800/70 pt-6 text-xs text-slate-500 sm:flex-row">
           <p>{dict.footer.rights}</p>
-          <p className="font-mono text-[11px] text-slate-500">
-            Next.js 16 · Tailwind CSS 4 · PostgreSQL / Supabase RLS
-          </p>
         </div>
       </div>
     </footer>

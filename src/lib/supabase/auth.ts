@@ -314,10 +314,29 @@ export type ProxyRouteDecision =
   | { action: "allow" }
   | { action: "redirect"; target: string; reason: AuthorizationCheckResult["reason"] };
 
+export function isProtectedAppRoute(pathname: string): boolean {
+  return (
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    pathname === "/cybercrime-research" ||
+    pathname.startsWith("/cybercrime-research/") ||
+    pathname === "/catalog" ||
+    pathname.startsWith("/catalog/") ||
+    pathname === "/forum" ||
+    pathname.startsWith("/forum/") ||
+    pathname === "/my-contributions" ||
+    pathname.startsWith("/my-contributions/") ||
+    pathname === "/profile" ||
+    pathname.startsWith("/profile/")
+  );
+}
+
 /**
- * Evaluates server-side access control for protected routes (e.g., `/admin/*`
- * and `/cybercrime-research/*`) inside `src/proxy.ts` using only server-verified
- * session and profile data. Public routes remain accessible.
+ * Evaluates server-side access control for protected routes (`/admin/*`,
+ * `/cybercrime-research/*`, `/catalog/*`, `/forum/*`, `/my-contributions/*`,
+ * `/profile/*`) inside `src/proxy.ts` using only server-verified session and
+ * profile data. Public routes (`/`, `/login`, `/register`, `/forgot-password`,
+ * `/reset-password`, `/auth/*`) remain accessible.
  */
 export function evaluateProtectedRouteAccess(
   pathname: string,
@@ -328,7 +347,7 @@ export function evaluateProtectedRouteAccess(
     pathname === "/cybercrime-research" ||
     pathname.startsWith("/cybercrime-research/");
 
-  if (!isAdminArea && !isResearchArea) {
+  if (!isProtectedAppRoute(pathname)) {
     return { action: "allow" };
   }
 
@@ -349,7 +368,11 @@ export function evaluateProtectedRouteAccess(
   }
 
   if (check.reason === "unauthenticated") {
-    const defaultNext = isAdminArea ? "/admin" : "/cybercrime-research";
+    const defaultNext = isAdminArea
+      ? "/admin"
+      : isResearchArea
+        ? "/cybercrime-research"
+        : "/";
     const safeNext = getSafeRedirectPath(pathname, defaultNext);
     return {
       action: "redirect",
@@ -358,9 +381,17 @@ export function evaluateProtectedRouteAccess(
     };
   }
 
+  if ((isAdminArea || isResearchArea) && check.reason === "insufficient_role") {
+    return {
+      action: "redirect",
+      target: "/catalog",
+      reason: check.reason,
+    };
+  }
+
   return {
     action: "redirect",
-    target: "/catalog",
+    target: "/",
     reason: check.reason,
   };
 }

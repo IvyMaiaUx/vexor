@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   evaluateProtectedRouteAccess,
+  isProtectedAppRoute,
   resolveServerSessionWithClient,
   type ServerAuthClientLike,
 } from "@/lib/supabase/auth";
@@ -46,11 +47,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   });
 
   const pathname = request.nextUrl.pathname;
-  const isProtectedArea =
-    pathname === "/admin" ||
-    pathname.startsWith("/admin/") ||
-    pathname === "/cybercrime-research" ||
-    pathname.startsWith("/cybercrime-research/");
+  const isProtectedArea = isProtectedAppRoute(pathname);
 
   if (isProtectedArea) {
     const resolution = await resolveServerSessionWithClient(

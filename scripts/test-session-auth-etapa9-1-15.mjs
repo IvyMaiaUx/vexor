@@ -491,10 +491,16 @@ assert.equal(
   }).action,
   "redirect"
 );
-for (const publicRoute of ["/", "/catalog", "/forum", "/login", "/register"]) {
+for (const publicRoute of ["/", "/login", "/register", "/forgot-password"]) {
   assert.equal(
     evaluateProtectedRouteAccess(publicRoute, { status: "unauthenticated", user: null, profile: null }).action,
     "allow"
+  );
+}
+for (const memberRoute of ["/catalog", "/forum"]) {
+  assert.equal(
+    evaluateProtectedRouteAccess(memberRoute, { status: "unauthenticated", user: null, profile: null }).action,
+    "redirect"
   );
 }
 console.log("  ✓ Test 16 passed (cybercrime-research server-side protection & public routes preserved)");

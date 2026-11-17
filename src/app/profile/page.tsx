@@ -15,7 +15,7 @@ import type { ProfileViewData } from "@/features/profile/types";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
 export default function MyProfilePage() {
-  const { user, isLoading, syncError, authMode, refreshSession } = useAuthStore();
+  const { user, isLoading, syncError, refreshSession } = useAuthStore();
   const { locale, setLocale, allResources } = useCatalogStore();
   const { topics, posts } = useForumStore();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -173,14 +173,6 @@ export default function MyProfilePage() {
             renderStatePanel()
           ) : (
             <div className="space-y-8">
-              {authMode === "demo" && (
-                <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 font-mono text-xs text-cyan-200">
-                  {isPt
-                    ? "Modo Demonstração (DEMO_PROFILES): alterações ficam apenas no navegador local."
-                    : "Demo Mode (DEMO_PROFILES): changes are stored only in local browser storage."}
-                </div>
-              )}
-
               {user.isSuspended && (
                 <div
                   role="alert"

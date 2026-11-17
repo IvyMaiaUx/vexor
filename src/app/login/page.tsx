@@ -8,17 +8,15 @@ import { siteConfig } from "@/config/site";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { loginWithSupabase } from "@/features/auth/login-service";
-import { DEMO_PROFILES, useAuthStore } from "@/features/auth/use-auth-store";
-import { type AuthUserProfile, EMAIL_REGEX } from "@/features/auth/validation";
+import { useAuthStore } from "@/features/auth/use-auth-store";
+import { EMAIL_REGEX } from "@/features/auth/validation";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import { getDictionary } from "@/lib/i18n/dictionaries";
-import { getSafeRedirectPath } from "@/lib/security/redirect";
 
 export default function LoginPage() {
   const router = useRouter();
   const { locale, setLocale } = useCatalogStore();
-  const { user, setAuthenticatedSession, signInWithProfile, signOut } =
-    useAuthStore();
+  const { user, setAuthenticatedSession, signOut } = useAuthStore();
 
   const dict = useMemo(() => getDictionary(locale), [locale]);
 
@@ -89,11 +87,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoSignIn = (profile: AuthUserProfile) => {
-    signInWithProfile(profile);
-    router.push(getSafeRedirectPath(getRequestedNextPath(), "/catalog"));
-  };
-
   return (
     <div className="flex min-h-screen flex-col">
       <Header locale={locale} onLocaleChange={setLocale} dict={dict} />
@@ -149,7 +142,6 @@ export default function LoginPage() {
                 </div>
               </div>
             ) : (
-              <>
                 <form
                   onSubmit={handleSubmit}
                   noValidate
@@ -219,74 +211,6 @@ export default function LoginPage() {
                       : dict.auth.signInButton}
                   </button>
                 </form>
-
-                {/* Quick Role Simulator for Pre-Supabase Verification */}
-                <div className="mt-6 rounded-xl border border-indigo-500/25 bg-[#070b14]/90 p-4">
-                  <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-indigo-300">
-                    ⚡ {dict.auth.demoAccountsTitle}
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                    {dict.auth.demoAccountsSubtitle}
-                  </p>
-                  <div className="mt-3 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const profile = DEMO_PROFILES.find((p) => p.username === "sec_analyst_br");
-                        if (profile) handleDemoSignIn(profile);
-                      }}
-                      className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-left text-xs font-medium text-emerald-200 transition-colors hover:bg-emerald-500/20"
-                    >
-                      <span>{dict.auth.demoMemberBtn}</span>
-                      <span className="font-mono text-[10px] uppercase text-emerald-300">
-                        MEMBER
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const profile = DEMO_PROFILES.find((p) => p.username === "mod_sentinel");
-                        if (profile) handleDemoSignIn(profile);
-                      }}
-                      className="flex items-center justify-between rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-left text-xs font-medium text-indigo-200 transition-colors hover:bg-indigo-500/20"
-                    >
-                      <span>{dict.auth.demoModeratorBtn}</span>
-                      <span className="font-mono text-[10px] uppercase text-indigo-300">
-                        MOD
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const profile = DEMO_PROFILES.find((p) => p.username === "root_admin");
-                        if (profile) handleDemoSignIn(profile);
-                      }}
-                      className="flex items-center justify-between rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-left text-xs font-medium text-purple-200 transition-colors hover:bg-purple-500/20"
-                    >
-                      <span>{dict.auth.demoAdminBtn}</span>
-                      <span className="font-mono text-[10px] uppercase text-purple-300">
-                        ADMIN
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const profile = DEMO_PROFILES.find((p) => p.username === "suspended_user");
-                        if (profile) handleDemoSignIn(profile);
-                      }}
-                      className="flex items-center justify-between rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-left text-xs font-medium text-rose-200 transition-colors hover:bg-rose-500/20"
-                    >
-                      <span>{dict.auth.demoSuspendedBtn}</span>
-                      <span className="font-mono text-[10px] uppercase text-rose-300">
-                        SUSPENDED
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </>
             )}
 
             <div className="mt-6 border-t border-slate-800 pt-5 text-center text-xs text-slate-400">

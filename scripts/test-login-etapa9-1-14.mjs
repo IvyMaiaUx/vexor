@@ -209,12 +209,12 @@ console.log("  ✓ Test 9 passed (no password storage or service_role in fronten
 // 10. Server-trusted role & suspension only + Runtime GET /api/auth/session tests
 assert.doesNotMatch(loginServiceCode, /DEMO_PROFILES/);
 assert.doesNotMatch(loginServiceCode, /\.insert\s*\(/i);
-assert.match(authStoreCode, /DEMO_PROFILES/);
-assert.match(authStoreCode, /signInWithProfile/);
+assert.doesNotMatch(authStoreCode, /DEMO_PROFILES/);
+assert.doesNotMatch(authStoreCode, /signInWithProfile/);
 assert.match(loginPageCode, /loginWithSupabase/);
-assert.match(loginPageCode, /DEMO_PROFILES/);
-assert.match(loginPageCode, /signInWithProfile/);
-console.log("  ✓ Test 10 passed (DEMO_PROFILES separated from loginWithSupabase & no manual insert)");
+assert.doesNotMatch(loginPageCode, /DEMO_PROFILES/);
+assert.doesNotMatch(loginPageCode, /signInWithProfile/);
+console.log("  ✓ Test 10 passed (DEMO_PROFILES and simulated profile login removed from login & auth store)");
 
 // 11. Behavioral error coverage in loginWithSupabase (invalid_email, password_too_short, rate_limited, session authenticated:false)
 function makeAuthFailTrap(flagObj) {

@@ -9,6 +9,7 @@ import {
 } from "@/config/site";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
+import { useAuthStore } from "@/features/auth/use-auth-store";
 import {
   type CatalogResourceItem,
   queryCatalogResources,
@@ -42,6 +43,7 @@ const DIFFICULTY_KEYS: DifficultyLevel[] = [
 
 export default function HomePage() {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const {
     locale,
     setLocale,
@@ -91,7 +93,7 @@ export default function HomePage() {
   }, [categories]);
 
   useEffect(() => {
-    if (categoriesLoading) {
+    if (!user || categoriesLoading) {
       return;
     }
 
@@ -133,10 +135,11 @@ export default function HomePage() {
     selectedCategory,
     selectedDifficulty,
     selectedType,
+    user,
   ]);
 
   useEffect(() => {
-    if (forumCategoriesLoading) {
+    if (!user || forumCategoriesLoading) {
       return;
     }
 
@@ -159,7 +162,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [forumCategories, forumCategoriesLoading]);
+  }, [forumCategories, forumCategoriesLoading, user]);
 
   const resetFilters = () => {
     setSearchQuery("");
@@ -196,27 +199,48 @@ export default function HomePage() {
 
               {/* Quick CTAs: full width stacked on mobile, side-by-side on sm+ */}
               <div className="mt-7 flex flex-col items-stretch justify-center gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-                <Link
-                  href="/catalog"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-colors hover:bg-cyan-400 sm:py-2.5"
-                >
-                  {dict.hero.exploreCatalog}
-                  <span aria-hidden="true">→</span>
-                </Link>
-                <Link
-                  href="/forum"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700/80 bg-[#0d1322] px-5 py-3 text-sm font-medium text-slate-200 transition-colors hover:border-cyan-500/50 hover:text-cyan-300 sm:py-2.5"
-                >
-                  {dict.hero.joinForum}
-                </Link>
+                {user ? (
+                  <>
+                    <Link
+                      href="/catalog"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-colors hover:bg-cyan-400 sm:py-2.5"
+                    >
+                      {dict.hero.exploreCatalog}
+                      <span aria-hidden="true">→</span>
+                    </Link>
+                    <Link
+                      href="/forum"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700/80 bg-[#0d1322] px-5 py-3 text-sm font-medium text-slate-200 transition-colors hover:border-cyan-500/50 hover:text-cyan-300 sm:py-2.5"
+                    >
+                      {dict.hero.joinForum}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-colors hover:bg-cyan-400 sm:py-2.5"
+                    >
+                      {dict.nav.signIn}
+                      <span aria-hidden="true">→</span>
+                    </Link>
+                    <Link
+                      href="/register"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700/80 bg-[#0d1322] px-5 py-3 text-sm font-medium text-slate-200 transition-colors hover:border-cyan-500/50 hover:text-cyan-300 sm:py-2.5"
+                    >
+                      {dict.nav.signUp}
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Integrated Search & Filter Bar */}
-            <form
-              onSubmit={handleHeroSearch}
-              className="mx-auto mt-8 max-w-4xl rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3.5 shadow-2xl backdrop-blur sm:mt-10 sm:p-4"
-            >
+            {user ? (
+              /* Integrated Search & Filter Bar (authenticated users only) */
+              <form
+                onSubmit={handleHeroSearch}
+                className="mx-auto mt-8 max-w-4xl rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3.5 shadow-2xl backdrop-blur sm:mt-10 sm:p-4"
+              >
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:flex lg:flex-row lg:items-center lg:gap-3">
                 <div className="relative sm:col-span-2 lg:flex-1">
                   <svg
@@ -298,9 +322,36 @@ export default function HomePage() {
                 </div>
               </div>
             </form>
+            ) : (
+              /* Visitor Platform Pillars & Access Notice (no catalog search/filters) */
+              <div className="mx-auto mt-8 max-w-4xl rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-4 shadow-2xl backdrop-blur sm:mt-10 sm:p-5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 sm:text-xs">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400" />
+                    <span className="truncate">{dict.hero.stats.categories}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 sm:text-xs">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+                    <span className="truncate">
+                      {dict.hero.stats.resourceTypes}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 sm:text-xs">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                    <span className="truncate">{dict.hero.stats.openSource}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 sm:text-xs">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400" />
+                    <span className="truncate">{dict.hero.stats.bilingual}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
+        {user && (
+          <>
         {/* 2. CATEGORIES SECTION (12 Initial Categories from seed.sql) */}
         <section
           id="categories"
@@ -580,6 +631,8 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+          </>
+        )}
 
         {/* 5. COMMUNITY CONTRIBUTION WORKFLOW SECTION */}
         <section id="contribute" className="py-16 sm:py-20">
@@ -639,12 +692,21 @@ export default function HomePage() {
                 <p className="text-xs text-slate-400">
                   {dict.contributeSection.securityNote}
                 </p>
-                <Link
-                  href="/catalog/submit"
-                  className="w-full shrink-0 rounded-xl bg-cyan-500 px-5 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-400 sm:w-auto sm:py-2.5"
-                >
-                  {dict.contributeSection.ctaPrimary} →
-                </Link>
+                {user ? (
+                  <Link
+                    href="/catalog/submit"
+                    className="w-full shrink-0 rounded-xl bg-cyan-500 px-5 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-400 sm:w-auto sm:py-2.5"
+                  >
+                    {dict.contributeSection.ctaPrimary} →
+                  </Link>
+                ) : (
+                  <Link
+                    href="/register"
+                    className="w-full shrink-0 rounded-xl bg-cyan-500 px-5 py-3 text-center text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-400 sm:w-auto sm:py-2.5"
+                  >
+                    {dict.nav.signUp} →
+                  </Link>
+                )}
               </div>
             </div>
           </div>

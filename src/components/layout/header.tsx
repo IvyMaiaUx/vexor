@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { SignOutErrorBanner } from "@/components/auth/sign-out-error-banner";
 import { siteConfig, type SupportedLocale } from "@/config/site";
@@ -19,7 +19,27 @@ interface HeaderProps {
 export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut } = useAuthStore();
+
+  const handleSignOut = async () => {
+    setMobileMenuOpen(false);
+    await signOut();
+    const currentPath = pathname ?? "";
+    const isProtected = [
+      "/admin",
+      "/cybercrime-research",
+      "/catalog",
+      "/forum",
+      "/my-contributions",
+      "/profile",
+    ].some((prefix) => currentPath === prefix || currentPath.startsWith(`${prefix}/`));
+    if (isProtected) {
+      router.push("/login");
+    } else {
+      router.refresh();
+    }
+  };
 
   const isHomeActive = pathname === "/";
   const isCatalogActive =
@@ -66,44 +86,48 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
             >
               {dict.nav.home}
             </Link>
-            <Link
-              href="/catalog"
-              className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
-                isCatalogActive ? "text-cyan-400" : "text-slate-300"
-              }`}
-            >
-              {dict.nav.catalog}
-            </Link>
-            <Link
-              href="/#categories"
-              className="text-sm font-medium text-slate-300 transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400"
-            >
-              {dict.nav.categories}
-            </Link>
-            <Link
-              href="/forum"
-              className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
-                isForumActive ? "text-cyan-400" : "text-slate-300"
-              }`}
-            >
-              {dict.nav.forum}
-            </Link>
-            <Link
-              href="/cybercrime-research"
-              className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
-                isResearchActive ? "text-cyan-400" : "text-slate-300"
-              }`}
-            >
-              {dict.cybercrimeResearchPage.title}
-            </Link>
-            <Link
-              href="/catalog/submit"
-              className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
-                isSubmitActive ? "text-cyan-400" : "text-slate-300"
-              }`}
-            >
-              {dict.nav.contribute}
-            </Link>
+            {user && (
+              <>
+                <Link
+                  href="/catalog"
+                  className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
+                    isCatalogActive ? "text-cyan-400" : "text-slate-300"
+                  }`}
+                >
+                  {dict.nav.catalog}
+                </Link>
+                <Link
+                  href="/#categories"
+                  className="text-sm font-medium text-slate-300 transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400"
+                >
+                  {dict.nav.categories}
+                </Link>
+                <Link
+                  href="/forum"
+                  className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
+                    isForumActive ? "text-cyan-400" : "text-slate-300"
+                  }`}
+                >
+                  {dict.nav.forum}
+                </Link>
+                <Link
+                  href="/cybercrime-research"
+                  className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
+                    isResearchActive ? "text-cyan-400" : "text-slate-300"
+                  }`}
+                >
+                  {dict.cybercrimeResearchPage.title}
+                </Link>
+                <Link
+                  href="/catalog/submit"
+                  className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
+                    isSubmitActive ? "text-cyan-400" : "text-slate-300"
+                  }`}
+                >
+                  {dict.nav.contribute}
+                </Link>
+              </>
+            )}
           </nav>
 
           {/* Desktop Actions + Language Switcher + Auth Session (lg+) */}
@@ -174,7 +198,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                   </span>
                   <button
                     type="button"
-                    onClick={signOut}
+                    onClick={() => void handleSignOut()}
                     className="ml-1 rounded px-1.5 py-0.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-rose-300"
                   >
                     {dict.nav.signOut}
@@ -262,64 +286,68 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
               >
                 {dict.nav.home}
               </Link>
-              <Link
-                href="/catalog"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                  isCatalogActive
-                    ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                    : "text-slate-200 hover:bg-slate-800/60"
-                }`}
-              >
-                {dict.nav.catalog}
-              </Link>
-              <Link
-                href="/catalog/bookmarks"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium text-slate-200 hover:bg-slate-800/60"
-              >
-                ★ {dict.nav.bookmarks}
-              </Link>
-              <Link
-                href="/#categories"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium text-slate-200 hover:bg-slate-800/60"
-              >
-                {dict.nav.categories}
-              </Link>
-              <Link
-                href="/forum"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                  isForumActive
-                    ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                    : "text-slate-200 hover:bg-slate-800/60"
-                }`}
-              >
-                {dict.nav.forum}
-              </Link>
-              <Link
-                href="/cybercrime-research"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                  pathname?.startsWith("/cybercrime-research")
-                    ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                    : "text-slate-200 hover:bg-slate-800/60"
-                }`}
-              >
-                🔬 {dict.cybercrimeResearchPage.title}
-              </Link>
-              <Link
-                href="/catalog/submit"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                  isSubmitActive
-                    ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                    : "text-slate-200 hover:bg-slate-800/60"
-                }`}
-              >
-                {dict.nav.contribute}
-              </Link>
+              {user && (
+                <>
+                  <Link
+                    href="/catalog"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
+                      isCatalogActive
+                        ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
+                        : "text-slate-200 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    {dict.nav.catalog}
+                  </Link>
+                  <Link
+                    href="/catalog/bookmarks"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium text-slate-200 hover:bg-slate-800/60"
+                  >
+                    ★ {dict.nav.bookmarks}
+                  </Link>
+                  <Link
+                    href="/#categories"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium text-slate-200 hover:bg-slate-800/60"
+                  >
+                    {dict.nav.categories}
+                  </Link>
+                  <Link
+                    href="/forum"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
+                      isForumActive
+                        ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
+                        : "text-slate-200 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    {dict.nav.forum}
+                  </Link>
+                  <Link
+                    href="/cybercrime-research"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
+                      pathname?.startsWith("/cybercrime-research")
+                        ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
+                        : "text-slate-200 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    🔬 {dict.cybercrimeResearchPage.title}
+                  </Link>
+                  <Link
+                    href="/catalog/submit"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
+                      isSubmitActive
+                        ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
+                        : "text-slate-200 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    {dict.nav.contribute}
+                  </Link>
+                </>
+              )}
 
               {/* Language Switcher inside Drawer */}
               <div className="mt-2 flex items-center justify-between rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2.5">
@@ -381,10 +409,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                     </Link>
                     <button
                       type="button"
-                      onClick={() => {
-                        signOut();
-                        setMobileMenuOpen(false);
-                      }}
+                      onClick={() => void handleSignOut()}
                       className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-300"
                     >
                       {dict.nav.signOut}
@@ -428,127 +453,127 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
         )}
       </header>
 
-      {/* Mobile Bottom Quick Navigation Bar (< sm) */}
-      <nav
-        aria-label="Mobile Quick Bar"
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-800/90 bg-[#070b14]/95 px-1 py-1.5 backdrop-blur-md sm:hidden"
-      >
-        <Link
-          href="/"
-          className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-            isHomeActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-          }`}
+      {/* Mobile Bottom Quick Navigation Bar (< sm) — authenticated users only */}
+      {user && (
+        <nav
+          aria-label="Mobile Quick Bar"
+          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-800/90 bg-[#070b14]/95 px-1 py-1.5 backdrop-blur-md sm:hidden"
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-4 w-4"
+          <Link
+            href="/"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+              isHomeActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
+            }`}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
-            />
-          </svg>
-          <span className="max-w-[62px] truncate">{dict.nav.home}</span>
-        </Link>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-4 w-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+              />
+            </svg>
+            <span className="max-w-[62px] truncate">{dict.nav.home}</span>
+          </Link>
 
-        <Link
-          href="/catalog"
-          className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-            isCatalogActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-4 w-4"
+          <Link
+            href="/catalog"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+              isCatalogActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
+            }`}
           >
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-          </svg>
-          <span className="max-w-[62px] truncate">{dict.nav.catalog}</span>
-        </Link>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-4 w-4"
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+            </svg>
+            <span className="max-w-[62px] truncate">{dict.nav.catalog}</span>
+          </Link>
 
-        <Link
-          href="/forum"
-          className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-            isForumActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-4 w-4"
+          <Link
+            href="/forum"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+              isForumActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
+            }`}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-            />
-          </svg>
-          <span className="max-w-[62px] truncate">{dict.nav.forum}</span>
-        </Link>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-4 w-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              />
+            </svg>
+            <span className="max-w-[62px] truncate">{dict.nav.forum}</span>
+          </Link>
 
-        <Link
-          href="/catalog/submit"
-          className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-            isSubmitActive
-              ? "text-cyan-400 font-semibold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-4 w-4"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          <span className="max-w-[62px] truncate">
-            {dict.nav.contribute}
-          </span>
-        </Link>
-
-        <Link
-          href={user ? "/profile" : "/login"}
-          className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-            isProfileActive || isAuthActive
-              ? "text-cyan-400 font-semibold"
-              : user
-                ? "text-emerald-400 hover:text-emerald-300"
+          <Link
+            href="/catalog/submit"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+              isSubmitActive
+                ? "text-cyan-400 font-semibold"
                 : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-4 w-4"
+            }`}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-            />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          <span className="max-w-[62px] truncate">
-            {user ? `@${user.username}` : dict.nav.signIn}
-          </span>
-        </Link>
-      </nav>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-4 w-4"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="max-w-[62px] truncate">
+              {dict.nav.contribute}
+            </span>
+          </Link>
+
+          <Link
+            href="/profile"
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+              isProfileActive || isAuthActive
+                ? "text-cyan-400 font-semibold"
+                : "text-emerald-400 hover:text-emerald-300"
+            }`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-4 w-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+              />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="max-w-[62px] truncate">
+              @{user.username}
+            </span>
+          </Link>
+        </nav>
+      )}
       <SignOutErrorBanner dict={dict} />
     </>
   );
