@@ -1,0 +1,62 @@
+{
+  "stage": "9.1.9",
+  "date": "2026-11-13",
+  "project": {
+    "name": "Vexor",
+    "ref": "zcjudcbckcxwnfnrjfte",
+    "region": "us-east-1",
+    "postgres_version": "17.11.0.019",
+    "plan": "Free",
+    "automatic_backup_waived": true,
+    "manual_recovery_risk_documented": true
+  },
+  "classification": "APROVADA COM RESSALVAS",
+  "pre_deploy": {
+    "linked_ref_verified": true,
+    "hashes_verified": true,
+    "migrations": [
+      {
+        "file": "20261110000001_schema.sql",
+        "sha256": "24763C8E77E5643EFA3214093071760539D65C3A8834E5837CBC70698C7BEE75"
+      },
+      {
+        "file": "20261110000002_functions_triggers.sql",
+        "sha256": "89D8F4C6A456ABD523EC660C932AE24F63B10AF3D46C199A2B39D898E5A00D77"
+      },
+      {
+        "file": "20261110000003_rls_and_grants.sql",
+        "sha256": "10E8487AB58DA75BAC0A7AEE21DA968EA69FB93F284BB879A7DE96347467F030"
+      },
+      {
+        "file": "20261113143000_security_hardening.sql",
+        "sha256": "A8ABA292389CB485F79DD6563D1F57E49FAE7542F2267E5B880AAC90337EB336"
+      }
+    ]
+  },
+  "deployment": {
+    "command": "npx supabase db push --remote --yes",
+    "exit_code": 0,
+    "applied_count": 4,
+    "seed_executed": false,
+    "rollback_executed": false,
+    "migration_repair_executed": false
+  },
+  "post_deploy_checks": {
+    "migration_list_synced": true,
+    "tables_count": 12,
+    "estimated_row_count_all_zero": true,
+    "enums_count": 9,
+    "functions_count": 15,
+    "public_profiles_view_present": true,
+    "audit_logs_actor_id_fkey_absent": true,
+    "storage_avatars_bucket_present": true,
+    "database_types_regenerated": true,
+    "database_types_lines": 1617,
+    "tsc_no_emit_exit_code": 0,
+    "direct_sql_catalog_inspection_available": false
+  },
+  "caveats": [
+    "Inspecao direta de pg_policies, pg_trigger, pg_class.reloptions (security_invoker/security_barrier) e has_table_privilege no host remoto nao executada por ausencia de psql/Docker local.",
+    "Projeto mantido no plano Free sem backup automatico; recuperacao manual documentada."
+  ]
+}

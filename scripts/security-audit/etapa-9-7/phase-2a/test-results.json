@@ -1,0 +1,169 @@
+{
+  "timestamp": "2026-11-16T11:39:46.333Z",
+  "database": "vexor_audit_97_2a",
+  "total": 20,
+  "passed": 20,
+  "failed": 0,
+  "results": [
+    {
+      "id": "RPC-01",
+      "category": "RPC",
+      "description": "moderate_research rejeita p_decision NULL com 22023",
+      "expected": "SQLSTATE 22023",
+      "actual": "sqlstate=22023",
+      "status": "PASS"
+    },
+    {
+      "id": "T01",
+      "category": "RLS",
+      "description": "RLS sem recursão (42P17 ausente) entre research_submissions e research_recipients",
+      "expected": "1/1/1/1 sem erro",
+      "actual": "author=1,rec=1,author_rr=1,mod_rr=1,err=null",
+      "status": "PASS"
+    },
+    {
+      "id": "T02",
+      "category": "TLP/RLS",
+      "description": "Membro lê CLEAR/GREEN aprovados, nunca lê AMBER/AMBER+/RED/pendente sem grant; anon bloqueado (42501)",
+      "expected": "anon=42501,clear_green=2,restr=0",
+      "actual": "anon=42501,cg=2,restr=0",
+      "status": "PASS"
+    },
+    {
+      "id": "T03",
+      "category": "RLS",
+      "description": "Papéis: autor edita pending, DELETE negado (42501), mod/admin leem todos os status",
+      "expected": "upd_ok,del=42501,mod=3,adm=3",
+      "actual": "del=42501,mod=3,adm=3",
+      "status": "PASS"
+    },
+    {
+      "id": "T04",
+      "category": "Auth",
+      "description": "Perfil suspenso e inexistente bloqueados em RLS (0 linhas) e RPCs (42501)",
+      "expected": "0/42501/0/42501",
+      "actual": "susp=0/42501,orp=0/42501",
+      "status": "PASS"
+    },
+    {
+      "id": "T05",
+      "category": "TLP",
+      "description": "Autoconcessão e INSERT direto em research_recipients bloqueados (42501)",
+      "expected": "42501/42501",
+      "actual": "self=42501,direct=42501",
+      "status": "PASS"
+    },
+    {
+      "id": "T06",
+      "category": "TLP",
+      "description": "Concessão duplicada idêntica é idempotente sem duplicar audit_logs",
+      "expected": "before=1,after=1",
+      "actual": "before=1,after=1",
+      "status": "PASS"
+    },
+    {
+      "id": "T07",
+      "category": "TLP",
+      "description": "Atualização de justificativa preserva granted_by original e grava research.recipient_updated",
+      "expected": "gb=mod,ub=admin,action=recipient_updated",
+      "actual": "gb=00000000-0000-0000-0000-000000000902,ub=00000000-0000-0000-0000-000000000901,action=research.recipient_updated",
+      "status": "PASS"
+    },
+    {
+      "id": "T08",
+      "category": "TLP",
+      "description": "Revogação remove acesso imediato, registra 1 evento e repetição é idempotente",
+      "expected": "read=0,rev_logs=1",
+      "actual": "read=0,rev_logs=1",
+      "status": "PASS"
+    },
+    {
+      "id": "T09",
+      "category": "TLP",
+      "description": "Concessão explícita para CLEAR/GREEN bloqueada (22023)",
+      "expected": "22023/22023",
+      "actual": "clear=22023,green=22023",
+      "status": "PASS"
+    },
+    {
+      "id": "T10",
+      "category": "State",
+      "description": "Arquivamento bloqueia leitura de destinatário, e transições fora da matriz falham (22023)",
+      "expected": "read=0,4x22023",
+      "actual": "read=0,errs=22023/22023/22023/22023",
+      "status": "PASS"
+    },
+    {
+      "id": "T11",
+      "category": "Concurrency",
+      "description": "Revalidação pós-lock V4 bloqueia moderador rebaixado concorrentemente (42501)",
+      "expected": "demote_ok,mod=42501",
+      "actual": "demote_err=null,mod=42501",
+      "status": "PASS"
+    },
+    {
+      "id": "T12",
+      "category": "Concurrency",
+      "description": "Contenção em profiles FOR SHARE NOWAIT retorna SQLSTATE 55P03 imediato",
+      "expected": "SQLSTATE 55P03",
+      "actual": "sqlstate=55P03",
+      "status": "PASS"
+    },
+    {
+      "id": "T13",
+      "category": "Audit",
+      "description": "audit_logs registra eventos research.* e bloqueia mutação (42501)",
+      "expected": "mut=42501,count>=7",
+      "actual": "mut=42501,count=11",
+      "status": "PASS"
+    },
+    {
+      "id": "T14",
+      "category": "Notifications",
+      "description": "Notificações research_approved/research_rejected criadas para autor ativo",
+      "expected": "author>=2,susp=0",
+      "actual": "author=6,susp=0",
+      "status": "PASS"
+    },
+    {
+      "id": "T15",
+      "category": "Integrity",
+      "description": "UPDATE direto em status/slug/reviewed_by bloqueado (42501)",
+      "expected": "3x42501",
+      "actual": "42501/42501/42501",
+      "status": "PASS"
+    },
+    {
+      "id": "T16",
+      "category": "Integrity",
+      "description": "Arrays (NULL/duplicado) e JSONB (chave extra/http://) rejeitados",
+      "expected": "23514/23514/22023/22023",
+      "actual": "23514/23514/22023/22023",
+      "status": "PASS"
+    },
+    {
+      "id": "T17",
+      "category": "Reports",
+      "description": "Denúncia válida aceita, duplicata=23505, pesquisa restrita e UUID inexistente=42501 uniformes",
+      "expected": "ok,23505,42501,42501",
+      "actual": "dup=23505,priv=42501,fake=42501",
+      "status": "PASS"
+    },
+    {
+      "id": "T18",
+      "category": "Integrity",
+      "description": "resubmit_research limpa revisão -> pending; categoria forum/inativa rejeitada (22023)",
+      "expected": "pending|t,22023,22023",
+      "actual": "pending|t,22023,22023",
+      "status": "PASS"
+    },
+    {
+      "id": "T19",
+      "category": "Privileges",
+      "description": "anon bloqueado (42501) em RPCs SECURITY DEFINER e is_research_author",
+      "expected": "42501/42501",
+      "actual": "42501/42501",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "results": [
+    {
+      "id": "T01-MUTUAL-DEMOTE",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "A1 ok=true, A2 bloqueado=42501, admins_ativos=1"
+    },
+    {
+      "id": "T02-DEMOTE-LAST-ADMIN",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Bloqueio auto/ultimo admin: ERRO:  42501: admins cannot demote themselves\r"
+    },
+    {
+      "id": "T03-CASCADE-LAST-ADMIN",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Trigger BEFORE DELETE bloqueou CASCADE: a1Exists=1"
+    },
+    {
+      "id": "T04-SUSPEND-LAST-ADMIN",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Bloqueio suspensão último admin: ERRO:  42501: admins cannot suspend themselves\r"
+    },
+    {
+      "id": "T05-DEMOTE-DURING-RPC-C3",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "C3 bloqueado na revalidação pós-lock; memRole=member"
+    },
+    {
+      "id": "T06-SUSPEND-DURING-RPC",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Suspensão concorrente bloqueada na revalidação; memRole=member"
+    },
+    {
+      "id": "T07-T09-CONCURRENT-DELETE-SERIALIZED",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Serializado sem deadlock (7020|Lock|advisory|{340}|SELECT public.admin_set_user_role('91500001-0000-0000-0000-000000000004', 'moderator');); após COMMIT de A, B falhou com 42501; memRole=member"
+    },
+    {
+      "id": "T08-SIMULTANEOUS-ROLE-SERIALIZED",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": null,
+      "details": "Serialização consistente; role final=member"
+    },
+    {
+      "id": "T10-AUDIT-LOGS-V5",
+      "group": "Governanca",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Exclusão A2 ok=true, logs preservados=3, tamper bloqueado=42501"
+    },
+    {
+      "id": "T11-ANON-BASE-PROFILES-DENIED",
+      "group": "Privacidade",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Anon bloqueado na tabela base: ERRO:  42501: permissão negada para tabela profiles\r"
+    },
+    {
+      "id": "T12-T17-T18-ANON-VIEW-PRIVACY",
+      "group": "Privacidade",
+      "status": "PASS",
+      "sqlstate": "42703",
+      "details": "View oculta suspenso (7 ativos) e não expõe role/is_suspended (42703)"
+    },
+    {
+      "id": "T13-T14-MEMBER-OWN-PROFILE",
+      "group": "Privacidade",
+      "status": "PASS",
+      "sqlstate": null,
+      "details": "Member vê apenas próprio perfil (count=1) e atualiza bio"
+    },
+    {
+      "id": "T15-MODERATOR-ACCESS",
+      "group": "Privacidade",
+      "status": "PASS",
+      "sqlstate": null,
+      "details": "Moderador vê suspenso na view e 9 perfis na base"
+    },
+    {
+      "id": "T16-ADMIN-ACCESS",
+      "group": "Privacidade",
+      "status": "PASS",
+      "sqlstate": null,
+      "details": "Admin lê audit_logs (22) e profiles (9)"
+    },
+    {
+      "id": "T19-ANON-RPC-DENIED",
+      "group": "Autorizacao",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Anon bloqueado em RPC admin"
+    },
+    {
+      "id": "T20-MEMBER-RPC-DENIED",
+      "group": "Autorizacao",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Member bloqueado em RPC admin"
+    },
+    {
+      "id": "T21-MOD-RPC-DENIED",
+      "group": "Autorizacao",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Moderator bloqueado em RPC admin"
+    },
+    {
+      "id": "T23-T24-MOD-DEMOTED-DURING-OP",
+      "group": "Autorizacao",
+      "status": "PASS",
+      "sqlstate": "42501",
+      "details": "Moderador rebaixado durante lock bloqueado na revalidação (42501); is_locked=f"
+    }
+  ]
+}

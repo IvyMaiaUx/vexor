@@ -1,0 +1,82 @@
+{
+  "identity": {
+    "addr": "127.0.0.1",
+    "port": 5433,
+    "db": "vexor_audit",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit"
+  },
+  "f_neg_02": {
+    "member_uuid": "91370005-0000-0000-0000-000000000001",
+    "target_uuid": "91370005-0000-0000-0000-000000000002",
+    "session1_authenticated_member": {
+      "context_check": "authenticated|postgres|91370005-0000-0000-0000-000000000001|authenticated|false",
+      "rpc_result": {
+        "stdout": "",
+        "stderr": "ERRO:  42501: forbidden\r\nCONTEXTO:  função PL/pgSQL public.admin_set_user_role(uuid,public.user_role) linha 6 em RAISE\r\nLOCALIZA��O:  exec_stmt_raise, pl_exec.c:3923",
+        "sqlstate": "42501",
+        "hasError": true
+      }
+    },
+    "session2_negative_control_no_jwt": {
+      "context_check": "authenticated|NULL|anon|false",
+      "rpc_result": {
+        "stdout": "",
+        "stderr": "ERRO:  42501: forbidden\r\nCONTEXTO:  função PL/pgSQL public.admin_set_user_role(uuid,public.user_role) linha 6 em RAISE\r\nLOCALIZA��O:  exec_stmt_raise, pl_exec.c:3923",
+        "sqlstate": "42501",
+        "hasError": true
+      }
+    },
+    "session2_negative_control_anon_sql_priv": {
+      "rpc_result": {
+        "stdout": "",
+        "stderr": "ERRO:  42501: permissão negada para função admin_set_user_role\r\nLOCALIZA��O:  aclcheck_error, aclchk.c:2795",
+        "sqlstate": "42501",
+        "hasError": true
+      }
+    }
+  },
+  "section6_view_and_privacy_revalidation": {
+    "view_meta": "public_profiles|postgres|{security_invoker=false}",
+    "profiles_policies": [
+      "profiles|profiles_select_public|PERMISSIVE|{anon,authenticated}|SELECT|true\r",
+      "profiles|profiles_update_own|PERMISSIVE|{authenticated}|UPDATE|((id = ( SELECT auth.uid() AS uid)) AND ( SELECT is_active_member() AS is_active_member))"
+    ],
+    "table_grants": [
+      "anon|SELECT\r",
+      "authenticated|SELECT\r",
+      "anon|SELECT\r",
+      "authenticated|SELECT"
+    ],
+    "column_grants_is_suspended_and_role": [
+      "profiles|anon|is_suspended|SELECT\r",
+      "profiles|anon|role|SELECT\r",
+      "profiles|authenticated|is_suspended|SELECT\r",
+      "profiles|authenticated|role|SELECT"
+    ],
+    "anon_direct_base_profiles_rows": [
+      "admin_alpha|false|admin\r",
+      "admin_bravo|false|member\r",
+      "c3_admin_a|false|admin\r",
+      "c3_admin_b|false|member\r",
+      "c3_target_1|false|moderator\r",
+      "fneg_member|false|member\r",
+      "fneg_target|false|member\r",
+      "member_user|false|member\r",
+      "mod_user|false|moderator\r",
+      "suspended_user|true|member"
+    ],
+    "anon_public_profiles_view_rows": [
+      "admin_alpha|admin\r",
+      "admin_bravo|member\r",
+      "c3_admin_a|admin\r",
+      "c3_admin_b|member\r",
+      "c3_target_1|moderator\r",
+      "fneg_member|member\r",
+      "fneg_target|member\r",
+      "member_user|member\r",
+      "mod_user|moderator"
+    ],
+    "anon_is_moderator": "false",
+    "moderator_is_moderator": "true"
+  }
+}

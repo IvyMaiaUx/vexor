@@ -1,0 +1,32 @@
+{
+  "stage": "9.1.5.4",
+  "verified_at": "2026-11-13T13:34:54-03:00",
+  "local_postgres": {
+    "host": "127.0.0.1",
+    "port": 5433,
+    "cluster_dir": ".pg_test_cluster",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit",
+    "server_status_final": "stopped",
+    "postmaster_pid_exists": false,
+    "databases_present_final": [
+      "vexor_audit"
+    ],
+    "temp_dbs_remaining": []
+  },
+  "migrations_and_seed_sha256": {
+    "supabase/migrations/20261110000001_schema.sql": "24763C8E77E5643EFA3214093071760539D65C3A8834E5837CBC70698C7BEE75",
+    "supabase/migrations/20261110000002_functions_triggers.sql": "89D8F4C6A456ABD523EC660C932AE24F63B10AF3D46C199A2B39D898E5A00D77",
+    "supabase/migrations/20261110000003_rls_and_grants.sql": "10E8487AB58DA75BAC0A7AEE21DA968EA69FB93F284BB879A7DE96347467F030",
+    "supabase/seed.sql": "E2B814A6E64FD18DEF920792959CE8ABF8463B0A500CDE4FD9F60D875092F3B9",
+    "matches_etapa_9_1_5_3_baseline": true
+  },
+  "migrations_directory_file_count": 3,
+  "remote_supabase_accessed": false,
+  "definitive_migrations_created": false,
+  "principal_db_modified_in_stage": false,
+  "frontend_modified_in_stage": false,
+  "evidence_limits": {
+    "git_repository_present": false,
+    "frontend_hash_baseline": "Não havia baseline SHA-256 prévio de src/ para comparação automática; nenhum arquivo em src/ foi editado nesta etapa."
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "identity": {
+    "addr": "127.0.0.1",
+    "port": 5433,
+    "db": "vexor_audit_9153",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit"
+  },
+  "security_barrier": {
+    "view_meta": "public_profiles|postgres|{security_invoker=false,security_barrier=true}",
+    "anon_view_count": 4,
+    "anon_base_sqlstate": "42501"
+  },
+  "set_accepted_post": {
+    "scenario_A_demoted_mod": {
+      "blocked": "19164|Lock|transactionid|{17300}",
+      "sqlstate": "42501",
+      "accepted_post_id": "NULL"
+    },
+    "scenario_C_deleted_mod": {
+      "sqlstate": "55P03",
+      "hasError": true
+    },
+    "scenario_D_concurrent_set": {
+      "blocked": "19164|Lock|transactionid|{17300}",
+      "hasError": false,
+      "final_accepted_post_id": "91530001-0000-0000-0000-000000000031"
+    }
+  },
+  "resubmit_resource": {
+    "concurrent_suspension": {
+      "blocked": "19164|Lock|transactionid|{17300}",
+      "sqlstate": "42501",
+      "status": "rejected"
+    },
+    "active_owner_resubmit": {
+      "hasError": false,
+      "status": "pending"
+    }
+  },
+  "t02_t04": {
+    "T02_R1": {
+      "blocked": "19164|Lock|advisory|{17300}",
+      "sqlstate_B": "42501",
+      "admins_remaining": 1
+    },
+    "T02_R2_reaches_v_other_admin_0": {
+      "auth_users_delete_sqlstate": "42501",
+      "auth_users_delete_msg": "ERRO:  42501: cannot delete the last active admin\r",
+      "profiles_delete_sqlstate": "42501",
+      "admin_preserved": true
+    },
+    "T04_R1": {
+      "blocked": "19164|Lock|advisory|{17300}",
+      "sqlstate_B": "42501",
+      "admins_remaining": 1
+    },
+    "T04_R2_self_guard": {
+      "sqlstate": "42501",
+      "message": "ERRO:  42501: admins cannot suspend themselves\r"
+    }
+  },
+  "rollback_validation": {
+    "exit_code": 0,
+    "stderr": "psql:c:/Users/Ivy Maia/Desktop/cybersec-community-platform/scripts/security-audit/etapa-9.1.5.2/PROPOSED-ROLLBACK-COMPLETE.sql:245: NOTA:  a política \"profiles_select_public\" para a relação \"public.profiles\" não existe, ignorada",
+    "trigger_remaining": 0,
+    "view_remaining": 0,
+    "fk_restored": "audit_logs_actor_id_fkey|validated=false",
+    "rpcs_still_with_advisory_lock": 0
+  }
+}

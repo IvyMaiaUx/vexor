@@ -1,0 +1,12 @@
+# VEXOR — ETAPA 9.1.8: COMPATIBILIDADE DAS MIGRATIONS (FASE C)
+
+Análise estática de compatibilidade das 4 migrations locais para PostgreSQL 17 (`17.11.0.019`) no Supabase remoto.
+
+| Migration | Objetos Criados / Alterados | Pré-requisitos e Dependências | Conflitos Potenciais e Reexecução | Impacto em Auth, Storage e RLS |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. `20261110000001_schema.sql`** | Extensões (`pgcrypto`, `citext`, `unaccent`), 6 ENUMs, 12 tabelas (`profiles` .. `audit_logs`), índices e FKs. | Schemas `extensions` e `auth.users` disponíveis. | Não é idempotente (`CREATE TYPE`, `CREATE TABLE` sem `IF NOT EXISTS`). Falha parcial em execução sem transação exigiria limpeza manual. | `profiles.id` referencia `auth.users(id) ON DELETE CASCADE`. |
+| **2. `20261110000002_functions_triggers.sql`** | Helpers (`current_user_role`, `is_active_member`, `is_moderator`, `is_admin`, `write_audit_log`), triggers (`handle_new_user` em `auth.users`, `audit_logs_no_update_delete`, etc.) e 8 RPCs. | Tabelas e ENUMs da Migration 1; `auth.uid()`, `auth.users`, `extensions.unaccent`. | `CREATE FUNCTION` / `CREATE TRIGGER` sem `OR REPLACE`/`IF NOT EXISTS`; não reexecutável diretamente se já existir. | Cria trigger `on_auth_user_created` em `auth.users`. |
+| **3. `20261110000003_rls_and_grants.sql`** | `ENABLE ROW LEVEL SECURITY` nas 12 tabelas, policies RLS, `REVOKE`/`GRANT` em tabelas/colunas/funções, bucket `avatars` (`storage.buckets`) e policies em `storage.objects`. | Migrations 1 e 2; schema `storage` ativo. | Bucket `avatars` usa `ON CONFLICT (id) DO NOTHING`; `CREATE POLICY` falha se já existir. | Configura RLS global e políticas de upload/leitura de `avatars`. |
+| **4. `20261113143000_security_hardening.sql`** | Reestrutura 8 RPCs com locks + revalidação pós-lock, cria `protect_last_admin_delete` + trigger, substitui policy de `profiles`, cria `public.public_profiles` (`security_barrier = true`), remove `audit_logs_actor_id_fkey` (Alternativa C). | Migrations 1, 2 e 3 aplicadas integralmente (verificado por bloco `DO $$` inicial). | Envolvida em `BEGIN; ... COMMIT;` e idempotente (testada com 2 aplicações consecutivas em `vexor_audit_916`). | Atualiza `profiles` (revoga `anon`, cria view segura) e protege último admin contra `ON DELETE CASCADE` de `auth.users`. |
+
+> **Nota sobre o estado remoto:** como o catálogo interno do banco remoto está `NÃO VERIFICADO`, a compatibilidade prática assume que as Migrations 1 a 3 ainda não foram aplicadas ou correspondem exatamente ao schema esperado.

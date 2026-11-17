@@ -1,0 +1,239 @@
+=== 1. AMBIENTE E VERSAO ===
+EXIT=0
+STDOUT:
+version                                 | current_database | inet_server_addr | inet_server_port 
+-------------------------------------------------------------------------+------------------+------------------+------------------
+ PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit | vexor_audit      | 127.0.0.1        |             5433
+(1 linha)
+STDERR:
+
+
+=== 2. FUNCOES E CONFIGURACOES (prosecdef, proowner, proconfig) ===
+EXIT=0
+STDOUT:
+proname          |  owner   | is_security_definer | provolatile |      proconfig       
+---------------------------+----------+---------------------+-------------+----------------------
+ admin_set_user_role       | postgres | t                   | v           | {"search_path=\"\""}
+ admin_set_user_suspension | postgres | t                   | v           | {"search_path=\"\""}
+ audit_logs_block_mutation | postgres | f                   | v           | {"search_path=\"\""}
+ current_user_role         | postgres | t                   | s           | {"search_path=\"\""}
+ is_active_member          | postgres | t                   | s           | {"search_path=\"\""}
+ is_admin                  | postgres | t                   | s           | {"search_path=\"\""}
+ is_moderator              | postgres | t                   | s           | {"search_path=\"\""}
+ write_audit_log           | postgres | t                   | v           | {"search_path=\"\""}
+(8 linhas)
+STDERR:
+
+
+=== 3. DEFINICAO EXATA DE admin_set_user_role E admin_set_user_suspension ===
+EXIT=0
+STDOUT:
+pg_get_functiondef                                    
+-----------------------------------------------------------------------------------------
+ CREATE OR REPLACE FUNCTION public.admin_set_user_role(p_user_id uuid, p_role user_role)+
+  RETURNS void                                                                          +
+  LANGUAGE plpgsql                                                                      +
+  SECURITY DEFINER                                                                      +
+  SET search_path TO ''                                                                 +
+ AS $function$                                                                          +
+ declare                                                                                +
+   v_old public.user_role;                                                              +
+ begin                                                                                  +
+   if not public.is_admin() then                                                        +
+     raise exception 'forbidden' using errcode = '42501';                               +
+   end if;                                                                              +
+   if p_user_id = auth.uid() and p_role <> 'admin' then                                 +
+     raise exception 'admins cannot demote themselves' using errcode = '42501';         +
+   end if;                                                                              +
+                                                                                        +
+   select role into v_old from public.profiles where id = p_user_id for update;         +
+   if not found then                                                                    +
+     raise exception 'user not found' using errcode = 'P0002';                          +
+   end if;                                                                              +
+                                                                                        +
+   update public.profiles set role = p_role where id = p_user_id;                       +
+   perform public.write_audit_log('user.role_changed', 'profile', p_user_id,            +
+                                  jsonb_build_object('from', v_old, 'to', p_role));     +
+ end;                                                                                   +
+ $function$                                                                             +
+ 
+(1 linha)
+
+                                                         pg_get_functiondef                                                         
+------------------------------------------------------------------------------------------------------------------------------------
+ CREATE OR REPLACE FUNCTION public.admin_set_user_suspension(p_user_id uuid, p_suspended boolean, p_reason text DEFAULT NULL::text)+
+  RETURNS void                                                                                                                     +
+  LANGUAGE plpgsql                                                                                                                 +
+  SECURITY DEFINER                                                                                                                 +
+  SET search_path TO ''                                                                                                            +
+ AS $function$                                                                                                                     +
+ begin                                                                                                                             +
+   if not public.is_admin() then                                                                                                   +
+     raise exception 'forbidden' using errcode = '42501';                                                                          +
+   end if;                                                                                                                         +
+   if p_user_id = auth.uid() then                                                                                                  +
+     raise exception 'admins cannot suspend themselves' using errcode = '42501';                                                   +
+   end if;                                                                                                                         +
+   if p_suspended and (p_reason is null or btrim(p_reason) = '') then                                                              +
+     raise exception 'a reason is required to suspend a user' using errcode = '22023';                                             +
+   end if;                                                                                                                         +
+                                                                                                                                   +
+   update public.profiles set is_suspended = p_suspended where id = p_user_id;                                                     +
+   if not found then                                                                                                               +
+     raise exception 'user not found' using errcode = 'P0002';                                                                     +
+   end if;                                                                                                                         +
+                                                                                                                                   +
+   perform public.write_audit_log(                                                                                                 +
+     case when p_suspended then 'user.suspended' else 'user.unsuspended' end,                                                      +
+     'profile', p_user_id, jsonb_build_object('reason', p_reason));                                                                +
+ end;                                                                                                                              +
+ $function$                                                                                                                        +
+ 
+(1 linha)
+STDERR:
+
+
+=== 4. TRIGGERS EM profiles, auth.users E audit_logs ===
+EXIT=0
+STDOUT:
+schema_name | table_name |        trigger_name         |                                                                    trigger_def                                                                    
+-------------+------------+-----------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------
+ auth        | users      | on_auth_user_created        | CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()
+ public      | audit_logs | audit_logs_no_truncate      | CREATE TRIGGER audit_logs_no_truncate BEFORE TRUNCATE ON public.audit_logs FOR EACH STATEMENT EXECUTE FUNCTION audit_logs_block_mutation()
+ public      | audit_logs | audit_logs_no_update_delete | CREATE TRIGGER audit_logs_no_update_delete BEFORE DELETE OR UPDATE ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION audit_logs_block_mutation()
+ public      | profiles   | profiles_set_updated_at     | CREATE TRIGGER profiles_set_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()
+(4 linhas)
+STDERR:
+
+
+=== 5. VIEW public.public_profiles (reloptions, owner, def) ===
+EXIT=0
+STDOUT:
+nspname |     relname     |  owner   |        reloptions        |                               view_def                                
+---------+-----------------+----------+--------------------------+-----------------------------------------------------------------------
+ public  | public_profiles | postgres | {security_invoker=false} |  SELECT id,                                                          +
+         |                 |          |                          |     username,                                                        +
+         |                 |          |                          |     display_name,                                                    +
+         |                 |          |                          |     avatar_url,                                                      +
+         |                 |          |                          |     bio,                                                             +
+         |                 |          |                          |     interests,                                                       +
+         |                 |          |                          |     github_url,                                                      +
+         |                 |          |                          |     linkedin_url,                                                    +
+         |                 |          |                          |     preferred_locale,                                                +
+         |                 |          |                          |     created_at,                                                      +
+         |                 |          |                          |     role                                                             +
+         |                 |          |                          |    FROM profiles p                                                   +
+         |                 |          |                          |   WHERE NOT is_suspended OR ( SELECT is_moderator() AS is_moderator);
+(1 linha)
+STDERR:
+
+
+=== 6. POLICIES RLS EM profiles E audit_logs ===
+EXIT=0
+STDOUT:
+tablename  |       policyname        | permissive |        roles         |  cmd   |                                           qual                                            |                                        with_check                                         
+------------+-------------------------+------------+----------------------+--------+-------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------------
+ audit_logs | audit_logs_select_admin | PERMISSIVE | {authenticated}      | SELECT | ( SELECT is_admin() AS is_admin)                                                          | 
+ profiles   | profiles_select_public  | PERMISSIVE | {anon,authenticated} | SELECT | true                                                                                      | 
+ profiles   | profiles_update_own     | PERMISSIVE | {authenticated}      | UPDATE | ((id = ( SELECT auth.uid() AS uid)) AND ( SELECT is_active_member() AS is_active_member)) | ((id = ( SELECT auth.uid() AS uid)) AND ( SELECT is_active_member() AS is_active_member))
+(3 linhas)
+STDERR:
+
+
+=== 7. GRANTS EM profiles, public_profiles E audit_logs ===
+EXIT=0
+STDOUT:
+grantee    |   table_name    | privilege_type 
+---------------+-----------------+----------------
+ authenticated | audit_logs      | SELECT
+ postgres      | audit_logs      | DELETE
+ postgres      | audit_logs      | INSERT
+ postgres      | audit_logs      | REFERENCES
+ postgres      | audit_logs      | SELECT
+ postgres      | audit_logs      | TRIGGER
+ postgres      | audit_logs      | TRUNCATE
+ postgres      | audit_logs      | UPDATE
+ anon          | profiles        | SELECT
+ authenticated | profiles        | SELECT
+ postgres      | profiles        | DELETE
+ postgres      | profiles        | INSERT
+ postgres      | profiles        | REFERENCES
+ postgres      | profiles        | SELECT
+ postgres      | profiles        | TRIGGER
+ postgres      | profiles        | TRUNCATE
+ postgres      | profiles        | UPDATE
+ anon          | public_profiles | SELECT
+ authenticated | public_profiles | SELECT
+ postgres      | public_profiles | DELETE
+ postgres      | public_profiles | INSERT
+ postgres      | public_profiles | REFERENCES
+ postgres      | public_profiles | SELECT
+ postgres      | public_profiles | TRIGGER
+ postgres      | public_profiles | TRUNCATE
+ postgres      | public_profiles | UPDATE
+(26 linhas)
+STDERR:
+
+
+=== 8. GRANTS EM FUNCOES (ROUTINE PRIVILEGES) ===
+EXIT=0
+STDOUT:
+routine_name        |    grantee    | privilege_type 
+---------------------------+---------------+----------------
+ admin_set_user_role       | authenticated | EXECUTE
+ admin_set_user_suspension | authenticated | EXECUTE
+ is_admin                  | PUBLIC        | EXECUTE
+ is_admin                  | anon          | EXECUTE
+ is_admin                  | authenticated | EXECUTE
+ is_moderator              | PUBLIC        | EXECUTE
+ is_moderator              | anon          | EXECUTE
+ is_moderator              | authenticated | EXECUTE
+(8 linhas)
+STDERR:
+
+
+=== 9. TESTE REAL DE ACESSO A public_profiles POR ANON, MEMBER, MODERATOR, ADMIN ===
+EXIT=0
+STDOUT:
+BEGIN
+SET
+         ctx          | count |                    users                     
+----------------------+-------+----------------------------------------------
+ anon_public_profiles |     4 | admin_alpha,admin_bravo,member_user,mod_user
+(1 linha)
+
+        ctx         | count |                                          users                                           
+--------------------+-------+------------------------------------------------------------------------------------------
+ anon_base_profiles |     5 | admin_alpha:false,admin_bravo:false,member_user:false,mod_user:false,suspended_user:true
+(1 linha)
+
+ROLLBACK
+BEGIN
+SET
+SET
+          ctx           | count |                    users                     
+------------------------+-------+----------------------------------------------
+ member_public_profiles |     4 | admin_alpha,admin_bravo,member_user,mod_user
+(1 linha)
+
+ROLLBACK
+BEGIN
+SET
+SET
+         ctx         | count |                            users                            
+---------------------+-------+-------------------------------------------------------------
+ mod_public_profiles |     5 | admin_alpha,admin_bravo,member_user,mod_user,suspended_user
+(1 linha)
+
+ROLLBACK
+BEGIN
+SET
+SET
+          ctx          | count |                            users                            
+-----------------------+-------+-------------------------------------------------------------
+ admin_public_profiles |     5 | admin_alpha,admin_bravo,member_user,mod_user,suspended_user
+(1 linha)
+
+ROLLBACK
+STDERR:
+

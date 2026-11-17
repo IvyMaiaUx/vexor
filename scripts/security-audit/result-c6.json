@@ -1,0 +1,49 @@
+{
+  "identity": {
+    "addr": "127.0.0.1",
+    "port": 5433,
+    "db": "vexor_audit",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit"
+  },
+  "pidA": 18368,
+  "pidB": 4488,
+  "timestamps": {
+    "acquire_X_by_A": "2026-11-13T00:28:39.742Z",
+    "acquire_Y_by_B": "2026-11-13T00:28:39.758Z",
+    "wait_Y_by_A": "2026-11-13T00:28:39.779Z",
+    "request_X_by_B": "2026-11-13T00:28:39.793Z",
+    "deadlock_detected": "2026-11-13T00:28:40.799Z",
+    "detection_elapsed_ms": 1006
+  },
+  "held_locks_before_cycle": [
+    "4488|relation|_audit_deadlock_test_pkey|RowExclusiveLock|true\r",
+    "4488|relation|_audit_deadlock_test|RowExclusiveLock|true\r",
+    "4488|transactionid||ExclusiveLock|true\r",
+    "18368|relation|_audit_deadlock_test_pkey|RowExclusiveLock|true\r",
+    "18368|relation|_audit_deadlock_test|RowExclusiveLock|true\r",
+    "18368|transactionid||ExclusiveLock|true"
+  ],
+  "waiting_query_A": "18368|Lock|transactionid|{4488}|UPDATE public._audit_deadlock_test SET val = 'A_wants_Y' WHERE id = 2;",
+  "ungranted_locks_during_wait": [
+    "18368|transactionid||ShareLock|false"
+  ],
+  "victim_session": "B",
+  "sessionA_result": {
+    "stdout": "",
+    "stderr": "",
+    "sqlstate": null,
+    "hasError": false
+  },
+  "sessionB_result": {
+    "stdout": "",
+    "stderr": "ERRO:  40P01: impasse detectado\r\nDETALHE:  Processo 4488 espera por ShareLock em transação 2146; bloqueado pelo processo 18368.\r\nProcesso 18368 espera por ShareLock em transação 2147; bloqueado pelo processo 4488.\r\nDICA:  Veja log do servidor para obter detalhes das consultas.\r\nCONTEXTO:  enquanto atualizava tupla (0,1) na relação \"_audit_deadlock_test\"\r\nLOCALIZA��O:  DeadLockReport, deadlock.c:1138",
+    "sqlstate": "40P01",
+    "hasError": true
+  },
+  "final_state_A": "COMMITTED (survivor)",
+  "final_state_B": "ROLLED_BACK (victim)",
+  "final_table_rows": [
+    "1|A_locked_X\r",
+    "2|A_wants_Y"
+  ]
+}

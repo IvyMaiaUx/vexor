@@ -1,0 +1,45 @@
+{
+  "stage": "9.1.10",
+  "date": "2026-11-13",
+  "classification": "APROVADA COM RESSALVAS",
+  "environment": {
+    "project_ref": "zcjudcbckcxwnfnrjfte",
+    "project_name": "Vexor",
+    "region": "us-east-1",
+    "postgres_version": "17.11",
+    "supabase_cli_version": "3.1.0",
+    "migrations_synced": 4,
+    "unexpected_migrations": 0,
+    "status": "VERIFIED_REMOTE"
+  },
+  "checks": {
+    "tables_12_verified": "VERIFIED_REMOTE",
+    "enums_9_verified": "VERIFIED_REMOTE",
+    "rls_enabled_all_tables": "VERIFIED_REMOTE",
+    "policies_verified": "VERIFIED_REMOTE",
+    "grants_and_column_acls_verified": "VERIFIED_REMOTE",
+    "public_profiles_view_secure": "VERIFIED_REMOTE",
+    "functions_and_rpcs_protected": "VERIFIED_REMOTE",
+    "triggers_enabled_state_O": "VERIFIED_REMOTE",
+    "audit_logs_alternative_c_no_fk": "VERIFIED_REMOTE",
+    "storage_avatars_bucket_restrictions": "VERIFIED_REMOTE",
+    "auth_fk_and_trigger_verified": "VERIFIED_REMOTE",
+    "write_behavior_tests_on_remote": "NOT_VERIFIED_WITHOUT_WRITE_TEST"
+  },
+  "counts": {
+    "public_tables": 12,
+    "public_enums": 9,
+    "domain_rpcs_and_helpers": 15,
+    "domain_triggers_enabled": 14,
+    "auth_users_count": 0,
+    "profiles_count": 0,
+    "audit_logs_count": 0
+  },
+  "advisors_summary": {
+    "error": 1,
+    "warn_security": 19,
+    "warn_performance": 5,
+    "info_performance": 31,
+    "critical_vulnerabilities_found": 0
+  }
+}

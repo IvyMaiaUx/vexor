@@ -1,0 +1,35 @@
+{
+  "identity": {
+    "addr": "127.0.0.1",
+    "port": 5433,
+    "db": "vexor_audit",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit"
+  },
+  "part1_sequential_after_demotion": {
+    "demoteA_error": false,
+    "callB_result": {
+      "stdout": "",
+      "stderr": "ERRO:  42501: forbidden\r\nCONTEXTO:  função PL/pgSQL public.admin_set_user_role(uuid,public.user_role) linha 6 em RAISE\r\nLOCALIZA��O:  exec_stmt_raise, pl_exec.c:3923",
+      "sqlstate": "42501",
+      "hasError": true
+    }
+  },
+  "part2_concurrent_prelock_no_revalidation": {
+    "pidA_lock_holder": 9036,
+    "pidB_caller": 16336,
+    "pidC_revoker": 4444,
+    "blockedLine_B_waiting_on_A": "16336|Lock|transactionid|{9036}|SELECT public.admin_set_user_role('91370003-0000-0000-0000-000000000003', 'moderator');",
+    "demoteC_while_B_waiting_hasError": false,
+    "commitC": "COMMIT",
+    "adminBRoleBeforeBUnblocks": "member",
+    "rpcResB_after_unblock": {
+      "stdout": "",
+      "stderr": "",
+      "sqlstate": null,
+      "hasError": false
+    },
+    "commitB": "COMMIT",
+    "adminBRoleAfter": "member",
+    "targetRoleAfter": "moderator"
+  }
+}

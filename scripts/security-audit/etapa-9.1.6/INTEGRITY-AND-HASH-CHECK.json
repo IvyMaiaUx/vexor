@@ -1,0 +1,23 @@
+{
+  "stage": "9.1.6",
+  "verified_at": "2026-11-13T14:19:23-03:00",
+  "sha256": {
+    "supabase/migrations/20261110000001_schema.sql": "24763C8E77E5643EFA3214093071760539D65C3A8834E5837CBC70698C7BEE75",
+    "supabase/migrations/20261110000002_functions_triggers.sql": "89D8F4C6A456ABD523EC660C932AE24F63B10AF3D46C199A2B39D898E5A00D77",
+    "supabase/migrations/20261110000003_rls_and_grants.sql": "10E8487AB58DA75BAC0A7AEE21DA968EA69FB93F284BB879A7DE96347467F030",
+    "supabase/seed.sql": "E2B814A6E64FD18DEF920792959CE8ABF8463B0A500CDE4FD9F60D875092F3B9",
+    "scripts/security-audit/etapa-9.1.6/PROPOSED-SECURITY-MIGRATION.sql": "A8ABA292389CB485F79DD6563D1F57E49FAE7542F2267E5B880AAC90337EB336",
+    "scripts/security-audit/etapa-9.1.6/PROPOSED-SECURITY-ROLLBACK.sql": "5B7327A4AB982997EBAD779F6ED3F5D6BF48405B98388513E39EA685B2428405"
+  },
+  "migrations_and_seed_unchanged": true,
+  "principal_db_vexor_audit_modified": false,
+  "temp_db_vexor_audit_916_status": "dropped_in_finally",
+  "local_postgres_cluster_status": "stopped",
+  "remote_supabase_accessed": false,
+  "frontend_modified": false,
+  "regression_checks": {
+    "tsc_noEmit": { "exit_code": 0 },
+    "npm_run_lint": { "exit_code": 0, "errors": 0, "warnings": 2, "note": "2 warnings pré-existentes em scripts/security-audit/run-all-tests.mjs" },
+    "next_build_webpack": { "exit_code": 0, "static_pages": "28/28" }
+  }
+}

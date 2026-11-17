@@ -1,0 +1,17 @@
+# REGRESSION RESULTS — ETAPA 9.1.18.4.2
+
+Data: 2026-11-14
+
+---
+
+| Comando | Exit Code | Resultado Observado |
+| --- | --- | --- |
+| `node scripts/test-register-etapa9-1-13.mjs` | `0` | Tests 1–12b passaram (incluindo `@/lib/supabase/client` hook, `makeTrapAuthClient` em todos os cenários, scanner `stripComments()` e testes negativos). |
+| `node scripts/test-login-etapa9-1-14.mjs` | `0` | Tests 1–11b + Test 12 (`test-session-endpoint-etapa9-1-18-4.mjs`) passaram (`ALL ETAPA 9.1.14 TESTS PASSED`). |
+| `node scripts/test-session-endpoint-etapa9-1-18-4.mjs` | `0` | Scenarios 1–7 passaram (incluindo subcasos `4a`/`4b`/`4c` de `connection_error` e testes negativos de contrato). |
+| `node scripts/test-session-auth-etapa9-1-15.mjs` | `0` | Tests 1–16 e Runtime Tests A–C passaram (`ALL ETAPA 9.1.15 TESTS PASSED`). |
+| `node scripts/test-password-recovery-etapa9-1-16.mjs` | `0` | Recovery Request, Callback, Recovery AuthZ, Regressão e SSR passaram (`ALL ETAPA 9.1.16.2 TESTS PASSED`). |
+| `node scripts/test-recovery-ui-etapa9-1-16-2.mjs` | `0` | `ForgotPasswordPage` e `AuthResetPasswordPage` SSR render/gate checks passaram. |
+| `node scripts/test-profile-integration-etapa9-1-17.mjs` | `0` | Profile read/update/security, `PROF-AUD-01` e `PROF-AUD-02` passaram (`ALL ETAPA 9.1.17 PROFILE TESTS PASSED`). |
+| `npx tsc --noEmit` | `0` | Sem erros de TypeScript. |
+| `npx eslint .` | `0` | `0 errors, 2 warnings` (apenas 2 warnings pré-existentes de `e` não utilizado em `scripts/security-audit/run-all-tests.mjs`). |

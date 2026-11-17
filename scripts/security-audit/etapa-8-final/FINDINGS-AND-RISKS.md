@@ -1,0 +1,9 @@
+# Achados e Riscos — Etapa 8
+
+| ID | Severidade | Arquivo / Componente | Evidência | Impacto | Recomendação | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **AUD8-01** | **Média** | `src/app/admin/reports/page.tsx` | Importava `adminService` legado, exibia `@${report.reporterUsername}` (linha 244) e não usava `<AdminGuard>`. | Exposição da identidade do denunciante na UI e divergência do `adminDataProvider`. | Migrar para `adminDataProvider.reports`, envolver com `<AdminGuard>` e exibir identidade protegida. | **Corrigido** |
+| **AUD8-02** | **Baixa** | `src/features/admin/components/admin-sidebar.tsx` | Importava `adminService.getStats()` legado (linha 33). | Contadores da barra lateral podiam divergir do estado do `adminDataProvider`. | Migrar para `adminDataProvider.dashboard.getDashboardStats()`. | **Corrigido** |
+| **AUD8-03** | **Informativa** | `src/features/admin/services/admin-service.ts` e `admin-moderation-queue.tsx` | Código legado com `localStorage` ainda presente no repositório, porém sem uso nas rotas principais `/admin`, `/admin/users`, `/admin/audit`, `/admin/moderation` e `/admin/reports`. | Risco potencial de uso acidental em futuras manutenções. | Descontinuar/remover após conclusão da integração real com Supabase. | **Risco Potencial (Monitorado)** |
+| **AUD8-04** | **Informativa** | `scripts/security-audit/run-all-tests.mjs` | 2 warnings ESLint (`@typescript-eslint/no-unused-vars` nas linhas 156 e 193). | Sem impacto funcional ou de segurança. | Limpar variáveis não utilizadas em manutenção futura. | **Aberto (Baixa Prioridade)** |
+| **AUD8-05** | **Informativa** | Rotas protegidas `/admin/*` | Inspeção visual em navegador real não executada por restrição de uso da conta admin real. | Layout visual em viewports reais validado apenas via SSR e revisão estrutural. | Executar E2E visual autenticado em etapa dedicada com conta controlada. | **Pendência Declarada** |

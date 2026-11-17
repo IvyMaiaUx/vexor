@@ -1,0 +1,102 @@
+{
+  "identity": {
+    "addr": "127.0.0.1",
+    "port": 5433,
+    "db": "vexor_audit_9161",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit"
+  },
+  "audit_logs_schema_and_privileges": {
+    "columns": [
+      "id:bigint:nullable=NO",
+      "actor_id:uuid:nullable=YES",
+      "action:text:nullable=NO",
+      "entity_type:text:nullable=NO",
+      "entity_id:uuid:nullable=YES",
+      "metadata:jsonb:nullable=NO",
+      "created_at:timestamp with time zone:nullable=NO"
+    ],
+    "has_table_privilege": [
+      "anon:DELETE=false",
+      "anon:INSERT=false",
+      "anon:SELECT=false",
+      "anon:UPDATE=false",
+      "authenticated:DELETE=false",
+      "authenticated:INSERT=false",
+      "authenticated:SELECT=true",
+      "authenticated:UPDATE=false"
+    ],
+    "information_schema_table_privileges": [
+      "authenticated:SELECT"
+    ],
+    "rls_policies": [
+      "audit_logs_select_admin|SELECT|{authenticated}"
+    ],
+    "write_audit_log_execute_privileges": [
+      "anon:EXECUTE=false",
+      "authenticated:EXECUTE=false",
+      "public:EXECUTE=false"
+    ]
+  },
+  "audit_logs_valid_insert_tests": {
+    "count_before": 0,
+    "authenticated_valid_insert": {
+      "sqlstate": "42501",
+      "message": "ERRO:  42501: permissão negada para tabela audit_logs\r"
+    },
+    "anon_valid_insert": {
+      "sqlstate": "42501",
+      "message": "ERRO:  42501: permissão negada para tabela audit_logs\r"
+    },
+    "count_after": 0,
+    "rows_inserted": 0
+  },
+  "audit_logs_actor_and_immutability": {
+    "actor_delete_has_error": false,
+    "orphan_rows_preserved": 1,
+    "left_join_result": "topic.pin|DELETED_USER",
+    "update_blocked_sqlstate": "42501",
+    "delete_blocked_sqlstate": "42501"
+  },
+  "concurrency_validation": {
+    "set_accepted_post_demoted_mod": {
+      "blocked": "6056|Lock|transactionid|{11516}",
+      "sqlstate": "42501"
+    }
+  },
+  "rollback_and_not_valid_fk": {
+    "rollback_exit_code": 0,
+    "semantic_equivalence_all_8_rpcs": {
+      "admin_set_user_role": true,
+      "admin_set_user_suspension": false,
+      "moderate_resource": false,
+      "moderate_topic": true,
+      "moderate_post": true,
+      "resolve_report": true,
+      "resubmit_resource": true,
+      "set_accepted_post": false
+    },
+    "semantic_diff_details": {
+      "admin_set_user_suspension": {
+        "baseline_len": 1002,
+        "rollback_len": 1006,
+        "body_eq": false
+      },
+      "moderate_resource": {
+        "baseline_len": 1898,
+        "rollback_len": 1888,
+        "body_eq": false
+      },
+      "set_accepted_post": {
+        "baseline_len": 2058,
+        "rollback_len": 2042,
+        "body_eq": false
+      }
+    },
+    "fk_state": "audit_logs_actor_id_fkey|convalidated=false",
+    "orphan_rows_preserved_after_rollback": 1,
+    "new_insert_invalid_actor_sqlstate": "23503",
+    "new_insert_invalid_actor_msg": "ERRO:  23503: inserção ou atualização em tabela \"audit_logs\" viola restrição de chave estrangeira \"audit_logs_actor_id_fkey\"\r",
+    "update_invalid_actor_sqlstate": "42501",
+    "update_invalid_actor_msg": "ERRO:  42501: audit_logs is append-only\r"
+  }
+}

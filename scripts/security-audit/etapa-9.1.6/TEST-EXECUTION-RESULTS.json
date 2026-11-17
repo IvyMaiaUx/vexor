@@ -1,0 +1,82 @@
+{
+  "identity": {
+    "addr": "127.0.0.1",
+    "port": 5433,
+    "db": "vexor_audit_916",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit"
+  },
+  "migration_idempotency": {
+    "first_apply_exit": 0,
+    "second_apply_exit": 0
+  },
+  "authorization_8_1": {
+    "anon_admin_rpc_sqlstate": "42501",
+    "member_admin_rpc_sqlstate": "42501",
+    "member_mod_rpc_sqlstate": "42501",
+    "suspended_member_resubmit_sqlstate": "42501",
+    "authorized_mod_pin_error": false,
+    "authorized_admin_suspend_error": false,
+    "suspended_mod_pin_sqlstate": "42501",
+    "suspended_admin_role_sqlstate": "42501"
+  },
+  "privacy_8_2": {
+    "anon_direct_profiles_sqlstate": "42501",
+    "anon_public_profiles_count": 5,
+    "public_profiles_columns": [
+      "id",
+      "username",
+      "display_name",
+      "avatar_url",
+      "bio",
+      "interests",
+      "github_url",
+      "linkedin_url",
+      "preferred_locale",
+      "created_at"
+    ],
+    "exposes_role_or_suspended": false,
+    "member_visible_profiles_count": 1,
+    "moderator_visible_profiles_count": 6
+  },
+  "last_admin_8_3": {
+    "self_demote_sqlstate": "42501",
+    "self_suspend_sqlstate": "42501",
+    "concurrent_mutual_demotion_blocked": "16100|Lock|advisory|{304}",
+    "concurrent_mutual_demotion_B_sqlstate": "42501",
+    "delete_last_profile_sqlstate": "42501",
+    "delete_last_auth_user_cascade_sqlstate": "42501",
+    "active_admin_preserved": true
+  },
+  "concurrency_8_4": {
+    "mod_demoted_during_moderate_topic": {
+      "blocked": "16100|Lock|transactionid|{304}",
+      "sqlstate_B": "42501"
+    },
+    "caller_suspended_during_set_accepted_post": {
+      "blocked": "16100|Lock|transactionid|{304}",
+      "sqlstate_B": "42501"
+    },
+    "caller_deleted_during_set_accepted_post": {
+      "sqlstate": "55P03"
+    },
+    "two_mods_set_accepted_post": {
+      "blocked": "16100|Lock|transactionid|{304}",
+      "hasError_B": false,
+      "final_accepted_post_id": "91600001-0000-0000-0000-000000000031"
+    },
+    "owner_suspended_during_resubmit_resource": {
+      "blocked": "16100|Lock|transactionid|{304}",
+      "sqlstate_B": "42501"
+    }
+  },
+  "audit_logs_8_5": {
+    "logs_created_by_authorized_rpc": 1,
+    "delete_actor_user_has_error": false,
+    "logs_preserved_after_actor_delete": 1,
+    "left_join_orphan_actor_result": "topic.accepted_post_changed|DELETED_USER",
+    "direct_client_insert_sqlstate": "42703",
+    "direct_write_audit_log_call_sqlstate": "42501",
+    "update_audit_log_sqlstate": "42501",
+    "delete_audit_log_sqlstate": "42501"
+  }
+}

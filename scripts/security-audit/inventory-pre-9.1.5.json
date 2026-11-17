@@ -1,0 +1,22 @@
+{
+  "identity": {
+    "addr": "127.0.0.1",
+    "port": 5433,
+    "db": "vexor_audit",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit"
+  },
+  "backup_file": "scripts/security-audit/backup-vexor_audit-pre-9.1.5.sql",
+  "backup_bytes": 97609,
+  "audit_logs_constraints": [
+    "audit_logs_action_not_null|NOT NULL action\r",
+    "audit_logs_actor_id_fkey|FOREIGN KEY (actor_id) REFERENCES profiles(id) ON DELETE SET NULL\r",
+    "audit_logs_created_at_not_null|NOT NULL created_at\r",
+    "audit_logs_entity_type_not_null|NOT NULL entity_type\r",
+    "audit_logs_id_not_null|NOT NULL id\r",
+    "audit_logs_metadata_not_null|NOT NULL metadata\r",
+    "audit_logs_pkey|PRIMARY KEY (id)"
+  ],
+  "triggers": [],
+  "policies": [],
+  "public_profiles_view": "public_profiles|postgres|{security_invoker=false}| SELECT id,\r\n    username,\r\n    display_name,\r\n    avatar_url,\r\n    bio,\r\n    interests,\r\n    github_url,\r\n    linkedin_url,\r\n    preferred_locale,\r\n    created_at,\r\n    role\r\n   FROM profiles p\r\n  WHERE NOT is_suspended OR ( SELECT is_moderator() AS is_moderator);"
+}

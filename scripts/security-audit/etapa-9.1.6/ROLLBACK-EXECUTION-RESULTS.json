@@ -1,0 +1,109 @@
+{
+  "exit_code": 0,
+  "stderr": "psql:c:/Users/Ivy Maia/Desktop/cybersec-community-platform/scripts/security-audit/etapa-9.1.6/PROPOSED-SECURITY-ROLLBACK.sql:346: NOTA:  a política \"profiles_select_public\" para a relação \"public.profiles\" não existe, ignorada",
+  "orphan_logs_preserved_after_rollback": 1,
+  "baseline_snapshot": {
+    "procs": [
+      "admin_set_user_role|d0e56a989f38ea9c0cf98f4ee7339bd3",
+      "admin_set_user_suspension|77903de7fdb61b74ce1ca45e6c9906db",
+      "moderate_post|af888c7605d07dbdef006ac78578d161",
+      "moderate_resource|327382eac1aa45ef1f8a52644f890fa8",
+      "moderate_topic|0f42e2525175eeaeb2d8435f91a1c891",
+      "resolve_report|fd812cbe197266ea19b4678d08d2e240",
+      "resubmit_resource|74989b48113f567e671027987200bb41",
+      "set_accepted_post|1245cdf126b33eaa84b409cfb2bc4fa7",
+      "write_audit_log|09ec750fe5a1ba6cea4117886c3b4d71"
+    ],
+    "triggers": [
+      "audit_logs_no_truncate|audit_logs",
+      "audit_logs_no_update_delete|audit_logs",
+      "profiles_set_updated_at|profiles"
+    ],
+    "policies": [
+      "profiles_select_public|SELECT|{anon,authenticated}",
+      "profiles_update_own|UPDATE|{authenticated}"
+    ],
+    "views": [],
+    "profilePrivs": [
+      "anon:SELECT",
+      "authenticated:SELECT"
+    ],
+    "auditFk": "audit_logs_actor_id_fkey|validated=true"
+  },
+  "post_migration_snapshot": {
+    "procs": [
+      "admin_set_user_role|4523cd4967c3a4146a53e7e6ce386795",
+      "admin_set_user_suspension|fc3df6c5b6ef1d782025cf571480a5f5",
+      "moderate_post|c574a3f8512dce5a12d10d7ac85452f9",
+      "moderate_resource|68e5c98af85f0d5534b9cce250f7cb3f",
+      "moderate_topic|b355888325881f75e05e2c161f039194",
+      "protect_last_admin_delete|5bf4aea2656c43d1b4e87c06ad4971b8",
+      "resolve_report|d3b8520f55901f2dd7b06ac0ccbb9e77",
+      "resubmit_resource|326ec48b90a370ad78f590b0602e0e00",
+      "set_accepted_post|e64ad87cbea2dfb00bc19a14f9af14ca",
+      "write_audit_log|09ec750fe5a1ba6cea4117886c3b4d71"
+    ],
+    "triggers": [
+      "audit_logs_no_truncate|audit_logs",
+      "audit_logs_no_update_delete|audit_logs",
+      "profiles_protect_last_admin_delete|profiles",
+      "profiles_set_updated_at|profiles"
+    ],
+    "policies": [
+      "profiles_select_own_or_mod|SELECT|{authenticated}",
+      "profiles_update_own|UPDATE|{authenticated}"
+    ],
+    "views": [
+      "public_profiles|{security_invoker=false,security_barrier=true}"
+    ],
+    "profilePrivs": [
+      "authenticated:SELECT"
+    ],
+    "auditFk": null
+  },
+  "post_rollback_snapshot": {
+    "procs": [
+      "admin_set_user_role|59de1c357c24fa499cf464d1ba034b3b",
+      "admin_set_user_suspension|b7a3a470ecbab336a2f750045f9a6b79",
+      "moderate_post|fd7641dd046b368c77f27dfbe8efda16",
+      "moderate_resource|c67d23f7bcb16838394a65334817cac0",
+      "moderate_topic|55c7d0e1f3ccc26e7f6ebff3f30bb927",
+      "resolve_report|7309727935ef31473e0da4e5e969b2b0",
+      "resubmit_resource|0fb195a3d87fca73b895fab619d0ee8b",
+      "set_accepted_post|64ce2a3e0599cebe2c1baf27492a7197",
+      "write_audit_log|09ec750fe5a1ba6cea4117886c3b4d71"
+    ],
+    "triggers": [
+      "audit_logs_no_truncate|audit_logs",
+      "audit_logs_no_update_delete|audit_logs",
+      "profiles_set_updated_at|profiles"
+    ],
+    "policies": [
+      "profiles_select_public|SELECT|{anon,authenticated}",
+      "profiles_update_own|UPDATE|{authenticated}"
+    ],
+    "views": [],
+    "profilePrivs": [
+      "anon:SELECT",
+      "authenticated:SELECT"
+    ],
+    "auditFk": "audit_logs_actor_id_fkey|validated=false"
+  },
+  "residual_differences_vs_baseline": {
+    "procs": [
+      "admin_set_user_role|59de1c357c24fa499cf464d1ba034b3b",
+      "admin_set_user_suspension|b7a3a470ecbab336a2f750045f9a6b79",
+      "moderate_post|fd7641dd046b368c77f27dfbe8efda16",
+      "moderate_resource|c67d23f7bcb16838394a65334817cac0",
+      "moderate_topic|55c7d0e1f3ccc26e7f6ebff3f30bb927",
+      "resolve_report|7309727935ef31473e0da4e5e969b2b0",
+      "resubmit_resource|0fb195a3d87fca73b895fab619d0ee8b",
+      "set_accepted_post|64ce2a3e0599cebe2c1baf27492a7197"
+    ],
+    "triggers": [],
+    "policies": [],
+    "views": [],
+    "profile_privs": [],
+    "audit_fk_note": "FK restaurada como NOT VALID devido a registros históricos órfãos; protege novas inserções/updates sem apagar histórico."
+  }
+}

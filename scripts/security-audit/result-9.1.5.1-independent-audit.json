@@ -1,0 +1,88 @@
+{
+  "identity": {
+    "addr": "127.0.0.1",
+    "port": 5433,
+    "db": "vexor_audit",
+    "version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit"
+  },
+  "security_definer_procs": [
+    "admin_set_user_role|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "admin_set_user_suspension|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "current_user_role|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "handle_new_user|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "is_active_member|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "is_admin|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "is_moderator|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "moderate_post|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "moderate_resource|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "moderate_topic|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "on_category_changed|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "on_post_created|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "on_vote_changed|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "protect_last_admin_delete|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "resolve_report|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "resubmit_resource|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "set_accepted_post|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "topic_has_replies|postgres|true|{\"search_path=\\\"\\\"\"}\r",
+    "write_audit_log|postgres|true|{\"search_path=\\\"\\\"\"}"
+  ],
+  "view_meta": "public_profiles|postgres|{security_invoker=false}",
+  "view_columns": [
+    "id|uuid\r",
+    "username|text\r",
+    "display_name|text\r",
+    "avatar_url|text\r",
+    "bio|text\r",
+    "interests|ARRAY\r",
+    "github_url|text\r",
+    "linkedin_url|text\r",
+    "preferred_locale|text\r",
+    "created_at|timestamp with time zone"
+  ],
+  "profiles_policies": [
+    "profiles_select_own_or_mod|PERMISSIVE|{authenticated}|SELECT|((id = ( SELECT auth.uid() AS uid)) OR ( SELECT is_moderator() AS is_moderator))\r",
+    "profiles_update_own|PERMISSIVE|{authenticated}|UPDATE|((id = ( SELECT auth.uid() AS uid)) AND ( SELECT is_active_member() AS is_active_member))"
+  ],
+  "table_grants": [
+    "authenticated|SELECT\r",
+    "postgres|DELETE\r",
+    "postgres|INSERT\r",
+    "postgres|REFERENCES\r",
+    "postgres|SELECT\r",
+    "postgres|TRIGGER\r",
+    "postgres|TRUNCATE\r",
+    "postgres|UPDATE\r",
+    "anon|SELECT\r",
+    "authenticated|SELECT\r",
+    "postgres|DELETE\r",
+    "postgres|INSERT\r",
+    "postgres|REFERENCES\r",
+    "postgres|SELECT\r",
+    "postgres|TRIGGER\r",
+    "postgres|TRUNCATE\r",
+    "postgres|UPDATE"
+  ],
+  "audit_logs_constraints": [
+    "audit_logs_action_not_null|NOT NULL action\r",
+    "audit_logs_created_at_not_null|NOT NULL created_at\r",
+    "audit_logs_entity_type_not_null|NOT NULL entity_type\r",
+    "audit_logs_id_not_null|NOT NULL id\r",
+    "audit_logs_metadata_not_null|NOT NULL metadata\r",
+    "audit_logs_pkey|PRIMARY KEY (id)"
+  ],
+  "audit_logs_triggers": [
+    "audit_logs_no_update_delete|BEFORE|DELETE\r",
+    "audit_logs_no_update_delete|BEFORE|UPDATE"
+  ],
+  "orphan_audit_actors_count": 21,
+  "readonly_role_checks": {
+    "anon_profiles_sqlstate": "42501",
+    "anon_view_count": 4,
+    "anon_view_internal_cols_sqlstate": "42703",
+    "member_profiles_count": 1,
+    "member_view_count": 4,
+    "moderator_profiles_count": 5,
+    "moderator_view_count": 5,
+    "admin_audit_logs_count": 23
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "stage": "9.1.8.2",
+  "cli_version": "3.1.0",
+  "project_ref": "zcjudcbckcxwnfnrjfte",
+  "project_ref_valid": true,
+  "hashes_valid": {
+    "20261110000001_schema.sql": true,
+    "20261110000002_functions_triggers.sql": true,
+    "20261110000003_rls_and_grants.sql": true,
+    "20261113143000_security_hardening.sql": true,
+    "supabase/seed.sql": true,
+    "20261113143000_security_hardening.rollback.sql": true
+  },
+  "expected_migrations_count": 4,
+  "pending_migrations_count": 4,
+  "pending_migrations": [
+    "20261110000001_schema.sql",
+    "20261110000002_functions_triggers.sql",
+    "20261110000003_rls_and_grants.sql",
+    "20261113143000_security_hardening.sql"
+  ],
+  "dry_run": {
+    "command": "npx supabase db push --remote --dry-run --skip-vault",
+    "exit_code": 0,
+    "dry_run_flag_confirmed": true,
+    "seeds_count": 0,
+    "roles_count": 0
+  },
+  "postgresql_compatibility": {
+    "config_toml_major_version": 15,
+    "remote_version": "17.11.0.019",
+    "migrations_compatible_with_pg17": true
+  },
+  "backup_status": {
+    "walg_enabled": true,
+    "pitr_enabled": false,
+    "backups_listed_count": 0,
+    "backup_confirmation": "PENDING_USER"
+  },
+  "divergences_found": [
+    "supabase/config.toml major_version=15 vs remote PostgreSQL 17.11.0.019",
+    "src/types/database.types.ts desatualizado (aguarda regeneração pós-deploy)"
+  ],
+  "remote_modified": false,
+  "migrations_applied": false,
+  "final_classification": "APROVADA COM RESSALVAS"
+}

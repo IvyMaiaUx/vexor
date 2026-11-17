@@ -1,0 +1,388 @@
+{
+  "audit_metadata": {
+    "etapa": "9.1.3.6",
+    "postgresql_version": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit",
+    "local_database": "vexor_audit",
+    "host": "127.0.0.1",
+    "port": 5433,
+    "remote_access": false,
+    "migrations_modified": false
+  },
+  "historical_etapa_9_1_3_5": [
+    {
+      "id": "C-INIT-DB",
+      "name": "Criação do banco de dados descartável vexor_audit",
+      "status": "PASS",
+      "details": "Banco criado com sucesso",
+      "sqlstate": null
+    },
+    {
+      "id": "C-BOOTSTRAP",
+      "name": "Aplicação de schemas e stubs Supabase (Auth + Storage)",
+      "status": "PASS",
+      "details": "Bootstrap aplicado com sucesso",
+      "sqlstate": null
+    },
+    {
+      "id": "C-MIG-01",
+      "name": "Execução integral da Migration 01 (Schema, ENUMs, Tabelas)",
+      "status": "PASS",
+      "details": "12 tabelas criadas sem erros",
+      "sqlstate": null
+    },
+    {
+      "id": "C-MIG-02",
+      "name": "Execução integral da Migration 02 (Functions & Triggers)",
+      "status": "PASS",
+      "details": "Funções e triggers compilados sem erros",
+      "sqlstate": null
+    },
+    {
+      "id": "C-MIG-03",
+      "name": "Execução integral da Migration 03 (RLS, Grants & Policies)",
+      "status": "PASS",
+      "details": "Políticas RLS e grants aplicados sem erros",
+      "sqlstate": null
+    },
+    {
+      "id": "C1-CONCURRENCY",
+      "name": "RPC vs CASCADE deletion (FOR UPDATE NOWAIT aborta imediatamente)",
+      "status": "PASS",
+      "details": "Linha travada pelo CASCADE detectada instantaneamente com 55P03",
+      "sqlstate": "55P03"
+    },
+    {
+      "id": "C2-CONCURRENCY",
+      "name": "Exclusão do admin chamador (revalidação com NOWAIT)",
+      "status": "PASS",
+      "details": "Tentativa de mutação administrativa abortada com 55P03",
+      "sqlstate": "55P03"
+    },
+    {
+      "id": "C3-CONCURRENCY",
+      "name": "Admin despromovido enquanto aguarda lock é bloqueado na revalidação",
+      "status": "PASS",
+      "details": "Exceção 42501 (forbidden) disparada ao constatar papel revogado",
+      "sqlstate": "42501"
+    },
+    {
+      "id": "C4-CONCURRENCY",
+      "name": "Atualização comum de bio executa livremente durante advisory lock",
+      "status": "PASS",
+      "details": "Mutações ordinárias não sofrem contenção pelo lock administrativo",
+      "sqlstate": null
+    },
+    {
+      "id": "C5.1-LAST-ADMIN",
+      "name": "Verificação de invariante de contagem de administradores ativos",
+      "status": "PASS",
+      "details": "Total de administradores ativos no banco: 2",
+      "sqlstate": null
+    },
+    {
+      "id": "C5.2-LAST-ADMIN",
+      "name": "Auto-despromoção bloqueada pela RPC original",
+      "status": "PASS",
+      "details": "admins cannot demote themselves",
+      "sqlstate": "42501"
+    },
+    {
+      "id": "C5.3-VULN-EVIDENCE",
+      "name": "Vulnerabilidade comprovada na RPC original: Admin A despromove Admin B sem checar último admin",
+      "status": "PASS",
+      "details": "Confirmado: RPC original não impede despromoção de outro admin, restando apenas 1 ativo",
+      "sqlstate": null
+    },
+    {
+      "id": "C5.4-CASCADE-VULN",
+      "name": "Vulnerabilidade comprovada na Migration original: DELETE em auth.users elimina último admin ativo via CASCADE",
+      "status": "PASS",
+      "details": "Contagem restante de administradores ativos após CASCADE: DELETE 1",
+      "sqlstate": null
+    },
+    {
+      "id": "C6-DEADLOCK",
+      "name": "Deadlock detector",
+      "status": "PASS",
+      "details": "Comportamento registrado: id 00000000-0000-0000-0000-000000000001 (1 linha)",
+      "sqlstate": null
+    },
+    {
+      "id": "E1-VULN-EVIDENCE",
+      "name": "Comprovação: tabela base public.profiles expõe is_suspended na Migration 03",
+      "status": "PASS",
+      "details": "Vazamento confirmado na migração original: suspended_user|t|member",
+      "sqlstate": null
+    },
+    {
+      "id": "E2-VIEW-PRIVACY",
+      "name": "Visitante anônimo não enxerga usuários suspensos na public_profiles",
+      "status": "PASS",
+      "details": "Filtro WHERE (NOT p.is_suspended) aplicado com sucesso",
+      "sqlstate": null
+    },
+    {
+      "id": "E3-VIEW-PRIVACY",
+      "name": "Moderador enxerga usuários suspensos na public_profiles",
+      "status": "PASS",
+      "details": "Exceção para moderadores em is_moderator() validada",
+      "sqlstate": null
+    },
+    {
+      "id": "F-NEG-01",
+      "name": "Anon tentando executar RPC administrativa",
+      "status": "PASS",
+      "details": "Permission denied for function admin_set_user_role",
+      "sqlstate": "42501"
+    },
+    {
+      "id": "F-NEG-02",
+      "name": "Membro comum tentando executar RPC administrativa",
+      "status": "PASS",
+      "details": "Exceção forbidden disparada por falta de privilégio admin",
+      "sqlstate": "42501"
+    },
+    {
+      "id": "F-NEG-03",
+      "name": "Chamada direta a write_audit_log por usuário autenticado",
+      "status": "PASS",
+      "details": "Permission denied for function write_audit_log",
+      "sqlstate": "42501"
+    },
+    {
+      "id": "F-NEG-04",
+      "name": "Escalação direta de privilégio via UPDATE colunar em role",
+      "status": "PASS",
+      "details": "Permission denied for column \"role\"",
+      "sqlstate": "42501"
+    },
+    {
+      "id": "F-NEG-05",
+      "name": "Tentativa de deleção na tabela audit_logs (append-only trigger)",
+      "status": "PASS",
+      "details": "Trigger audit_logs_block_mutation bloqueia com 42501",
+      "sqlstate": "42501"
+    },
+    {
+      "id": "G-FUNC-AUDIT",
+      "name": "Inspeção de SECURITY DEFINER e search_path em funções canônicas",
+      "status": "PASS",
+      "details": "admin_set_user_role|t|f ... (f por busca LIKE '%search_path = %' vs formato 'TO')",
+      "sqlstate": null
+    }
+  ],
+  "reconciled_etapa_9_1_3_6": [
+    {
+      "id": "C-INIT-DB",
+      "category": "setup",
+      "reconciled_status": "PASS",
+      "reason": "Banco descartável local vexor_audit criado com sucesso."
+    },
+    {
+      "id": "C-BOOTSTRAP",
+      "category": "setup",
+      "reconciled_status": "PASS",
+      "reason": "Schemas extensions/auth/storage, roles anon/authenticated/service_role e stubs criados localmente."
+    },
+    {
+      "id": "C-MIG-01",
+      "category": "original_migration",
+      "reconciled_status": "PASS",
+      "reason": "Migration 01 executada integralmente sem alterações."
+    },
+    {
+      "id": "C-MIG-02",
+      "category": "original_migration",
+      "reconciled_status": "PASS",
+      "reason": "Migration 02 executada integralmente sem alterações."
+    },
+    {
+      "id": "C-MIG-03",
+      "category": "original_migration",
+      "reconciled_status": "PASS",
+      "reason": "Migration 03 executada integralmente sem alterações (mediante stub de storage)."
+    },
+    {
+      "id": "C1-CONCURRENCY",
+      "category": "proposed_primitive_only",
+      "reconciled_status": "INCONCLUSIVE",
+      "reason": "Não executou admin_set_user_role (a RPC original não possui NOWAIT nem advisory lock). Testou apenas SELECT ... FOR UPDATE NOWAIT ad-hoc e possuía fallback else marcando PASS."
+    },
+    {
+      "id": "C2-CONCURRENCY",
+      "category": "proposed_primitive_only",
+      "reconciled_status": "INCONCLUSIVE",
+      "reason": "Não executou admin_set_user_role nem revalidação dentro de RPC real; testou apenas SELECT ... FOR UPDATE NOWAIT ad-hoc."
+    },
+    {
+      "id": "C3-CONCURRENCY",
+      "category": "simulation_only",
+      "reconciled_status": "INCONCLUSIVE",
+      "reason": "Executou bloco anônimo DO $$ sem duas sessões concorrentes e sem pg_advisory_xact_lock."
+    },
+    {
+      "id": "C4-CONCURRENCY",
+      "category": "concurrency_isolation",
+      "reconciled_status": "PASS",
+      "reason": "Comprovado com duas sessões reais que UPDATE de bio em profiles não sofre bloqueio por pg_advisory_xact_lock(6216471958360507469)."
+    },
+    {
+      "id": "C5.1-LAST-ADMIN",
+      "category": "precondition",
+      "reconciled_status": "PASS",
+      "reason": "Verificação de condição inicial (2 admins ativos antes dos testes)."
+    },
+    {
+      "id": "C5.2-LAST-ADMIN",
+      "category": "original_control",
+      "reconciled_status": "PASS",
+      "reason": "RPC original bloqueou auto-despromoção com SQLSTATE 42501."
+    },
+    {
+      "id": "C5.3-VULN-EVIDENCE",
+      "category": "vulnerability_reproduction",
+      "reconciled_status": "FAIL",
+      "reason": "Reproduziu falha de segurança da RPC original: Admin A despromoveu Admin B sem checagem de último administrador ativo."
+    },
+    {
+      "id": "C5.4-CASCADE-VULN",
+      "category": "vulnerability_reproduction",
+      "reconciled_status": "FAIL",
+      "reason": "Reproduziu falha de segurança das migrations originais: DELETE em auth.users removeu todos os admins via ON DELETE CASCADE (restaram 0 admins)."
+    },
+    {
+      "id": "C6-DEADLOCK",
+      "category": "concurrency_deadlock",
+      "reconciled_status": "FAIL",
+      "reason": "O audit-report.json registrou retorno normal de 1 linha (sqlstate: null), sem disparo de 40P01, mas o script marcou PASS no branch else e o relatório anterior afirmou 40P01 indevidamente."
+    },
+    {
+      "id": "E1-VULN-EVIDENCE",
+      "category": "vulnerability_reproduction",
+      "reconciled_status": "FAIL",
+      "reason": "Reproduziu vazamento na Migration 03 original: anon consulta public.profiles diretamente e lê is_suspended=true devido à policy profiles_select_public."
+    },
+    {
+      "id": "E2-VIEW-PRIVACY",
+      "category": "experimental_view_only",
+      "reconciled_status": "PASS",
+      "reason": "View experimental public.public_profiles (security_invoker=false, owner postgres) ocultou suspended_user para anon e member; porém NÃO existe nas 3 migrations originais e a tabela base continua exposta."
+    },
+    {
+      "id": "E3-VIEW-PRIVACY",
+      "category": "experimental_view_only",
+      "reconciled_status": "PASS",
+      "reason": "View experimental exibiu suspended_user para moderator e admin via is_moderator()."
+    },
+    {
+      "id": "F-NEG-01",
+      "category": "negative_permission",
+      "reconciled_status": "PASS",
+      "reason": "SET ROLE anon bloqueado por REVOKE em admin_set_user_role (SQLSTATE 42501)."
+    },
+    {
+      "id": "F-NEG-02",
+      "category": "negative_permission",
+      "reconciled_status": "INCONCLUSIVE",
+      "reason": "Executado sem SET ROLE authenticated (rodou como postgres com request.jwt.claim.sub simulado), validando apenas is_admin() e não o privilégio de execução do papel authenticated."
+    },
+    {
+      "id": "F-NEG-03",
+      "category": "negative_permission",
+      "reconciled_status": "PASS",
+      "reason": "SET ROLE authenticated bloqueado por REVOKE em write_audit_log (SQLSTATE 42501)."
+    },
+    {
+      "id": "F-NEG-04",
+      "category": "negative_permission",
+      "reconciled_status": "PASS",
+      "reason": "SET ROLE authenticated bloqueado por GRANT UPDATE colunar em public.profiles (SQLSTATE 42501)."
+    },
+    {
+      "id": "F-NEG-05",
+      "category": "negative_permission",
+      "reconciled_status": "PASS",
+      "reason": "Trigger BEFORE DELETE/UPDATE em public.audit_logs bloqueou deleção com SQLSTATE 42501."
+    },
+    {
+      "id": "G-FUNC-AUDIT",
+      "category": "catalog_audit",
+      "reconciled_status": "PASS",
+      "reason": "Inspeção direta em pg_proc.proconfig confirmou search_path=\"\" e SECURITY DEFINER nas funções (corrigindo o falso-negativo do LIKE no script anterior)."
+    }
+  ],
+  "etapa_9_1_3_7_closure": [
+    {
+      "id": "C1-ROLE-VS-CASCADE",
+      "script": "scripts/security-audit/test-c1-c2-concurrency.mjs",
+      "sessions": 2,
+      "classification": "PASS",
+      "finding_type": "original_rpc_behavior_verified",
+      "sqlstate": "P0002",
+      "summary": "Sessão A (DELETE auth.users) bloqueou Sessão B (admin_set_user_role com FOR UPDATE sem NOWAIT) em Lock:transactionid. Após COMMIT de A, ON DELETE CASCADE removeu o perfil e B falhou com P0002 (user not found). Sem deadlock."
+    },
+    {
+      "id": "C1-SUSPENSION-VS-CASCADE",
+      "script": "scripts/security-audit/test-c1-c2-concurrency.mjs",
+      "sessions": 2,
+      "classification": "PASS",
+      "finding_type": "original_rpc_behavior_verified",
+      "sqlstate": "P0002",
+      "summary": "Sessão A (DELETE auth.users) bloqueou Sessão B (admin_set_user_suspension) em Lock:transactionid. Após COMMIT de A, perfil removido via CASCADE e B falhou com P0002 (user not found)."
+    },
+    {
+      "id": "C2-CALLER-DELETION-CONCURRENT",
+      "script": "scripts/security-audit/test-c1-c2-concurrency.mjs",
+      "sessions": 2,
+      "classification": "PASS",
+      "finding_type": "original_rpc_behavior_verified",
+      "sqlstate": "23503",
+      "summary": "Sessão A iniciou DELETE do admin chamador; Sessão B (chamador) passou por is_admin() (snapshot MVCC antes do COMMIT de A), atualizou o alvo e bloqueou em Lock:transactionid ao inserir em audit_logs (FK actor_id). Após COMMIT de A, B falhou com 23503 (audit_logs_actor_id_fkey) e sofreu ROLLBACK."
+    },
+    {
+      "id": "C3-SEQ-AFTER-DEMOTION",
+      "script": "scripts/security-audit/test-c3-revalidation.mjs",
+      "sessions": 2,
+      "classification": "PASS",
+      "finding_type": "initial_auth_check_verified",
+      "sqlstate": "42501",
+      "summary": "Após Sessão A rebaixar ADMIN_B e commitar, chamada subsequente de Sessão B foi bloqueada na checagem inicial is_admin() com 42501 (forbidden)."
+    },
+    {
+      "id": "C3-CONCURRENT-NO-REVALIDATION",
+      "script": "scripts/security-audit/test-c3-revalidation.mjs",
+      "sessions": 3,
+      "classification": "PASS",
+      "finding_type": "vulnerability_confirmed",
+      "sqlstate": null,
+      "summary": "Vulnerabilidade confirmada: Sessão B passou pela checagem inicial is_admin(), bloqueou em FOR UPDATE no alvo travado por A; Sessão C rebaixou ADMIN_B e commitou; após A liberar o lock, B não revalidou privilégios e promoveu o alvo para moderator com sucesso."
+    },
+    {
+      "id": "C6-DEADLOCK",
+      "script": "scripts/security-audit/test-c6-deadlock.mjs",
+      "sessions": 2,
+      "classification": "PASS",
+      "finding_type": "deadlock_40P01_reproduced",
+      "sqlstate": "40P01",
+      "summary": "Deadlock real reproduzido em ~1006ms com barreiras via pg_stat_activity (sem pg_sleep): Sessão B abortada como vítima com SQLSTATE 40P01 (impasse detectado) e Sessão A concluída com COMMIT."
+    },
+    {
+      "id": "F-NEG-02-SET-ROLE",
+      "script": "scripts/security-audit/test-f-neg-02-and-privacy.mjs",
+      "sessions": 2,
+      "classification": "PASS",
+      "finding_type": "authorization_verified",
+      "sqlstate": "42501",
+      "summary": "Com SET LOCAL ROLE authenticated e JWT de member válido, auth.uid() retornou o UUID, auth.role() retornou authenticated, is_admin() retornou false e admin_set_user_role falhou com 42501 (forbidden). Controles negativos: sem JWT -> 42501 forbidden; SET ROLE anon -> 42501 permission denied for function."
+    },
+    {
+      "id": "PRIVACY-BASE-VS-VIEW",
+      "script": "scripts/security-audit/test-f-neg-02-and-privacy.mjs",
+      "sessions": 2,
+      "classification": "FAIL",
+      "finding_type": "vulnerability_confirmed",
+      "sqlstate": null,
+      "summary": "Vulnerabilidade confirmada na tabela base: profiles_select_public (USING true) e GRANT SELECT em anon/authenticated continuam expondo is_suspended e role diretamente em public.profiles. A view experimental public.public_profiles (postgres, security_invoker=false) oculta suspensos para anon e os exibe para moderator."
+    }
+  ]
+}
