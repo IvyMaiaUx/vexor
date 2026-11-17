@@ -9,7 +9,7 @@ import { Header } from "@/components/layout/header";
 import {
   MIN_PASSWORD_LENGTH,
   requestPasswordRecovery,
-  updatePasswordWithSupabase,
+  updatePasswordAfterOtpVerification,
   verifyRecoveryOtp,
 } from "@/features/auth/recovery-service";
 import { useAuthStore } from "@/features/auth/use-auth-store";
@@ -146,7 +146,7 @@ export default function ForgotPasswordPage() {
         setOtpVerified(true);
       }
 
-      const updateResult = await updatePasswordWithSupabase({
+      const updateResult = await updatePasswordAfterOtpVerification({
         newPassword,
         confirmPassword,
       });

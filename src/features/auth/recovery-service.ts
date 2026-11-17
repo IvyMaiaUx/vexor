@@ -374,8 +374,9 @@ export type VerifyRecoveryOtpResult =
     };
 
 /**
- * Verifies a 6-to-8 digit email OTP recovery token via `supabase.auth.verifyOtp()`
- * and validates that the resulting session carries the `recovery` AMR claim.
+ * Verifies a 6-to-8 digit email OTP recovery token via `supabase.auth.verifyOtp()`.
+ * Accepts the session returned directly by `verifyOtp({ type: "recovery" })`
+ * (whose JWT `amr` claim may be `recovery` or `otp` depending on GoTrue version).
  */
 export async function verifyRecoveryOtp(
   input: VerifyRecoveryOtpInput
@@ -396,7 +397,7 @@ export async function verifyRecoveryOtp(
   }
 
   try {
-    const { error } = await authClient.verifyOtp({
+    const { data, error } = await authClient.verifyOtp({
       email: normalizedEmail,
       token: normalizedToken,
       type: "recovery",
@@ -421,15 +422,87 @@ export async function verifyRecoveryOtp(
       return { status: "error", errorCode: "invalid_code" };
     }
 
-    const sessionStatus = await validateRecoverySession(authClient);
-    if (sessionStatus === "network_error") {
-      return { status: "error", errorCode: "network_error" };
-    }
-    if (sessionStatus === "invalid") {
-      return { status: "error", errorCode: "invalid_code" };
+    if (!data?.user) {
+      const { data: userData, error: userError } = await authClient.getUser();
+      if (userError && isNetworkOrUnavailableError(userError)) {
+        return { status: "error", errorCode: "network_error" };
+      }
+      if (!userData.user) {
+        return { status: "error", errorCode: "invalid_code" };
+      }
     }
 
     return { status: "verified" };
+  } catch {
+    return { status: "error", errorCode: "network_error" };
+  }
+}
+
+/**
+ * Updates the password right after `verifyRecoveryOtp()` has established a
+ * verified recovery session in the browser (supporting `amr: recovery` or `otp`).
+ */
+export async function updatePasswordAfterOtpVerification(input: {
+  newPassword: string;
+  confirmPassword: string;
+  authClient?: Pick<SupabaseAuthRecoveryClient, "getUser" | "updateUser">;
+}): Promise<UpdatePasswordResult> {
+  if (!input.newPassword || input.newPassword.length < MIN_PASSWORD_LENGTH) {
+    return { status: "error", errorCode: "password_too_short" };
+  }
+
+  if (input.newPassword !== input.confirmPassword) {
+    return { status: "error", errorCode: "password_mismatch" };
+  }
+
+  try {
+    const authClient = input.authClient ?? createClient().auth;
+    const { data: userData, error: userError } = await authClient.getUser();
+
+    if (userError) {
+      if (isNetworkOrUnavailableError(userError)) {
+        return { status: "error", errorCode: "network_error" };
+      }
+      return { status: "error", errorCode: "session_invalid" };
+    }
+
+    if (!userData.user) {
+      return { status: "error", errorCode: "session_invalid" };
+    }
+
+    const { error } = await authClient.updateUser({
+      password: input.newPassword,
+    });
+
+    if (error) {
+      const code = (error.code ?? "").toLowerCase();
+      const msg = (error.message ?? "").toLowerCase();
+
+      if (error.status === 429 || code.includes("rate_limit")) {
+        return { status: "error", errorCode: "rate_limited" };
+      }
+      if (isNetworkOrUnavailableError(error)) {
+        return { status: "error", errorCode: "network_error" };
+      }
+      if (
+        error.status === 401 ||
+        error.status === 403 ||
+        code === "session_not_found" ||
+        code === "session_expired" ||
+        code === "bad_jwt"
+      ) {
+        return { status: "error", errorCode: "session_invalid" };
+      }
+      if (code === "same_password" || msg.includes("different from the old")) {
+        return { status: "error", errorCode: "same_password" };
+      }
+      if (code === "weak_password" || msg.includes("password")) {
+        return { status: "error", errorCode: "weak_password" };
+      }
+      return { status: "error", errorCode: "update_failed" };
+    }
+
+    return { status: "updated" };
   } catch {
     return { status: "error", errorCode: "network_error" };
   }
