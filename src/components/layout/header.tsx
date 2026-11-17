@@ -301,7 +301,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium text-slate-200 hover:bg-slate-800/60"
                   >
-                    ★ {dict.nav.bookmarks}
+                    {dict.nav.bookmarks}
                   </Link>
                   <Link
                     href="/#categories"
@@ -330,7 +330,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                         : "text-slate-200 hover:bg-slate-800/60"
                     }`}
                   >
-                    🔬 {dict.cybercrimeResearchPage.title}
+                    {dict.cybercrimeResearchPage.title}
                   </Link>
                   <Link
                     href="/catalog/submit"
@@ -417,7 +417,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex min-h-[44px] items-center justify-center rounded-xl border border-slate-700 bg-[#0d1322] text-sm font-semibold text-slate-200 hover:border-cyan-500 hover:text-cyan-300"
                   >
-                    👤 {dict.profilePage.title}
+                    {dict.profilePage.title}
                   </Link>
                   <Link
                     href="/catalog/submit"

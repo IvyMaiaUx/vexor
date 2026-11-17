@@ -13,10 +13,83 @@ interface AdminSidebarProps {
   onCloseMobile?: () => void;
 }
 
+type AdminIconKey =
+  | "dashboard"
+  | "moderation"
+  | "catalog"
+  | "forum"
+  | "research"
+  | "reports"
+  | "users"
+  | "audit";
+
+function AdminNavIcon({ name }: { name: AdminIconKey }) {
+  const cls = "h-4 w-4 shrink-0";
+  switch (name) {
+    case "dashboard":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={cls} aria-hidden="true">
+          <rect x="3" y="3" width="7" height="9" rx="1.5" />
+          <rect x="14" y="3" width="7" height="5" rx="1.5" />
+          <rect x="14" y="12" width="7" height="9" rx="1.5" />
+          <rect x="3" y="16" width="7" height="5" rx="1.5" />
+        </svg>
+      );
+    case "moderation":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={cls} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7 4v5c0 5-3.5 8.5-7 9.5-3.5-1-7-4.5-7-9.5V7l7-4z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4-4" />
+        </svg>
+      );
+    case "catalog":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={cls} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      );
+    case "forum":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={cls} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
+    case "research":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={cls} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 3h6m-5 0v5.2l-4.6 7.8A2 2 0 0 0 7.1 19h9.8a2 2 0 0 0 1.7-3L14 8.2V3" />
+        </svg>
+      );
+    case "reports":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={cls} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+          <line x1="4" y1="22" x2="4" y2="15" />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={cls} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case "audit":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={cls} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6M8 13h8M8 17h5" />
+        </svg>
+      );
+  }
+}
+
 interface NavItem {
   href: string;
   labelKey: keyof ReturnType<typeof useI18n>["dict"]["adminPanel"]["sidebar"];
-  icon: string;
+  icon: AdminIconKey;
   adminOnly?: boolean;
   getBadgeCount?: (stats: AdminStats | null) => number;
 }
@@ -45,47 +118,47 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
     {
       href: "/admin",
       labelKey: "dashboard",
-      icon: "📊",
+      icon: "dashboard",
     },
     {
       href: "/admin/moderation",
       labelKey: "moderation",
-      icon: "⚖️",
+      icon: "moderation",
       getBadgeCount: (s) => (s?.pendingResources || 0) + (s?.pendingResearch || 0),
     },
     {
       href: "/admin/catalog",
       labelKey: "catalog",
-      icon: "📚",
+      icon: "catalog",
       getBadgeCount: (s) => s?.pendingResources || 0,
     },
     {
       href: "/admin/forum",
       labelKey: "forum",
-      icon: "💬",
+      icon: "forum",
     },
     {
       href: "/admin/research",
       labelKey: "research",
-      icon: "🔬",
+      icon: "research",
       getBadgeCount: (s) => s?.pendingResearch || 0,
     },
     {
       href: "/admin/reports",
       labelKey: "reports",
-      icon: "🚨",
+      icon: "reports",
       getBadgeCount: (s) => s?.openReports || 0,
     },
     {
       href: "/admin/users",
       labelKey: "users",
-      icon: "👥",
+      icon: "users",
       adminOnly: true,
     },
     {
       href: "/admin/audit",
       labelKey: "audit",
-      icon: "📜",
+      icon: "audit",
       adminOnly: true,
     },
   ];
@@ -101,8 +174,10 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
             onClick={onCloseMobile}
             className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-500/40 bg-cyan-500/10 font-mono text-base font-bold text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-              🛡️
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7 4v5c0 5-3.5 8.5-7 9.5-3.5-1-7-4.5-7-9.5V7l7-4z" />
+              </svg>
             </div>
             <div className="flex flex-col">
               <span className="font-mono text-sm font-bold tracking-wider text-slate-100">
@@ -149,7 +224,7 @@ export function AdminSidebar({ mobileOpen = false, onCloseMobile }: AdminSidebar
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-base">{item.icon}</span>
+                  <AdminNavIcon name={item.icon} />
                   <span className="truncate">{label}</span>
                 </div>
 

@@ -227,9 +227,6 @@ export default function AdminAuditPage() {
     severityFilter !== "all" ||
     periodFilter !== "all";
 
-  const isSimulated =
-    adminDataProvider.isSimulated || Boolean(summary?.isSimulatedDemoData);
-
   const dateTimeFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
     timeStyle: "short",
@@ -285,11 +282,6 @@ export default function AdminAuditPage() {
                 <span className="rounded border border-cyan-500/40 bg-cyan-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-cyan-300">
                   APPEND-ONLY
                 </span>
-                {isSimulated && (
-                  <span className="rounded border border-sky-500/40 bg-sky-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-sky-300">
-                    {t.demoBadge}
-                  </span>
-                )}
               </div>
 
               <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
@@ -318,10 +310,8 @@ export default function AdminAuditPage() {
             </div>
           </div>
 
-          <div className="mt-4 rounded-xl border border-slate-800/90 bg-[#070b14]/80 p-3.5 text-xs text-slate-300">
-            <strong className="text-sky-300">{t.demoNoticeTitle} </strong>
-            <span>{t.demoNoticeBody} </span>
-            <span className="text-slate-400">{t.immutableNotice}</span>
+          <div className="mt-4 rounded-xl border border-slate-800/90 bg-[#070b14]/80 p-3.5 text-xs text-slate-400">
+            {t.immutableNotice}
           </div>
         </header>
 

@@ -120,9 +120,6 @@ export default function AdminDashboardPage() {
     dateStyle: "long",
   }).format(new Date());
 
-  const isSimulated =
-    adminDataProvider.isSimulated || Boolean(stats?.isSimulatedDemoData);
-
   return (
     <div className="flex flex-col gap-6 pb-12">
       {/* A. Dashboard Header */}
@@ -144,11 +141,6 @@ export default function AdminDashboardPage() {
                   ? dict.adminPanel.sidebar.roleAdminBadge
                   : dict.adminPanel.sidebar.roleModBadge}
               </span>
-              {isSimulated && (
-                <span className="rounded border border-violet-500/40 bg-violet-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-violet-300">
-                  {d.demoBadge}
-                </span>
-              )}
             </div>
 
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -195,14 +187,6 @@ export default function AdminDashboardPage() {
             </button>
           </div>
         </div>
-
-        {/* Simulated Data Notice */}
-        {isSimulated && (
-          <div className="mt-4 rounded-xl border border-slate-800/90 bg-[#070b14]/80 p-3.5 text-xs text-slate-300">
-            <strong className="text-violet-300">{d.demoNoticeTitle} </strong>
-            <span>{d.demoNoticeBody}</span>
-          </div>
-        )}
       </header>
 
       {/* Error State (never leaves page blank) */}

@@ -134,9 +134,6 @@ export default function AdminUsersPage() {
     statusFilter !== "all" ||
     periodFilter !== "all";
 
-  const isSimulated =
-    adminDataProvider.isSimulated || Boolean(summary?.isSimulatedDemoData);
-
   const dateFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
   });
@@ -198,11 +195,6 @@ export default function AdminUsersPage() {
                 <span className="rounded border border-violet-500/40 bg-violet-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-violet-300">
                   ADMIN ONLY
                 </span>
-                {isSimulated && (
-                  <span className="rounded border border-sky-500/40 bg-sky-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-sky-300">
-                    {t.demoBadge}
-                  </span>
-                )}
               </div>
 
               <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
@@ -234,13 +226,6 @@ export default function AdminUsersPage() {
               <span>{refreshing ? t.refreshingButton : t.refreshButton}</span>
             </button>
           </div>
-
-          {isSimulated && (
-            <div className="mt-4 rounded-xl border border-slate-800/90 bg-[#070b14]/80 p-3.5 text-xs text-slate-300">
-              <strong className="text-sky-300">{t.demoNoticeTitle} </strong>
-              <span>{t.demoNoticeBody}</span>
-            </div>
-          )}
         </header>
 
         {/* Error Banner */}

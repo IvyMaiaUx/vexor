@@ -274,9 +274,6 @@ function AdminModerationContent() {
                 <span className="font-mono text-xs uppercase tracking-wider text-cyan-400">
                   {t.eyebrow}
                 </span>
-                <span className="rounded border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-amber-300">
-                  {t.demoBadge}
-                </span>
               </div>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
                 {t.title}
@@ -305,10 +302,6 @@ function AdminModerationContent() {
                 <strong className="text-base text-purple-300">{counts.escalated}</strong>
               </div>
             </div>
-          </div>
-
-          <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-            {t.demoNotice}
           </div>
         </div>
 
