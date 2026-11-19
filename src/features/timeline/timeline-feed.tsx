@@ -137,9 +137,9 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
   return (
     <section
       id="timeline"
-      className="border-b border-slate-800/80 py-10 sm:py-14"
+      className="py-10 sm:py-14"
     >
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
             <p className="font-mono text-xs font-semibold uppercase tracking-widest text-cyan-400">
@@ -250,7 +250,7 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {items.map((item) => (
               <TimelinePostCard
                 key={item.id}

@@ -76,7 +76,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
           {/* Desktop Navigation (lg+) */}
           <nav
             aria-label="Main Navigation"
-            className="hidden items-center gap-6 lg:flex"
+            className="hidden items-center gap-6 whitespace-nowrap lg:flex"
           >
             <Link
               href="/"
@@ -84,15 +84,10 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                 isHomeActive ? "text-cyan-400" : "text-slate-300"
               }`}
             >
-              {user
-                ? locale === "pt-BR"
-                  ? "Timeline"
-                  : "Timeline"
-                : dict.nav.home}
+              {user ? "Timeline" : dict.nav.home}
             </Link>
             {user && (
               <>
-                <MessagesNavBadge locale={locale} active={isMessagesActive} />
                 <Link
                   href="/catalog"
                   className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
@@ -100,12 +95,6 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                   }`}
                 >
                   {dict.nav.catalog}
-                </Link>
-                <Link
-                  href="/#categories"
-                  className="text-sm font-medium text-slate-300 transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400"
-                >
-                  {dict.nav.categories}
                 </Link>
                 <Link
                   href="/forum"
@@ -121,16 +110,9 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                     isResearchActive ? "text-cyan-400" : "text-slate-300"
                   }`}
                 >
-                  {dict.cybercrimeResearchPage.title}
+                  {locale === "pt-BR" ? "Pesquisas" : "Research"}
                 </Link>
-                <Link
-                  href="/catalog/submit"
-                  className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
-                    isSubmitActive ? "text-cyan-400" : "text-slate-300"
-                  }`}
-                >
-                  {dict.nav.contribute}
-                </Link>
+                <MessagesNavBadge locale={locale} active={isMessagesActive} />
               </>
             )}
           </nav>

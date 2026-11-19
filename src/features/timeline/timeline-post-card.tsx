@@ -142,7 +142,7 @@ export function TimelinePostCard({
   };
 
   return (
-    <article className="rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-5 shadow-lg transition-colors hover:border-slate-700/90">
+    <article className="rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-6 shadow-lg transition-colors hover:border-slate-700/90">
       {/* Header: Author + Metadata */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
