@@ -326,6 +326,8 @@ export function isProtectedAppRoute(pathname: string): boolean {
     pathname.startsWith("/forum/") ||
     pathname === "/my-contributions" ||
     pathname.startsWith("/my-contributions/") ||
+    pathname === "/messages" ||
+    pathname.startsWith("/messages/") ||
     pathname === "/profile" ||
     pathname.startsWith("/profile/")
   );

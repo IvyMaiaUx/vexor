@@ -15,6 +15,7 @@ import { ProfileHeader } from "@/features/profile/profile-header";
 import { readPublicProfileByUsername } from "@/features/profile/profile-service";
 import { ProfileTabs } from "@/features/profile/profile-tabs";
 import type { ProfileViewData } from "@/features/profile/types";
+import { ProfileDmActions } from "@/features/messages/profile-dm-actions";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
 export default function PublicProfilePage() {
@@ -210,6 +211,14 @@ export default function PublicProfilePage() {
                 dict={dict}
                 onOpenEdit={() => setIsEditModalOpen(true)}
               />
+
+              {!isCurrentUser && user && targetProfile && (
+                <ProfileDmActions
+                  targetUserId={targetProfile.id}
+                  targetUsername={targetProfile.username}
+                  locale={locale}
+                />
+              )}
 
               {/* Profile Tabs */}
               <ProfileTabs

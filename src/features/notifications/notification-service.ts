@@ -23,7 +23,7 @@ export interface NotificationSupabaseError {
 export type NotificationSupabaseClientLike = any;
 
 export const NOTIFICATION_SELECT_COLUMNS =
-  "id, user_id, type, actor_id, topic_id, post_id, resource_id, read_at, created_at";
+  "id, user_id, type, actor_id, topic_id, post_id, resource_id, conversation_id, message_id, warning_id, read_at, created_at";
 
 const FORBIDDEN_NOTIFICATION_UPDATE_KEYS = [
   "id",
@@ -117,7 +117,10 @@ function isRlsOrPermissionError(error: NotificationSupabaseError): boolean {
  * Never constructs or allows external URLs.
  */
 export function buildNotificationTargetHref(
-  row: Pick<NotificationRow, "type" | "topic_id" | "post_id" | "resource_id" | "research_id">,
+  row: Pick<
+    NotificationRow,
+    "type" | "topic_id" | "post_id" | "resource_id" | "research_id" | "conversation_id"
+  >,
   resourceSlugById: Map<string, string>
 ): string {
   if (row.research_id && isValidUuid(row.research_id)) {
@@ -125,6 +128,16 @@ export function buildNotificationTargetHref(
   }
   if (row.type === "research_approved" || row.type === "research_rejected") {
     return "/cybercrime-research/library";
+  }
+  if (
+    row.type === "direct_message" &&
+    row.conversation_id &&
+    isValidUuid(row.conversation_id)
+  ) {
+    return `/messages/${row.conversation_id}`;
+  }
+  if (row.type === "direct_message") {
+    return "/messages";
   }
   if (row.topic_id && isValidUuid(row.topic_id)) {
     if (row.post_id && isValidUuid(row.post_id)) {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SupportedLocale } from "@/config/site";
 import { useAuthStore } from "@/features/auth/use-auth-store";
+import { createClient } from "@/lib/supabase/client";
 import {
   fetchUnreadNotificationCount,
   fetchUserNotifications,
@@ -41,6 +42,8 @@ function getNotificationCopy(
           : "Você recebeu uma nova mensagem direta.";
       case "user_warning":
         return "Você recebeu um aviso da moderação.";
+      case "mention":
+        return `${actor} mencionou você em uma discussão.`;
       default:
         return "Você tem uma nova notificação.";
     }
@@ -64,6 +67,8 @@ function getNotificationCopy(
         : "You received a new direct message.";
     case "user_warning":
       return "You received a moderation warning.";
+    case "mention":
+      return `${actor} mentioned you in a discussion.`;
     default:
       return "You have a new notification.";
   }
@@ -116,15 +121,43 @@ export function NotificationBell({ locale }: NotificationBellProps) {
     if (!user?.id) {
       return;
     }
-    void fetchUnreadNotificationCount().then((res) => {
-      if (!cancelled && res.status === "success") {
-        setUnreadCount(res.unreadCount);
-      }
-    });
+    const syncUnread = () => {
+      void fetchUnreadNotificationCount().then((res) => {
+        if (!cancelled && res.status === "success") {
+          setUnreadCount(res.unreadCount);
+        }
+      });
+    };
+    syncUnread();
+
+    // Realtime subscription with safe periodic polling fallback
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          syncUnread();
+          if (open) {
+            void loadNotifications();
+          }
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(syncUnread, 25000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
+      void supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [loadNotifications, open, user?.id]);
 
   useEffect(() => {
     if (!open) return;

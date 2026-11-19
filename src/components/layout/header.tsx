@@ -8,6 +8,7 @@ import { SignOutErrorBanner } from "@/components/auth/sign-out-error-banner";
 import { siteConfig, type SupportedLocale } from "@/config/site";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { NotificationBell } from "@/features/notifications/notification-bell";
+import { MessagesNavBadge } from "@/features/messages/messages-nav-badge";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 interface HeaderProps {
@@ -31,6 +32,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
       "/cybercrime-research",
       "/catalog",
       "/forum",
+      "/messages",
       "/my-contributions",
       "/profile",
     ].some((prefix) => currentPath === prefix || currentPath.startsWith(`${prefix}/`));
@@ -45,6 +47,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
   const isCatalogActive =
     pathname?.startsWith("/catalog") && pathname !== "/catalog/submit";
   const isForumActive = pathname?.startsWith("/forum");
+  const isMessagesActive = pathname?.startsWith("/messages");
   const isSubmitActive = pathname === "/catalog/submit";
   const isResearchActive = pathname?.startsWith("/cybercrime-research");
   const isProfileActive = pathname?.startsWith("/profile");
@@ -81,10 +84,15 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                 isHomeActive ? "text-cyan-400" : "text-slate-300"
               }`}
             >
-              {dict.nav.home}
+              {user
+                ? locale === "pt-BR"
+                  ? "Timeline"
+                  : "Timeline"
+                : dict.nav.home}
             </Link>
             {user && (
               <>
+                <MessagesNavBadge locale={locale} active={isMessagesActive} />
                 <Link
                   href="/catalog"
                   className={`text-sm font-medium transition-colors hover:text-cyan-400 focus:outline-none focus-visible:text-cyan-400 ${
@@ -419,6 +427,12 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                   >
                     {dict.profilePage.title}
                   </Link>
+                  <MessagesNavBadge
+                    locale={locale}
+                    active={isMessagesActive}
+                    variant="mobile"
+                    onClick={() => setMobileMenuOpen(false)}
+                  />
                   <Link
                     href="/catalog/submit"
                     onClick={() => setMobileMenuOpen(false)}
