@@ -87,3 +87,39 @@ export function getResourceTagLabel(
 ): string {
   return TAG_LABELS[tag][locale];
 }
+
+const CODE_HOSTING_HOSTS = new Set([
+  "github.com",
+  "www.github.com",
+  "gitlab.com",
+  "www.gitlab.com",
+  "bitbucket.org",
+  "www.bitbucket.org",
+  "codeberg.org",
+]);
+
+/**
+ * Displays pricing/credit-card badges only for tool websites/services and AI resources,
+ * hiding them for direct source-code repositories or scripts.
+ */
+export function shouldShowPricingBadges(resource: {
+  type: string;
+  url: string;
+  categorySlug: string;
+}): boolean {
+  if (resource.categorySlug === "ai-security") {
+    return true;
+  }
+  if (resource.type === "repository" || resource.type === "script") {
+    return false;
+  }
+  try {
+    const hostname = new URL(resource.url).hostname.toLowerCase();
+    if (CODE_HOSTING_HOSTS.has(hostname)) {
+      return false;
+    }
+  } catch {
+    // Keep default behavior if URL cannot be parsed
+  }
+  return true;
+}

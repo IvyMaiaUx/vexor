@@ -15,6 +15,7 @@ import {
   getPricingModelLabel,
   getResourceTagLabel,
 } from "@/features/catalog/pricing-labels";
+import { CourseDetailView } from "@/features/catalog/course-detail-view";
 import { ResourceCard } from "@/features/catalog/resource-card";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import { ReportButton } from "@/features/reports/report-modal";
@@ -338,7 +339,15 @@ export default function ResourceDetailPage() {
                 </button>
               </div>
             )}
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+            {resource.courseMetadata ? (
+              <CourseDetailView
+                resource={resource}
+                metadata={resource.courseMetadata}
+                locale={locale}
+                categoryName={categoryName}
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               {/* Left Column: Description & Security Notice */}
               <div className="space-y-6 lg:col-span-8">
                 <div className="rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-6 sm:p-8">
@@ -453,6 +462,7 @@ export default function ResourceDetailPage() {
                 </div>
               </aside>
             </div>
+            )}
 
             {/* Related Resources in the Same Category */}
             {relatedResources.length > 0 && (

@@ -944,6 +944,7 @@ export type Database = {
         Row: {
           author_name: string | null
           category_id: string
+          course_metadata: Json | null
           created_at: string
           description: string
           difficulty: Database["public"]["Enums"]["difficulty_level"] | null
@@ -970,6 +971,7 @@ export type Database = {
         Insert: {
           author_name?: string | null
           category_id: string
+          course_metadata?: Json | null
           created_at?: string
           description: string
           difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
@@ -996,6 +998,7 @@ export type Database = {
         Update: {
           author_name?: string | null
           category_id?: string
+          course_metadata?: Json | null
           created_at?: string
           description?: string
           difficulty?: Database["public"]["Enums"]["difficulty_level"] | null

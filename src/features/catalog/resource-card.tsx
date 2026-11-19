@@ -11,6 +11,7 @@ import { getSafeExternalHref } from "@/lib/security/sanitize";
 import {
   getPricingModelLabel,
   getResourceTagLabel,
+  shouldShowPricingBadges,
 } from "./pricing-labels";
 
 interface ResourceCardProps {
@@ -41,6 +42,7 @@ export function ResourceCard({
 
   const safeHref = getSafeExternalHref(resource.url);
   const isPending = resource.status === "pending";
+  const showPricing = shouldShowPricingBadges(resource);
 
   return (
     <article className="group flex flex-col justify-between rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-4 transition-all hover:border-cyan-500/40 hover:bg-[#11192d] sm:p-5">
@@ -56,12 +58,12 @@ export function ResourceCard({
                 {dict.catalogSection.pendingBadge}
               </span>
             )}
-            {resource.pricingModel && (
+            {showPricing && resource.pricingModel && (
               <span className="rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-sky-300">
                 {getPricingModelLabel(resource.pricingModel, locale)}
               </span>
             )}
-            {resource.requiresCreditCard === "no" && (
+            {showPricing && resource.requiresCreditCard === "no" && (
               <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-300">
                 {getResourceTagLabel("no_card", locale)}
               </span>

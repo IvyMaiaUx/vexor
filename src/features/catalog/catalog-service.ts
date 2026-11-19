@@ -17,6 +17,7 @@ import {
   normalizeResourceUrl,
 } from "@/lib/security/sanitize";
 import type { Database } from "@/types/database.types";
+import { type CourseMetadata, parseCourseMetadata } from "./course-metadata";
 import {
   computeResourceTags,
   filterValidOptionalTags,
@@ -31,6 +32,7 @@ export type ResourceRow = Database["public"]["Tables"]["resources"]["Row"] & {
   free_tier_limits?: string | null;
   pricing_notes?: string | null;
   tags?: ResourceStandardTag[] | null;
+  course_metadata?: unknown;
 };
 export type ResourceInsertRow =
   Database["public"]["Tables"]["resources"]["Insert"] & {
@@ -47,6 +49,7 @@ export interface CatalogResourceItem extends FeaturedResourceItem {
   categoryId: string;
   submittedBy?: string | null;
   createdAt?: string;
+  courseMetadata?: CourseMetadata | null;
 }
 
 export interface CatalogCategoryItem extends CategoryItem {
@@ -177,7 +180,7 @@ export interface CatalogSupabaseError {
 export type CatalogSupabaseClientLike = any;
 
 export const RESOURCE_SELECT_COLUMNS =
-  "id, slug, name, description, category_id, type, url, language, difficulty, author_name, submitted_by, status, published_at, created_at, pricing_model, requires_credit_card, free_tier_limits, pricing_notes, tags";
+  "id, slug, name, description, category_id, type, url, language, difficulty, author_name, submitted_by, status, published_at, created_at, pricing_model, requires_credit_card, free_tier_limits, pricing_notes, tags, course_metadata";
 
 export const CATEGORY_SELECT_COLUMNS =
   "id, slug, name_en, name_pt, description_en, description_pt, scope, sort_order, is_active";
@@ -269,6 +272,7 @@ export function mapResourceRow(
     freeTierLimits: row.free_tier_limits ?? null,
     pricingNotes: row.pricing_notes ?? null,
     tags: Array.isArray(row.tags) ? row.tags : [],
+    courseMetadata: parseCourseMetadata(row.course_metadata),
   };
 }
 
