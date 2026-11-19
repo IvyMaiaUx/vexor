@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { type FormEvent, useRef, useState } from "react";
 import type { SupportedLocale } from "@/config/site";
@@ -48,6 +49,46 @@ function getKindBadge(kind: TopicKind, isPt: boolean) {
   }
 }
 
+function AuthorAvatar({
+  avatarUrl,
+  name,
+  size = "md",
+}: {
+  avatarUrl?: string | null;
+  name: string;
+  size?: "sm" | "md";
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showImage = Boolean(avatarUrl && failedUrl !== avatarUrl);
+  const initials = (name || "VX").slice(0, 2).toUpperCase();
+  const boxClass =
+    size === "sm"
+      ? "h-6 w-6 rounded-lg text-[10px]"
+      : "h-10 w-10 rounded-xl text-xs";
+  const px = size === "sm" ? 24 : 40;
+
+  return (
+    <span
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-cyan-500/30 bg-[#070b14] font-mono font-bold text-cyan-300 ${boxClass}`}
+    >
+      {showImage && avatarUrl ? (
+        <Image
+          key={avatarUrl}
+          src={avatarUrl}
+          alt={name}
+          width={px}
+          height={px}
+          unoptimized
+          onError={() => setFailedUrl(avatarUrl)}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        initials
+      )}
+    </span>
+  );
+}
+
 export function TimelinePostCard({
   post,
   locale,
@@ -68,10 +109,7 @@ export function TimelinePostCard({
   const [replySending, setReplySending] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const inFlightVote = useRef(false);
-
-  const initials = (post.authorDisplayName || post.authorUsername || "VX")
-    .slice(0, 2)
-    .toUpperCase();
+  const authorLabel = post.authorDisplayName || post.authorUsername || "VX";
 
   const handleToggleVote = async () => {
     if (inFlightVote.current) return;
@@ -148,9 +186,13 @@ export function TimelinePostCard({
         <div className="flex items-center gap-3">
           <Link
             href={`/profile/${post.authorUsername}`}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-500/30 bg-[#070b14] font-mono text-xs font-bold text-cyan-300"
+            className="shrink-0 transition-opacity hover:opacity-90"
           >
-            {initials}
+            <AuthorAvatar
+              avatarUrl={post.authorAvatarUrl}
+              name={authorLabel}
+              size="md"
+            />
           </Link>
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -345,9 +387,14 @@ export function TimelinePostCard({
                   <div className="flex items-center justify-between text-[11px] text-slate-400">
                     <Link
                       href={`/profile/${c.authorUsername}`}
-                      className="font-semibold text-cyan-300 hover:underline"
+                      className="inline-flex items-center gap-2 font-semibold text-cyan-300 hover:underline"
                     >
-                      @{c.authorUsername}
+                      <AuthorAvatar
+                        avatarUrl={c.authorAvatarUrl}
+                        name={c.authorDisplayName || c.authorUsername}
+                        size="sm"
+                      />
+                      <span>@{c.authorUsername}</span>
                     </Link>
                     <span className="font-mono text-slate-500">
                       {new Date(c.createdAt).toLocaleDateString(
