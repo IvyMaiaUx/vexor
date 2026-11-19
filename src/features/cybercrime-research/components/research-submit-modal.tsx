@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useActivityStore } from "@/features/activity/use-activity-store";
+import { ResearchIcon } from "./research-icon";
 import { researchService } from "../services/research-service";
 import type {
   ResearchDomain,
@@ -197,7 +198,7 @@ export function ResearchSubmitModal({
       detail_en: `${title} · ${domain.toUpperCase()}`,
       link: "/my-contributions",
       badgeLabel: isPt ? "Pesquisa" : "Research",
-      icon: "🔬",
+      icon: "investigation",
       targetKey: `research:${result.id}`,
     });
 
@@ -256,7 +257,9 @@ export function ResearchSubmitModal({
         {/* Gate: If not authenticated */}
         {!user ? (
           <div className="my-8 rounded-2xl border border-cyan-800/60 bg-cyan-950/20 p-6 text-center space-y-4">
-            <span className="text-3xl">🔒</span>
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+              <ResearchIcon name="lock" className="h-6 w-6" />
+            </span>
             <h3 className="text-sm font-bold text-slate-100">
               {isPt ? "Autenticação Obrigatória" : "Authentication Required"}
             </h3>
@@ -275,7 +278,9 @@ export function ResearchSubmitModal({
         ) : user.isSuspended ? (
           /* Gate: If suspended */
           <div className="my-8 rounded-2xl border border-rose-800/60 bg-rose-950/20 p-6 text-center space-y-3">
-            <span className="text-3xl">⛔</span>
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-300">
+              <ResearchIcon name="block" className="h-6 w-6" />
+            </span>
             <h3 className="text-sm font-bold text-rose-300">
               {isPt ? "Conta sob Restrição / Suspensão" : "Account Suspended"}
             </h3>

@@ -584,14 +584,45 @@ console.log("=== ETAPA 9.3 — CATALOG & BOOKMARKS SUPABASE INTEGRATION TESTS ==
       language: "en",
       difficulty: "intermediate",
       authorName: "@sec_member",
+      pricingModel: "freemium",
+      requiresCreditCard: "no",
+      freeTierLimits: "Up to 500 captures/month.",
+      pricingNotes: "Pro starts at $15/month.",
+      optionalTags: ["open_source"],
     },
     { locale: "pt-BR", client }
   );
   assert.equal(okRes.status, "success");
   assert.equal(okRes.resource.status, "pending");
   assert.equal(client.insertedResources[0].url, "https://example.com");
+  assert.deepEqual(client.insertedResources[0].tags, ["freemium", "no_card", "open_source"]);
   assert.equal("status" in client.insertedResources[0], false);
   assert.equal("submitted_by" in client.insertedResources[0], false);
+
+  // Invalid pricing / card / limits / optionalTags rejected
+  const badPricing = await catalogService.submitCatalogResource(
+    {
+      name: "Bad Pricing Tool",
+      description: "A defensive utility with invalid pricing payload.",
+      categoryId: CAT_BLUE_ID,
+      type: "tool",
+      url: "https://example.com/bad-pricing",
+      language: "en",
+      pricingModel: "invalid_tier",
+      requiresCreditCard: "maybe",
+      freeTierLimits: "x".repeat(1001),
+      pricingNotes: "y".repeat(501),
+      optionalTags: ["free", "malicious_tag"],
+    },
+    { locale: "pt-BR", client }
+  );
+  assert.equal(badPricing.status, "error");
+  assert.equal(badPricing.errorCode, "validation_error");
+  assert.ok(badPricing.fieldErrors?.pricingModel);
+  assert.ok(badPricing.fieldErrors?.requiresCreditCard);
+  assert.ok(badPricing.fieldErrors?.freeTierLimits);
+  assert.ok(badPricing.fieldErrors?.pricingNotes);
+  assert.ok(badPricing.fieldErrors?.optionalTags);
 
   // Duplicate URL (23505)
   const dupClient = createMockSupabase({
@@ -605,6 +636,8 @@ console.log("=== ETAPA 9.3 — CATALOG & BOOKMARKS SUPABASE INTEGRATION TESTS ==
       type: "repository",
       url: "https://github.com/SigmaHQ/sigma",
       language: "en",
+      pricingModel: "free",
+      requiresCreditCard: "no",
     },
     { locale: "en", client: dupClient }
   );

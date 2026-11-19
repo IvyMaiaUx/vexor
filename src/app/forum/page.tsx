@@ -383,7 +383,11 @@ function ForumContent() {
                   💬
                 </div>
                 <h2 className="mt-4 text-lg font-semibold text-slate-100 sm:text-xl">
-                  {dict.forumPage.noTopicsFound}
+                  {hasActiveFilters
+                    ? dict.forumPage.noTopicsFound
+                    : locale === "pt-BR"
+                      ? "Ainda não existem discussões nesta categoria. Seja o primeiro a compartilhar conhecimento com a comunidade."
+                      : "There are no discussions in this category yet. Be the first to share knowledge with the community."}
                 </h2>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                   {hasActiveFilters && (

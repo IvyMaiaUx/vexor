@@ -1,0 +1,9 @@
+# REGISTRO DE RISCOS — ETAPA 10.3.5
+
+| ID | Gravidade | Descrição | Evidência | Impacto / Falha | Recomendação | Requer Migration? | Requer Frontend? |
+|---|---|---|---|---|---|---|---|
+| `POST-01` | `MEDIUM` | `topics` ainda recebe `GRANT INSERT (category_id, title, body)` da migration 3; colunas novas (`kind`, `shared_url`, `resource_id`) ainda não receberam `GRANT INSERT` específico para `authenticated` caso o insert venha direto do cliente. | `20261110000003_rls_and_grants.sql:102` vs `20261117234500_social_community.sql` | Tentativa futura do cliente inserir `kind`/`shared_url`/`resource_id` diretamente em `topics` falhará com `42501`. | Na Fase B, conceder `GRANT INSERT (kind, shared_url, resource_id) ON public.topics TO authenticated` ou criar RPC dedicada. | **Sim (incremental)** | Sim |
+| `POST-02` | `LOW` | Publicação `supabase_realtime` ainda não inclui `direct_messages` e `notifications`. | `REALTIME-READINESS.md` | Sem eventos Realtime até habilitar a publicação. | Habilitar via migration incremental na Fase B + testar WebSocket. | **Sim (incremental)** | Sim |
+| `POST-03` | `LOW` | `src/types/database.types.ts` ainda não contém os objetos da `20261117234500`. | `src/types/database.types.ts` | Sem tipagem TS para as novas tabelas/RPCs até regeneração. | Regenerar `database.types.ts` no início da Fase B. | Não | **Sim** |
+| `POST-04` | `INFORMATIONAL` | `useCatalogStore`/`useForumStore` na landing pública: confirmar que `anon` não dispara fetch em `categories` após `REVOKE SELECT FROM anon`. | `src/app/page.tsx:96` | Possível erro silencioso de console se store buscar `categories` antes do login. | Auditar stores ao iniciar Fase B. | Não | **Sim** |
+| `POST-05` | `INFORMATIONAL` | `supabase/config.toml` declara `major_version = 15` enquanto remoto usa PG `17.11`. | `supabase/config.toml:15` | Divergência se Docker local for usado no futuro. | Atualizar para `17` quando conveniente. | Não | Não |

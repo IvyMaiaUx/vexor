@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useI18n } from "@/lib/i18n/context";
+import { ResearchIcon } from "./research-icon";
 
 interface ResearchAccessGuardProps {
   children: React.ReactNode;
@@ -28,8 +29,8 @@ export function ResearchAccessGuard({ children }: ResearchAccessGuardProps) {
   if (!user) {
     return (
       <div className="mx-auto flex min-h-[55vh] max-w-2xl flex-col items-center justify-center px-4 py-12 sm:py-16 text-center">
-        <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-3xl shadow-[0_0_30px_rgba(6,182,212,0.2)]">
-          🔒
+        <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+          <ResearchIcon name="lock" className="h-8 w-8" />
         </div>
 
         <span className="font-mono text-xs font-semibold uppercase tracking-wider text-cyan-400">
@@ -67,8 +68,9 @@ export function ResearchAccessGuard({ children }: ResearchAccessGuardProps) {
 
         {/* Aviso de Arquitetura & Simulação */}
         <div className="mt-10 w-full rounded-xl border border-cyan-500/20 bg-[#080d1a] p-4 text-left">
-          <p className="font-mono text-xs leading-relaxed text-slate-400">
-            ℹ️ <span className="text-cyan-300 font-semibold">{t.simulationNotice}</span>
+          <p className="flex items-start gap-2 font-mono text-xs leading-relaxed text-slate-400">
+            <ResearchIcon name="info" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-400" />
+            <span className="text-cyan-300 font-semibold">{t.simulationNotice}</span>
           </p>
         </div>
       </div>
@@ -79,8 +81,8 @@ export function ResearchAccessGuard({ children }: ResearchAccessGuardProps) {
   if (user.isSuspended) {
     return (
       <div className="mx-auto flex min-h-[55vh] max-w-2xl flex-col items-center justify-center px-4 py-12 sm:py-16 text-center">
-        <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-3xl shadow-[0_0_30px_rgba(245,158,11,0.2)]">
-          🛑
+        <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+          <ResearchIcon name="block" className="h-8 w-8" />
         </div>
 
         <span className="font-mono text-xs font-semibold uppercase tracking-wider text-amber-400">

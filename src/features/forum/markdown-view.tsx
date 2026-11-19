@@ -63,10 +63,14 @@ function formatInlineText(text: string, baseKey: string) {
     const boldMatch = remaining.match(/^(.*?)\*\*([^*]+)\*\*([\s\S]*)$/);
     // 4. Italic: *italic*
     const italicMatch = remaining.match(/^(.*?)\*([^*]+)\*([\s\S]*)$/);
+    // 5. Bare URL: https://...
+    const bareUrlMatch = remaining.match(
+      /^(.*?)(https?:\/\/[^\s)<>\]"']+)([\s\S]*)$/
+    );
 
     // Pick earliest match
     interface MatchCandidate {
-      type: "code" | "link" | "bold" | "italic";
+      type: "code" | "link" | "bold" | "italic" | "url";
       index: number;
       pre: string;
       content: string;
@@ -111,6 +115,16 @@ function formatInlineText(text: string, baseKey: string) {
         pre: italicMatch[1],
         content: italicMatch[2],
         post: italicMatch[3],
+      });
+    }
+    if (bareUrlMatch && typeof bareUrlMatch.index === "number") {
+      candidates.push({
+        type: "url",
+        index: bareUrlMatch[1].length,
+        pre: bareUrlMatch[1],
+        content: bareUrlMatch[2],
+        extra: bareUrlMatch[2],
+        post: bareUrlMatch[3],
       });
     }
 
@@ -158,6 +172,21 @@ function formatInlineText(text: string, baseKey: string) {
         <strong key={key} className="font-semibold text-slate-100">
           {best.content}
         </strong>
+      );
+    } else if (best.type === "url" && best.extra) {
+      const safe = isSafeExternalUrl(best.extra)
+        ? getSafeExternalHref(best.extra)
+        : "#";
+      tokens.push(
+        <a
+          key={key}
+          href={safe}
+          target="_blank"
+          rel="noopener noreferrer ugc"
+          className="break-all text-cyan-400 underline decoration-cyan-500/40 underline-offset-2 hover:text-cyan-300 hover:decoration-cyan-400"
+        >
+          {best.content}
+        </a>
       );
     } else if (best.type === "italic") {
       tokens.push(
@@ -242,6 +271,86 @@ export function MarkdownView({ content, className = "" }: MarkdownViewProps) {
         i++;
         continue;
       }
+      if (trimmed === "---" || trimmed === "***") {
+        blockIdx++;
+        parsedBlocks.push(
+          <hr
+            key={`${compId}-hr-${blockIdx}`}
+            className="my-5 border-slate-800/80"
+          />
+        );
+        i++;
+        continue;
+      }
+
+      if (
+        line.startsWith("### ") &&
+        line.slice(4).trim().toLowerCase() === "ficha técnica"
+      ) {
+        const specEntries: Array<{ label: string; value: string }> = [];
+        let j = i + 1;
+        while (j < rawLines.length) {
+          const nextTrimmed = rawLines[j].trim();
+          if (!nextTrimmed) {
+            j++;
+            continue;
+          }
+          const kvMatch = nextTrimmed.match(/^[-*]\s+\*\*([^*]+)\*\*\s*(.+)$/);
+          if (kvMatch) {
+            specEntries.push({
+              label: kvMatch[1].replace(/:$/, "").trim(),
+              value: kvMatch[2].trim(),
+            });
+            j++;
+          } else {
+            break;
+          }
+        }
+        if (specEntries.length > 0) {
+          blockIdx++;
+          parsedBlocks.push(
+            <div
+              key={`${compId}-spec-${blockIdx}`}
+              className="my-5 rounded-2xl border border-slate-800/90 bg-[#070b14]/90 p-5 shadow-inner"
+            >
+              <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-cyan-300">
+                  Ficha Técnica
+                </span>
+              </div>
+              <dl className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                {specEntries.map((entry, entryIdx) => {
+                  const isWide =
+                    entry.label.toLowerCase().includes("limite") ||
+                    entry.label.toLowerCase().includes("github") ||
+                    entry.label.toLowerCase().includes("site");
+                  return (
+                    <div
+                      key={`${compId}-spec-item-${blockIdx}-${entryIdx}`}
+                      className={`rounded-xl border border-slate-800/70 bg-[#0d1322]/70 p-3 ${
+                        isWide ? "sm:col-span-2" : ""
+                      }`}
+                    >
+                      <dt className="font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        {entry.label}
+                      </dt>
+                      <dd className="mt-1 text-xs leading-relaxed text-slate-200">
+                        {formatInlineText(
+                          entry.value,
+                          `${compId}-spec-val-${blockIdx}-${entryIdx}`
+                        )}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </div>
+          );
+          i = j;
+          continue;
+        }
+      }
+
       if (line.startsWith("### ")) {
         blockIdx++;
         parsedBlocks.push(
@@ -330,6 +439,8 @@ export function MarkdownView({ content, className = "" }: MarkdownViewProps) {
       while (
         i < rawLines.length &&
         rawLines[i].trim() &&
+        rawLines[i].trim() !== "---" &&
+        rawLines[i].trim() !== "***" &&
         !rawLines[i].trim().startsWith("```") &&
         !rawLines[i].startsWith("#") &&
         !rawLines[i].startsWith("> ") &&

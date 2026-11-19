@@ -1,0 +1,6 @@
+# AUDITORIA DAS REGRAS DE NEGÓCIO SOCIAIS — ETAPA 10.3.5
+
+- **Timeline e Publicações:** `topics.kind` (`discussion`, `question`, `tool_share`, `note`), publicação imediata (`status = 'published'` por padrão), cursor composto `(created_at, id)` via `topics_timeline_keyset_idx` e `topics_kind_keyset_idx`, UPs em `topic_votes` com PK `(user_id, topic_id)` e contagem atômica em `topics.vote_count >= 0`.
+- **Mensagens Privadas:** Conversas 1:1 com chave canônica `participant_low < participant_high`, bloqueio bilateral via `user_blocks`, envio concorrente seguro via `FOR NO KEY UPDATE`, paginação por `direct_messages_conv_keyset_idx`, leitura via `mark_dm_conversation_read`, denúncia restrita a `published` com deduplicação ativa (`23505`) e snapshots imutáveis preservados em `reported_message_snapshots`.
+- **Advertências e Moderação:** Hierarquia `admin > moderator > member`, justificativa obrigatória, histórico preservado, deduplicação por `(user_id, report_id)` ativo, auditoria em `audit_logs`.
+- **Notificações:** Eventos `topic_upvoted`, `post_upvoted`, `post_reply`, `mention`, `direct_message`, `user_warning`, `content_hidden`, `content_removed`; deduplicação em UPs (janela 24h) e DMs (não lida na conversa); sem auto-notificação; menções respeitando `user_blocks` e limite de 10.

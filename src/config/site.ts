@@ -19,6 +19,27 @@ export type ResourceLanguage = "en" | "pt-BR" | "multilingual" | "other";
 
 export type ResourceStatus = "pending" | "approved" | "rejected" | "archived";
 
+export type ResourcePricingModel = "free" | "freemium" | "paid";
+
+export type ResourceCreditCardRequirement =
+  | "yes"
+  | "no"
+  | "depends"
+  | "not_informed";
+
+export type ResourceOptionalTag = "open_source" | "self_hosted";
+
+export type ResourceStandardTag =
+  | "free"
+  | "freemium"
+  | "paid"
+  | "no_card"
+  | "card_required"
+  | "card_depends"
+  | "card_not_informed"
+  | "open_source"
+  | "self_hosted";
+
 export interface CategoryItem {
   slug: string;
   code: string;
@@ -45,6 +66,11 @@ export interface FeaturedResourceItem {
   rejectionReason?: string;
   submittedByUsername?: string;
   createdAt?: string;
+  pricingModel?: ResourcePricingModel | null;
+  requiresCreditCard?: ResourceCreditCardRequirement | null;
+  freeTierLimits?: string | null;
+  pricingNotes?: string | null;
+  tags?: ResourceStandardTag[];
 }
 
 export interface FeaturedTopicItem {
@@ -429,52 +455,6 @@ export const FEATURED_RESOURCES: FeaturedResourceItem[] = [
 ];
 
 /**
- * Sample forum topics aligned with `public.topics` / `public.posts` for the initial forum preview.
+ * Forum topics are loaded from real Supabase `public.topics` / `public.posts` records.
  */
-export const FEATURED_TOPICS: FeaturedTopicItem[] = [
-  {
-    id: "topic-1",
-    title_pt:
-      "Como estruturar um laboratório doméstico de SOC e detecção com ferramentas gratuitas?",
-    title_en:
-      "How to build a home SOC and detection lab using open-source tools?",
-    categorySlug: "blue-team",
-    authorUsername: "sec_analyst_br",
-    tags: ["homelab", "siem", "wazuh", "sysmon"],
-    replyCount: 14,
-    voteCount: 38,
-    hasAcceptedSolution: true,
-    updatedAgo_pt: "há 2 horas",
-    updatedAgo_en: "2h ago",
-  },
-  {
-    id: "topic-2",
-    title_pt:
-      "Melhores práticas para análise de memória RAM no Linux com Volatility 3",
-    title_en:
-      "Best practices for Linux RAM memory forensics with Volatility 3",
-    categorySlug: "dfir",
-    authorUsername: "ir_responder",
-    tags: ["volatility3", "linux", "memory-forensics", "dfir"],
-    replyCount: 9,
-    voteCount: 27,
-    hasAcceptedSolution: true,
-    updatedAgo_pt: "há 5 horas",
-    updatedAgo_en: "5h ago",
-  },
-  {
-    id: "topic-3",
-    title_pt:
-      "Mitigação de Prompt Injection indireto em agentes baseados em LLMs",
-    title_en:
-      "Mitigating indirect Prompt Injection in LLM-powered applications",
-    categorySlug: "ai-security",
-    authorUsername: "appsec_researcher",
-    tags: ["llm-security", "owasp-llm", "prompt-injection"],
-    replyCount: 11,
-    voteCount: 31,
-    hasAcceptedSolution: false,
-    updatedAgo_pt: "há 1 dia",
-    updatedAgo_en: "1d ago",
-  },
-];
+export const FEATURED_TOPICS: FeaturedTopicItem[] = [];

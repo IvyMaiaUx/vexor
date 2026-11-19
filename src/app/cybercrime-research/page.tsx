@@ -11,6 +11,7 @@ import type { ResearchArticle } from "@/features/cybercrime-research/types";
 import { ResearchArticleDetailModal } from "@/features/cybercrime-research/components/research-article-detail-modal";
 import { ResearchSubmitModal } from "@/features/cybercrime-research/components/research-submit-modal";
 import { ResearchAccessGuard } from "@/features/cybercrime-research/components/research-access-guard";
+import { ResearchIcon } from "@/features/cybercrime-research/components/research-icon";
 
 export default function CybercrimeResearchPortalPage() {
   const { locale, setLocale } = useCatalogStore();
@@ -98,15 +99,17 @@ export default function CybercrimeResearchPortalPage() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/cybercrime-research/library"
-                    className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-center text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/20"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-center text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/20"
                   >
-                    📖 {t.librarySpaceTitle}
+                    <ResearchIcon name="library" className="h-3.5 w-3.5 shrink-0" />
+                    <span>{t.librarySpaceTitle}</span>
                   </Link>
                   <Link
                     href="/cybercrime-research/cases"
-                    className="rounded-xl border border-indigo-500/40 bg-indigo-500/15 px-4 py-2 text-center text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/25"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/15 px-4 py-2 text-center text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/25"
                   >
-                    📁 {t.casesSpaceTitle}
+                    <ResearchIcon name="cases" className="h-3.5 w-3.5 shrink-0" />
+                    <span>{t.casesSpaceTitle}</span>
                   </Link>
                 </div>
               </div>
@@ -116,8 +119,8 @@ export default function CybercrimeResearchPortalPage() {
           {/* SECTION 1: The Two Core Strategic Pillars */}
           <section className="space-y-6">
             <div className="space-y-1.5">
-              <h2 className="text-xl font-bold text-slate-100 sm:text-2xl flex items-center gap-2">
-                <span>🏛️</span>
+              <h2 className="text-xl font-bold text-slate-100 sm:text-2xl flex items-center gap-2.5">
+                <ResearchIcon name="pillars" className="h-5 w-5 text-cyan-400 shrink-0" />
                 <span>{t.pillarsTitle}</span>
               </h2>
               <p className="text-xs text-slate-400 sm:text-sm">
@@ -139,8 +142,8 @@ export default function CybercrimeResearchPortalPage() {
                   >
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
-                        <span className="text-3xl p-3 rounded-2xl bg-cyan-950/40 border border-cyan-800/40 group-hover:scale-105 transition-transform">
-                          {pillar.icon}
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-800/40 bg-cyan-950/40 text-cyan-300 group-hover:scale-105 transition-transform shrink-0">
+                          <ResearchIcon name={pillar.icon} className="h-6 w-6" />
                         </span>
                         <div>
                           <h3 className="text-lg font-bold text-slate-100 sm:text-xl group-hover:text-cyan-300 transition-colors">
@@ -177,8 +180,8 @@ export default function CybercrimeResearchPortalPage() {
           {/* SECTION 2: The Four Technical Spaces */}
           <section className="space-y-6">
             <div className="space-y-1.5">
-              <h2 className="text-xl font-bold text-slate-100 sm:text-2xl flex items-center gap-2">
-                <span>🧭</span>
+              <h2 className="text-xl font-bold text-slate-100 sm:text-2xl flex items-center gap-2.5">
+                <ResearchIcon name="spaces" className="h-5 w-5 text-cyan-400 shrink-0" />
                 <span>{t.spacesTitle}</span>
               </h2>
               <p className="text-xs text-slate-400 sm:text-sm">
@@ -194,7 +197,9 @@ export default function CybercrimeResearchPortalPage() {
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl">📖</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-300">
+                      <ResearchIcon name="library" className="h-4.5 w-4.5" />
+                    </span>
                     <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 font-mono text-[10px] text-cyan-300 font-bold">
                       {articles.length} {isPt ? "Artigos" : "Articles"}
                     </span>
@@ -219,7 +224,9 @@ export default function CybercrimeResearchPortalPage() {
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl">📁</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10 text-indigo-300">
+                      <ResearchIcon name="cases" className="h-4.5 w-4.5" />
+                    </span>
                     <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 font-mono text-[10px] text-indigo-300 font-bold">
                       {caseStudies.length} {isPt ? "Casos" : "Cases"}
                     </span>
@@ -244,7 +251,9 @@ export default function CybercrimeResearchPortalPage() {
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl">💬</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-purple-500/20 bg-purple-500/10 text-purple-300">
+                      <ResearchIcon name="discussions" className="h-4.5 w-4.5" />
+                    </span>
                     <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 font-mono text-[10px] text-purple-300 font-bold">
                       {discussions.length} {isPt ? "Tópicos" : "Topics"}
                     </span>
@@ -269,7 +278,9 @@ export default function CybercrimeResearchPortalPage() {
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl">🧪</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
+                      <ResearchIcon name="labs" className="h-4.5 w-4.5" />
+                    </span>
                     <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-300 font-bold">
                       {labs.length} {isPt ? "Roteiros" : "Guides"}
                     </span>
@@ -293,8 +304,8 @@ export default function CybercrimeResearchPortalPage() {
           <section className="space-y-6">
             <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
               <div className="space-y-1.5">
-                <h2 className="text-xl font-bold text-slate-100 sm:text-2xl flex items-center gap-2">
-                  <span>🏷️</span>
+                <h2 className="text-xl font-bold text-slate-100 sm:text-2xl flex items-center gap-2.5">
+                  <ResearchIcon name="categories" className="h-5 w-5 text-cyan-400 shrink-0" />
                   <span>{t.categoriesTitle}</span>
                 </h2>
                 <p className="text-xs text-slate-400 sm:text-sm">
@@ -316,8 +327,8 @@ export default function CybercrimeResearchPortalPage() {
                   >
                     <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl p-2 rounded-xl bg-slate-900 border border-slate-800">
-                          {cat.icon}
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-cyan-300 group-hover:border-cyan-500/30">
+                          <ResearchIcon name={cat.icon} className="h-5 w-5" />
                         </span>
                         <span className="font-mono text-[10px] text-slate-400 rounded-md bg-slate-800/80 px-2 py-0.5">
                           {cat.itemCount} {isPt ? "itens" : "items"}
@@ -343,8 +354,8 @@ export default function CybercrimeResearchPortalPage() {
           {/* SECTION 4: Ethical Charter & Operational Security Banner */}
           <section className="relative overflow-hidden rounded-3xl border border-cyan-800/50 bg-gradient-to-r from-cyan-950/30 via-slate-900/40 to-indigo-950/30 p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <span className="text-4xl p-3 rounded-2xl bg-cyan-950/60 border border-cyan-800/60 shrink-0">
-                🛡️
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-800/60 bg-cyan-950/60 text-cyan-300 shrink-0">
+                <ResearchIcon name="shield" className="h-7 w-7" />
               </span>
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-cyan-300 sm:text-lg">
@@ -361,8 +372,8 @@ export default function CybercrimeResearchPortalPage() {
           <section className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-100 sm:text-2xl flex items-center gap-2">
-                  <span>📑</span>
+                <h2 className="text-xl font-bold text-slate-100 sm:text-2xl flex items-center gap-2.5">
+                  <ResearchIcon name="featured" className="h-5 w-5 text-cyan-400 shrink-0" />
                   <span>{isPt ? "Destaques da Biblioteca" : "Featured Research"}</span>
                 </h2>
                 <p className="text-xs text-slate-400">

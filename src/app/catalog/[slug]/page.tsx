@@ -10,6 +10,11 @@ import {
   type CatalogResourceItem,
   fetchCatalogResourceBySlug,
 } from "@/features/catalog/catalog-service";
+import {
+  getCreditCardLabel,
+  getPricingModelLabel,
+  getResourceTagLabel,
+} from "@/features/catalog/pricing-labels";
 import { ResourceCard } from "@/features/catalog/resource-card";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import { ReportButton } from "@/features/reports/report-modal";
@@ -214,6 +219,70 @@ export default function ResourceDetailPage() {
                     locale={locale}
                   />
                 </div>
+
+                {(resource.pricingModel ||
+                  resource.requiresCreditCard ||
+                  resource.freeTierLimits ||
+                  resource.pricingNotes ||
+                  (resource.tags && resource.tags.length > 0)) && (
+                  <div className="mt-4 rounded-xl border border-slate-800/90 bg-[#0d1322]/90 p-4 text-xs text-slate-300">
+                    <div className="flex flex-wrap gap-3">
+                      {resource.pricingModel && (
+                        <div>
+                          <span className="font-mono text-slate-500">
+                            {isPt ? "Preço: " : "Pricing: "}
+                          </span>
+                          <span className="font-semibold text-sky-300">
+                            {getPricingModelLabel(resource.pricingModel, locale)}
+                          </span>
+                        </div>
+                      )}
+                      {resource.requiresCreditCard && (
+                        <div>
+                          <span className="font-mono text-slate-500">
+                            {isPt ? "Cartão de crédito: " : "Credit card: "}
+                          </span>
+                          <span className="font-semibold text-slate-100">
+                            {getCreditCardLabel(
+                              resource.requiresCreditCard,
+                              locale
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {resource.freeTierLimits && (
+                      <p className="mt-2 leading-relaxed text-slate-300">
+                        <span className="font-mono text-slate-500">
+                          {isPt
+                            ? "Limitações do plano gratuito: "
+                            : "Free tier limits: "}
+                        </span>
+                        {resource.freeTierLimits}
+                      </p>
+                    )}
+                    {resource.pricingNotes && (
+                      <p className="mt-1.5 leading-relaxed text-slate-300">
+                        <span className="font-mono text-slate-500">
+                          {isPt ? "Detalhes de preço: " : "Pricing notes: "}
+                        </span>
+                        {resource.pricingNotes}
+                      </p>
+                    )}
+                    {resource.tags && resource.tags.length > 0 && (
+                      <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        {resource.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-md border border-cyan-500/25 bg-cyan-500/10 px-2 py-0.5 font-mono text-[11px] text-cyan-300"
+                          >
+                            {getResourceTagLabel(tag, locale)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl">
                   {resource.name}

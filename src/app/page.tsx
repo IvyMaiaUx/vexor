@@ -299,28 +299,6 @@ export default function HomePage() {
                   {dict.hero.searchButton}
                 </button>
               </div>
-
-              {/* Platform Pillars / Stats */}
-              <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-slate-800/80 pt-3 sm:mt-4 sm:grid-cols-4">
-                <div className="flex items-center gap-2 text-[11px] text-slate-400 sm:text-xs">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400" />
-                  <span className="truncate">{dict.hero.stats.categories}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-400 sm:text-xs">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
-                  <span className="truncate">
-                    {dict.hero.stats.resourceTypes}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-400 sm:text-xs">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                  <span className="truncate">{dict.hero.stats.openSource}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-400 sm:text-xs">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400" />
-                  <span className="truncate">{dict.hero.stats.bilingual}</span>
-                </div>
-              </div>
             </form>
             ) : (
               /* Visitor Platform Pillars & Access Notice (no catalog search/filters) */
@@ -355,7 +333,7 @@ export default function HomePage() {
         {/* 2. CATEGORIES SECTION (12 Initial Categories from seed.sql) */}
         <section
           id="categories"
-          className="border-b border-slate-800/80 py-16 sm:py-20"
+          className="border-b border-slate-800/80 py-12 sm:py-14"
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -379,7 +357,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {categories.map((category) => {
                 const title =
                   locale === "pt-BR" ? category.name_pt : category.name_en;
@@ -393,27 +371,29 @@ export default function HomePage() {
                     key={category.id}
                     href={`/catalog?category=${category.slug}`}
                     title={`${dict.categoriesSection.filterByCategory}: ${title}`}
-                    className="group flex flex-col justify-between rounded-xl border border-slate-800/90 bg-[#0d1322]/90 p-4 text-left transition-all hover:border-cyan-500/40 hover:bg-[#121a2e]"
+                    className="group flex flex-col justify-between rounded-xl border border-slate-800/90 bg-[#0d1322]/90 p-3 text-left transition-all hover:border-cyan-500/40 hover:bg-[#121a2e]"
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="rounded border border-slate-700/80 bg-[#070b14] px-2 py-0.5 font-mono text-[11px] font-medium text-cyan-300">
+                        <span className="rounded border border-slate-700/80 bg-[#070b14] px-1.5 py-0.5 font-mono text-[10px] font-medium text-cyan-300">
                           {category.code ??
                             category.slug.slice(0, 4).toUpperCase()}
                         </span>
-                        <span className="font-mono text-[11px] text-slate-500 group-hover:text-cyan-400">
+                        <span className="truncate font-mono text-[10px] text-slate-500 group-hover:text-cyan-400">
                           /{category.slug}
                         </span>
                       </div>
-                      <h3 className="mt-3 text-base font-semibold text-slate-100 group-hover:text-cyan-300">
+                      <h3 className="mt-2 line-clamp-1 text-sm font-semibold text-slate-100 group-hover:text-cyan-300">
                         {title}
                       </h3>
-                      <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
-                        {description}
-                      </p>
+                      {description && (
+                        <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-400">
+                          {description}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-800/80 pt-2.5 font-mono text-[11px] text-slate-500 group-hover:text-cyan-300">
+                    <div className="mt-2.5 flex items-center justify-between border-t border-slate-800/80 pt-2 font-mono text-[10px] text-slate-500 group-hover:text-cyan-300">
                       <span>{dict.catalogSection.viewDetails}</span>
                       <span aria-hidden="true">→</span>
                     </div>

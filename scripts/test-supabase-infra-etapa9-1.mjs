@@ -99,10 +99,20 @@ assert(typesCode.includes("moderate_resource: {"), "Contém tipagem da RPC moder
 console.log("\n>>> [7/7] Verificando integridade das migrações SQL...");
 const migrationsDir = path.join(rootDir, "supabase", "migrations");
 const files = fs.readdirSync(migrationsDir).sort();
-assert(files.length === 3, `Exatamente 3 migrações existentes (encontrado: ${files.length})`);
-assert(files[0] === "20261110000001_schema.sql", "Migração 1 preservada");
-assert(files[1] === "20261110000002_functions_triggers.sql", "Migração 2 preservada");
-assert(files[2] === "20261110000003_rls_and_grants.sql", "Migração 3 preservada");
+const expectedMigrations = [
+  "20261110000001_schema.sql",
+  "20261110000002_functions_triggers.sql",
+  "20261110000003_rls_and_grants.sql",
+  "20261113143000_security_hardening.sql",
+  "20261116114600_research_submissions.sql",
+];
+assert(
+  files.length === expectedMigrations.length && new Set(files).size === files.length,
+  `Cadeia íntegra de ${expectedMigrations.length} migrações oficiais sem duplicatas (encontrado: ${files.length})`
+);
+expectedMigrations.forEach((name, idx) => {
+  assert(files[idx] === name, `Migração ${idx + 1} preservada em ordem cronológica (${name})`);
+});
 
 console.log("\n==================================================");
 if (failed) {

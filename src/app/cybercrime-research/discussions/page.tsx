@@ -9,6 +9,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { researchService } from "@/features/cybercrime-research/services/research-service";
 import { ResearchBreadcrumbs } from "@/features/cybercrime-research/components/research-breadcrumbs";
 import { ResearchAccessGuard } from "@/features/cybercrime-research/components/research-access-guard";
+import { ResearchIcon } from "@/features/cybercrime-research/components/research-icon";
 
 export default function TechnicalDiscussionsPage() {
   const { locale, setLocale } = useCatalogStore();
@@ -164,8 +165,8 @@ export default function TechnicalDiscussionsPage() {
                     </div>
 
                     <div className="flex items-center gap-4 font-mono text-xs text-slate-400">
-                      <span className="flex items-center gap-1 text-slate-300">
-                        <span>💬</span>
+                      <span className="flex items-center gap-1.5 text-slate-300">
+                        <ResearchIcon name="discussions" className="h-3.5 w-3.5 text-purple-400 shrink-0" />
                         <span>{disc.repliesCount} {isPt ? "respostas" : "replies"}</span>
                       </span>
                       <span className="flex items-center gap-1 text-cyan-400">

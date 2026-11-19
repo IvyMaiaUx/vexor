@@ -82,6 +82,67 @@ function createMockSupabase({
   actorSuspended = false,
   unauthenticated = false,
 } = {}) {
+  const sampleRows = [
+    {
+      id: mockAdapterMod.MOCK_PUBLIC_RESEARCH_ID,
+      slug: "public-approved-research",
+      author_id: MOD_ID,
+      category_id: mockAdapterMod.MOCK_CATEGORY_ID,
+      title_pt: "Análise Pública de Ransomware",
+      title_en: "Public Ransomware Analysis",
+      summary_pt: "Resumo técnico público aprovado pela moderação para consulta da comunidade.",
+      summary_en: null,
+      body_pt: "Corpo técnico completo aprovado com indicadores de comprometimento e mitigação.",
+      body_en: null,
+      domain: "ransomware",
+      severity: "high",
+      tlp: "CLEAR",
+      status: "approved",
+      cves: ["CVE-2024-3094"],
+      attack_techniques: ["T1059"],
+      source_references: [],
+      confidence_level: "high",
+      methodology: "Análise estática e dinâmica.",
+      read_time_minutes: 10,
+      rejection_reason: null,
+      reviewed_by: MOD_ID,
+      reviewed_at: "2026-11-16T00:00:00Z",
+      published_at: "2026-11-16T00:00:00Z",
+      created_at: "2026-11-16T00:00:00Z",
+      updated_at: "2026-11-16T00:00:00Z",
+    },
+    {
+      id: mockAdapterMod.MOCK_PRIVATE_PENDING_ID,
+      slug: "private-pending-research",
+      author_id: MOD_ID,
+      category_id: mockAdapterMod.MOCK_CATEGORY_ID,
+      title_pt: "Rascunho Privado Pendente",
+      title_en: null,
+      summary_pt: "Resumo privado pendente de revisão pela equipe de moderação.",
+      summary_en: null,
+      body_pt: "Conteúdo restrito ainda em revisão e não visível para outros membros.",
+      body_en: null,
+      domain: "malware",
+      severity: "medium",
+      tlp: "GREEN",
+      status: "pending",
+      cves: [],
+      attack_techniques: [],
+      source_references: [],
+      confidence_level: "medium",
+      methodology: null,
+      read_time_minutes: 8,
+      rejection_reason: null,
+      reviewed_by: null,
+      reviewed_at: null,
+      published_at: null,
+      created_at: "2026-11-16T01:00:00Z",
+      updated_at: "2026-11-16T01:00:00Z",
+    },
+  ];
+
+  const isModOrAdmin = actorRole === "moderator" || actorRole === "admin";
+
   return {
     auth: {
       async getUser() {
@@ -93,33 +154,100 @@ function createMockSupabase({
       },
     },
     from(table) {
-      assert.equal(table, "profiles");
-      return {
-        select() {
-          return this;
-        },
-        eq() {
-          return this;
-        },
-        maybeSingle() {
-          return Promise.resolve({
-            data: {
-              id: actorId,
-              username: "test_member",
-              display_name: "Test Member",
-              avatar_url: null,
-              bio: null,
-              interests: [],
-              github_url: null,
-              linkedin_url: null,
-              preferred_locale: "pt-BR",
-              role: actorRole,
-              is_suspended: actorSuspended,
-            },
-            error: null,
-          });
-        },
-      };
+      if (table === "profiles" || table === "public_profiles") {
+        const filters = {};
+        return {
+          select() { return this; },
+          eq(col, val) { filters[col] = val; return this; },
+          in() { return Promise.resolve({ data: [{ id: MOD_ID, username: "mod_user", display_name: "Moderator" }], error: null }); },
+          maybeSingle() {
+            return Promise.resolve({
+              data: {
+                id: filters.id ?? actorId,
+                username: "test_member",
+                display_name: "Test Member",
+                avatar_url: null,
+                bio: null,
+                interests: [],
+                github_url: null,
+                linkedin_url: null,
+                preferred_locale: "pt-BR",
+                role: actorRole,
+                is_suspended: actorSuspended,
+              },
+              error: null,
+            });
+          },
+        };
+      }
+
+      if (table === "categories") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          in() { return Promise.resolve({ data: [{ id: mockAdapterMod.MOCK_CATEGORY_ID, slug: "malware", name_pt: "Malware", name_en: "Malware", scope: "research" }], error: null }); },
+          maybeSingle() { return Promise.resolve({ data: { id: mockAdapterMod.MOCK_CATEGORY_ID, slug: "malware", name_pt: "Malware", name_en: "Malware", scope: "research" }, error: null }); },
+        };
+      }
+
+      if (table === "research_recipients") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          order() { return Promise.resolve({ data: [], error: null }); },
+        };
+      }
+
+      if (table === "research_submissions") {
+        const eqFilters = {};
+        let mode = "select";
+        const builder = {
+          select() { return builder; },
+          eq(col, val) { eqFilters[col] = val; return builder; },
+          or() { return builder; },
+          contains() { return builder; },
+          order() { return builder; },
+          insert() { mode = "insert"; return builder; },
+          update() { mode = "update"; return builder; },
+          range() {
+            const visible = sampleRows.filter((r) => isModOrAdmin || r.status === "approved" || r.author_id === actorId);
+            return Promise.resolve({ data: visible, count: visible.length, error: null });
+          },
+          maybeSingle() {
+            if (mode === "insert") {
+              return Promise.resolve({
+                data: {
+                  id: "33333333-3333-4333-8333-333333333333",
+                  slug: "analise-tecnica-info-stealer",
+                  status: "pending",
+                  created_at: "2026-11-17T00:00:00Z",
+                },
+                error: null,
+              });
+            }
+            if (mode === "update") {
+              return Promise.resolve({ data: { id: eqFilters.id ?? mockAdapterMod.MOCK_PUBLIC_RESEARCH_ID }, error: null });
+            }
+            const visible = sampleRows.filter((r) => isModOrAdmin || r.status === "approved" || r.author_id === actorId);
+            const found = visible.find((r) => (!eqFilters.id || r.id === eqFilters.id)) ?? null;
+            return Promise.resolve({ data: found, error: null });
+          },
+          single() { return builder.maybeSingle(); },
+          then(resolve, reject) {
+            if (mode === "update") {
+              return Promise.resolve({
+                data: [{ id: eqFilters.id ?? mockAdapterMod.MOCK_PUBLIC_RESEARCH_ID }],
+                error: null,
+              }).then(resolve, reject);
+            }
+            const visible = sampleRows.filter((r) => isModOrAdmin || r.status === "approved" || r.author_id === actorId);
+            return Promise.resolve({ data: visible, count: visible.length, error: null }).then(resolve, reject);
+          },
+        };
+        return builder;
+      }
+
+      throw new Error(`Unexpected table queried in test mock: ${table}`);
     },
   };
 }
@@ -237,7 +365,6 @@ await test("07. Active member can list approved mock submissions and never sees 
   const sb = createMockSupabase({ actorId: MEMBER_ID, actorRole: "member" });
   const res = await handlers.handleListResearch(sb, new URLSearchParams());
   assert.equal(res.status, 200);
-  assert.equal(res.body.isTestMockData, true);
   assert.equal(res.body.items.length, 1);
   assert.equal(res.body.items[0].id, mockAdapterMod.MOCK_PUBLIC_RESEARCH_ID);
 });
@@ -296,22 +423,22 @@ await test("10. Adapter error returns 500 without silent fallback", async () => 
   assert.equal(detailRes.status, 500);
 });
 
-await test("11. Write endpoints (POST/PATCH) validate payload then return explicit 503 persistence_unavailable", async () => {
+await test("11. Write endpoints (POST/PATCH) validate payload and persist via repository", async () => {
   const sb = createMockSupabase();
   const badPost = await handlers.handleCreateResearch(sb, { titlePt: "ab" });
   assert.equal(badPost.status, 400);
 
   const validPost = await handlers.handleCreateResearch(sb, validCreatePayload);
-  assert.equal(validPost.status, 503);
-  assert.equal(validPost.body.code, "persistence_unavailable");
+  assert.equal(validPost.status, 201);
+  assert.equal(validPost.body.status, "pending");
 
   const validPatch = await handlers.handleUpdateResearch(
     sb,
     mockAdapterMod.MOCK_PUBLIC_RESEARCH_ID,
     { titlePt: "Título Atualizado com Segurança" }
   );
-  assert.equal(validPatch.status, 503);
-  assert.equal(validPatch.body.code, "persistence_unavailable");
+  assert.equal(validPatch.status, 200);
+  assert.equal(validPatch.body.success, true);
 });
 
 await test("12. Static security checks: no service_role, no localStorage, Cache-Control: no-store enforced", async () => {

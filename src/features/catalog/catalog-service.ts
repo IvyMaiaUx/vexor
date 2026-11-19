@@ -2,7 +2,11 @@ import type {
   CategoryItem,
   DifficultyLevel,
   FeaturedResourceItem,
+  ResourceCreditCardRequirement,
   ResourceLanguage,
+  ResourceOptionalTag,
+  ResourcePricingModel,
+  ResourceStandardTag,
   ResourceStatus,
   ResourceType,
   SupportedLocale,
@@ -13,11 +17,29 @@ import {
   normalizeResourceUrl,
 } from "@/lib/security/sanitize";
 import type { Database } from "@/types/database.types";
+import {
+  computeResourceTags,
+  filterValidOptionalTags,
+  isValidCreditCardRequirement,
+  isValidPricingModel,
+} from "./validation";
 
 export type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
-export type ResourceRow = Database["public"]["Tables"]["resources"]["Row"];
+export type ResourceRow = Database["public"]["Tables"]["resources"]["Row"] & {
+  pricing_model?: ResourcePricingModel | null;
+  requires_credit_card?: ResourceCreditCardRequirement | null;
+  free_tier_limits?: string | null;
+  pricing_notes?: string | null;
+  tags?: ResourceStandardTag[] | null;
+};
 export type ResourceInsertRow =
-  Database["public"]["Tables"]["resources"]["Insert"];
+  Database["public"]["Tables"]["resources"]["Insert"] & {
+    pricing_model?: ResourcePricingModel | null;
+    requires_credit_card?: ResourceCreditCardRequirement | null;
+    free_tier_limits?: string | null;
+    pricing_notes?: string | null;
+    tags?: ResourceStandardTag[];
+  };
 export type BookmarkRow = Database["public"]["Tables"]["bookmarks"]["Row"];
 
 export interface CatalogResourceItem extends FeaturedResourceItem {
@@ -35,6 +57,7 @@ export interface CatalogCategoryItem extends CategoryItem {
 export interface CatalogQueryParams {
   search?: string;
   categorySlug?: string;
+  excludeCategorySlug?: string;
   type?: ResourceType | "all";
   difficulty?: DifficultyLevel | "all";
   language?: ResourceLanguage | "all";
@@ -99,6 +122,11 @@ export interface ResourceSubmissionPayload {
   language: ResourceLanguage;
   difficulty?: DifficultyLevel | "";
   authorName?: string;
+  pricingModel: ResourcePricingModel;
+  requiresCreditCard: ResourceCreditCardRequirement;
+  freeTierLimits?: string;
+  pricingNotes?: string;
+  optionalTags?: ResourceOptionalTag[];
 }
 
 export type ResourceSubmissionErrorCode =
@@ -128,7 +156,12 @@ export type ResourceSubmissionResult =
           | "url"
           | "language"
           | "difficulty"
-          | "authorName",
+          | "authorName"
+          | "pricingModel"
+          | "requiresCreditCard"
+          | "freeTierLimits"
+          | "pricingNotes"
+          | "optionalTags",
           string
         >
       >;
@@ -144,7 +177,7 @@ export interface CatalogSupabaseError {
 export type CatalogSupabaseClientLike = any;
 
 export const RESOURCE_SELECT_COLUMNS =
-  "id, slug, name, description, category_id, type, url, language, difficulty, author_name, submitted_by, status, published_at, created_at";
+  "id, slug, name, description, category_id, type, url, language, difficulty, author_name, submitted_by, status, published_at, created_at, pricing_model, requires_credit_card, free_tier_limits, pricing_notes, tags";
 
 export const CATEGORY_SELECT_COLUMNS =
   "id, slug, name_en, name_pt, description_en, description_pt, scope, sort_order, is_active";
@@ -231,6 +264,11 @@ export function mapResourceRow(
     createdAt: row.created_at,
     submittedBy: row.submitted_by,
     status: row.status as ResourceStatus,
+    pricingModel: row.pricing_model ?? null,
+    requiresCreditCard: row.requires_credit_card ?? null,
+    freeTierLimits: row.free_tier_limits ?? null,
+    pricingNotes: row.pricing_notes ?? null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
   };
 }
 
@@ -318,6 +356,11 @@ export async function queryCatalogResources(
       const cat = categoryBySlug.get(params.categorySlug);
       if (cat) {
         query = query.eq("category_id", cat.id);
+      }
+    } else if (params.excludeCategorySlug) {
+      const excluded = categoryBySlug.get(params.excludeCategorySlug);
+      if (excluded) {
+        query = query.neq("category_id", excluded.id);
       }
     }
 
@@ -864,6 +907,39 @@ export async function submitCatalogResource(
       : "Author name must be at most 120 characters.";
   }
 
+  if (!isValidPricingModel(payload.pricingModel)) {
+    fieldErrors.pricingModel = isPt
+      ? "Selecione um modelo de preço válido (Grátis, Freemium ou Pago)."
+      : "Select a valid pricing model (Free, Freemium, or Paid).";
+  }
+
+  if (!isValidCreditCardRequirement(payload.requiresCreditCard)) {
+    fieldErrors.requiresCreditCard = isPt
+      ? "Informe uma opção válida para exigência de cartão de crédito."
+      : "Select a valid credit card requirement option.";
+  }
+
+  const trimmedFreeLimits = (payload.freeTierLimits ?? "").trim();
+  if (trimmedFreeLimits.length > 1000) {
+    fieldErrors.freeTierLimits = isPt
+      ? "As limitações do plano gratuito devem ter no máximo 1000 caracteres."
+      : "Free tier limits must be at most 1000 characters.";
+  }
+
+  const trimmedPricingNotes = (payload.pricingNotes ?? "").trim();
+  if (trimmedPricingNotes.length > 500) {
+    fieldErrors.pricingNotes = isPt
+      ? "As informações adicionais de preço devem ter no máximo 500 caracteres."
+      : "Additional pricing notes must be at most 500 characters.";
+  }
+
+  const optionalTagsCheck = filterValidOptionalTags(payload.optionalTags);
+  if (!optionalTagsCheck.valid) {
+    fieldErrors.optionalTags = isPt
+      ? "Tags complementares inválidas."
+      : "Invalid complementary tags.";
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return {
       status: "error",
@@ -890,8 +966,13 @@ export async function submitCatalogResource(
     }
 
     const normalizedUrl = normalizeResourceUrl(trimmedUrl);
+    const computedTags = computeResourceTags(
+      payload.pricingModel,
+      payload.requiresCreditCard,
+      optionalTagsCheck.sanitized
+    );
 
-    // Strictly send ONLY the 8 columns granted to `authenticated` (slug is set by trigger)
+    // Strictly send ONLY columns granted to `authenticated` (slug/status set by DB)
     const insertRow: Omit<ResourceInsertRow, "slug"> & { slug?: string } = {
       name: trimmedName,
       description: trimmedDesc,
@@ -901,6 +982,11 @@ export async function submitCatalogResource(
       language: payload.language,
       difficulty: payload.difficulty || null,
       author_name: trimmedAuthor || null,
+      pricing_model: payload.pricingModel,
+      requires_credit_card: payload.requiresCreditCard,
+      free_tier_limits: trimmedFreeLimits || null,
+      pricing_notes: trimmedPricingNotes || null,
+      tags: computedTags,
     };
 
     const { data, error } = await supabase

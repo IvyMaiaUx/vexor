@@ -45,6 +45,8 @@ const LANGUAGE_KEYS: ResourceLanguage[] = [
 ];
 
 const ITEMS_PER_PAGE = 9;
+const AI_CATEGORY_SLUG = "ai-security";
+type CatalogTab = "all" | "resources" | "ai";
 
 function CatalogContent() {
   const router = useRouter();
@@ -65,8 +67,17 @@ function CatalogContent() {
   const isPt = locale === "pt-BR";
 
   // Read query params as single source of truth for shareable URLs
+  const rawTab = searchParams?.get("tab");
+  const activeTab: CatalogTab =
+    rawTab === "resources" || rawTab === "ai" ? rawTab : "all";
   const searchQuery = searchParams?.get("q") ?? "";
   const selectedCategory = searchParams?.get("category") ?? "all";
+  const effectiveCategory =
+    activeTab === "ai" ? AI_CATEGORY_SLUG : selectedCategory;
+  const excludeCategory =
+    activeTab === "resources" && selectedCategory === "all"
+      ? AI_CATEGORY_SLUG
+      : undefined;
   const selectedType = searchParams?.get("type") ?? "all";
   const selectedDifficulty = searchParams?.get("difficulty") ?? "all";
   const selectedLanguage =
@@ -87,7 +98,7 @@ function CatalogContent() {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState<number>(0);
 
-  const currentQueryKey = `${searchQuery}|${selectedCategory}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${currentPage}|${reloadNonce}|${categories.length}`;
+  const currentQueryKey = `${activeTab}|${searchQuery}|${effectiveCategory}|${excludeCategory ?? ""}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${currentPage}|${reloadNonce}|${categories.length}`;
   const isLoading = categoriesLoading || loadedKey !== currentQueryKey;
 
   // Helper to push updated search parameters to the URL
@@ -128,7 +139,8 @@ function CatalogContent() {
     void queryCatalogResources(
       {
         search: searchQuery,
-        categorySlug: selectedCategory,
+        categorySlug: effectiveCategory,
+        excludeCategorySlug: excludeCategory,
         type: selectedType as ResourceType | "all",
         difficulty: selectedDifficulty as DifficultyLevel | "all",
         language: selectedLanguage as ResourceLanguage | "all",
@@ -166,16 +178,18 @@ function CatalogContent() {
       cancelled = true;
     };
   }, [
+    activeTab,
     bookmarkedIds,
     categories,
     categoriesLoading,
     currentPage,
     currentQueryKey,
+    effectiveCategory,
+    excludeCategory,
     isPt,
     onlyBookmarks,
     reloadNonce,
     searchQuery,
-    selectedCategory,
     selectedDifficulty,
     selectedLanguage,
     selectedType,
@@ -197,12 +211,44 @@ function CatalogContent() {
   };
 
   const hasActiveFilters =
+    activeTab !== "all" ||
     Boolean(searchQuery.trim()) ||
     selectedCategory !== "all" ||
     selectedType !== "all" ||
     selectedDifficulty !== "all" ||
     selectedLanguage !== "all" ||
     onlyBookmarks;
+
+  const handleTabChange = (nextTab: CatalogTab) => {
+    if (nextTab === "all") {
+      updateUrlParams({
+        tab: null,
+        category: selectedCategory === AI_CATEGORY_SLUG ? null : selectedCategory,
+      });
+      return;
+    }
+    if (nextTab === "resources") {
+      updateUrlParams({
+        tab: "resources",
+        category: selectedCategory === AI_CATEGORY_SLUG ? null : selectedCategory,
+      });
+      return;
+    }
+    updateUrlParams({
+      tab: "ai",
+      category: null,
+    });
+  };
+
+  const visibleCategories = useMemo(() => {
+    if (activeTab === "resources") {
+      return categories.filter((c) => c.slug !== AI_CATEGORY_SLUG);
+    }
+    if (activeTab === "ai") {
+      return categories.filter((c) => c.slug === AI_CATEGORY_SLUG);
+    }
+    return categories;
+  }, [activeTab, categories]);
 
   const resetFilters = () => {
     router.replace("/catalog", { scroll: false });
@@ -264,8 +310,73 @@ function CatalogContent() {
               </div>
             </div>
 
+            {/* Catalog Top Tabs */}
+            <div
+              role="tablist"
+              aria-label={isPt ? "Abas do catálogo" : "Catalog tabs"}
+              className="mt-6 flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-3 sm:mt-8"
+            >
+              {(
+                [
+                  {
+                    id: "all",
+                    label: isPt ? "Tudo" : "All",
+                  },
+                  {
+                    id: "resources",
+                    label: isPt ? "Ferramentas & Recursos" : "Tools & Resources",
+                  },
+                  {
+                    id: "ai",
+                    label: isPt ? "IAs & Modelos" : "AI & Models",
+                  },
+                ] as const
+              ).map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => handleTabChange(tab.id)}
+                    className={`rounded-xl border px-4 py-2 text-xs font-semibold transition-all ${
+                      isActive
+                        ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.15)]"
+                        : "border-slate-800 bg-[#0d1322]/70 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeTab === "ai" && (
+              <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 sm:flex-row sm:items-center">
+                <div className="space-y-1">
+                  <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-emerald-300">
+                    {isPt
+                      ? "IAs & Modelos · Open-Weight, Local & Pesquisa"
+                      : "AI & Models · Open-Weight, Local & Research"}
+                  </p>
+                  <p className="text-xs leading-relaxed text-slate-300">
+                    {isPt
+                      ? "Espaço dedicado a modelos open-weight, execução local/self-hosted sem restrições comerciais e ferramentas de IA para pesquisa defensiva, Red Team autorizado e laboratório."
+                      : "Dedicated space for open-weight models, local/self-hosted execution without commercial API filters, and AI tools for defensive research, authorized Red Teaming, and lab analysis."}
+                  </p>
+                </div>
+                <Link
+                  href="/catalog/submit"
+                  className="shrink-0 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-2 text-center font-mono text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/25"
+                >
+                  + {isPt ? "Divulgar IA / Modelo" : "Submit AI / Model"}
+                </Link>
+              </div>
+            )}
+
             {/* Search & Multi-Filter Panel */}
-            <div className="mt-6 rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3.5 shadow-xl sm:mt-8 sm:p-4">
+            <div className="mt-4 rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3.5 shadow-xl sm:p-4">
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
                 <div className="relative sm:col-span-2 lg:col-span-5">
                   <svg
@@ -293,17 +404,20 @@ function CatalogContent() {
 
                 <div className="sm:col-span-2 lg:col-span-3">
                   <select
-                    value={selectedCategory}
+                    value={activeTab === "ai" ? AI_CATEGORY_SLUG : selectedCategory}
+                    disabled={activeTab === "ai"}
                     onChange={(e) =>
                       updateUrlParams({ category: e.target.value })
                     }
                     aria-label={dict.categoriesSection.allFilter}
-                    className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2.5 text-base text-slate-200 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
+                    className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2.5 text-base text-slate-200 focus:border-cyan-500/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
                   >
-                    <option value="all">
-                      {dict.categoriesSection.allFilter}
-                    </option>
-                    {categories.map((cat) => (
+                    {activeTab !== "ai" && (
+                      <option value="all">
+                        {dict.categoriesSection.allFilter}
+                      </option>
+                    )}
+                    {visibleCategories.map((cat) => (
                       <option key={cat.slug} value={cat.slug}>
                         {locale === "pt-BR" ? cat.name_pt : cat.name_en}
                       </option>

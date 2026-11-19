@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import type { ResearchArticle } from "../types";
+import { ResearchIcon } from "./research-icon";
 
 interface ResearchArticleDetailModalProps {
   article: ResearchArticle | null;
@@ -175,7 +176,7 @@ export function ResearchArticleDetailModal({
               <ul className="mt-2.5 space-y-1.5 text-xs text-slate-400">
                 {article.references.map((ref, idx) => (
                   <li key={`${ref.title}-${idx}`} className="flex items-center gap-2">
-                    <span className="text-cyan-400">🔗</span>
+                    <ResearchIcon name="link" className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
                     {ref.url ? (
                       <a
                         href={ref.url}

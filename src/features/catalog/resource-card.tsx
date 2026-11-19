@@ -8,6 +8,10 @@ import type {
 } from "@/config/site";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { getSafeExternalHref } from "@/lib/security/sanitize";
+import {
+  getPricingModelLabel,
+  getResourceTagLabel,
+} from "./pricing-labels";
 
 interface ResourceCardProps {
   resource: FeaturedResourceItem;
@@ -50,6 +54,16 @@ export function ResourceCard({
             {isPending && (
               <span className="rounded-md border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
                 {dict.catalogSection.pendingBadge}
+              </span>
+            )}
+            {resource.pricingModel && (
+              <span className="rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-sky-300">
+                {getPricingModelLabel(resource.pricingModel, locale)}
+              </span>
+            )}
+            {resource.requiresCreditCard === "no" && (
+              <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-300">
+                {getResourceTagLabel("no_card", locale)}
               </span>
             )}
           </div>

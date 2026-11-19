@@ -35,6 +35,14 @@ function getNotificationCopy(
         return "Sua pesquisa de cibercrime foi aprovada e publicada.";
       case "research_rejected":
         return "Sua pesquisa de cibercrime foi revisada/rejeitada.";
+      case "direct_message":
+        return actor
+          ? `${actor} enviou uma nova mensagem direta.`
+          : "Você recebeu uma nova mensagem direta.";
+      case "user_warning":
+        return "Você recebeu um aviso da moderação.";
+      default:
+        return "Você tem uma nova notificação.";
     }
   }
   switch (item.type) {
@@ -50,6 +58,14 @@ function getNotificationCopy(
       return "Your cybercrime research submission was approved and published.";
     case "research_rejected":
       return "Your cybercrime research submission was reviewed/rejected.";
+    case "direct_message":
+      return actor
+        ? `${actor} sent you a direct message.`
+        : "You received a new direct message.";
+    case "user_warning":
+      return "You received a moderation warning.";
+    default:
+      return "You have a new notification.";
   }
 }
 

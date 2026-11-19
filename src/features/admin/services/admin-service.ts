@@ -22,7 +22,8 @@ import type { AuthUserProfile } from "@/features/auth/validation";
 import type { ForumPost, ForumTopic } from "@/features/forum/types";
 
 const MOCK_ADMIN_USERS: AuthUserProfile[] = [];
-import { INITIAL_POSTS, INITIAL_TOPICS } from "@/features/forum/seed-topics";
+const INITIAL_TOPICS: ForumTopic[] = [];
+const INITIAL_POSTS: ForumPost[] = [];
 import type {
   AdminActionResult,
   AdminStats,

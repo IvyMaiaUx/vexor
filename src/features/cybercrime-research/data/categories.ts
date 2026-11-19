@@ -16,7 +16,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Engenharia reversa de artefatos maliciosos, técnicas de evasão de EDR, operadores de ransomware e mecanismos criptográficos de extorsão.",
     description_en:
       "Reverse engineering of malicious binaries, EDR evasion techniques, ransomware operators, and cryptographic extortion mechanisms.",
-    icon: "🦠",
+    icon: "malware",
     itemCount: 14,
     pillar: "investigation",
   },
@@ -29,7 +29,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Kits de phishing corporativo, vetores de spear-phishing por IA, bypass de MFA via AiTM (Adversary-in-the-Middle) e campanhas de personificação.",
     description_en:
       "Enterprise phishing kits, AI-driven spear-phishing vectors, AiTM (Adversary-in-the-Middle) MFA bypass, and targeted impersonation campaigns.",
-    icon: "🎣",
+    icon: "phishing",
     itemCount: 9,
     pillar: "both",
   },
@@ -42,7 +42,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Investigação de exfiltração de dados corporativos, bancos relacionais expostos, credenciais vazadas e análise de impacto em privacidade.",
     description_en:
       "Investigation into corporate exfiltration pipelines, exposed databases, credential dumps, and privacy impact assessments.",
-    icon: "🔓",
+    icon: "breach",
     itemCount: 12,
     pillar: "investigation",
   },
@@ -55,7 +55,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Mapeamento de mercados clandestinos, fóruns subterrâneos de compra e venda de acessos (IABs), monitoramento de canais Tor e I2P.",
     description_en:
       "Mapping underground marketplaces, initial access broker (IAB) communities, and telemetry monitoring across Tor and I2P hidden services.",
-    icon: "🕵️",
+    icon: "darkweb",
     itemCount: 11,
     pillar: "underground",
   },
@@ -68,7 +68,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Fraudes em transferências bancárias instantâneas, banking trojans, redes de lavagem de dinheiro cripto e esquemas de romance/pig butchering.",
     description_en:
       "Instant banking fraud, banking trojans, cryptocurrency laundering syndicates, and organized pig-butchering/investment fraud operations.",
-    icon: "💳",
+    icon: "financial",
     itemCount: 8,
     pillar: "underground",
   },
@@ -81,7 +81,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Arquiteturas de botnets IoT baseadas em Mirai, redes de proxies residenciais ilícitas, serviços de Booter/Stresser e volumetria de negação de serviço.",
     description_en:
       "Mirai-based IoT botnet architectures, illicit residential proxy networks, Booter/Stresser operations, and volumetric DDoS mitigation.",
-    icon: "🤖",
+    icon: "botnet",
     itemCount: 7,
     pillar: "investigation",
   },
@@ -94,7 +94,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Info-stealers (RedLine, Lumma, Vidar), roubo de tokens de sessão de navegadores, credential stuffing e clonagem de identidade digital.",
     description_en:
       "Info-stealers (RedLine, Lumma, Vidar), browser session cookie hijacking, credential stuffing attacks, and digital identity fraud.",
-    icon: "🪪",
+    icon: "identity",
     itemCount: 10,
     pillar: "both",
   },
@@ -107,7 +107,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Autópsias completas de incidentes notórios, cronologias de invasão, reconstrução forense de brechas reais e resposta a incidentes.",
     description_en:
       "Complete post-mortems of notorious security incidents, attack timelines, digital forensics reconstructions, and incident response learnings.",
-    icon: "📁",
+    icon: "cases",
     itemCount: 15,
     pillar: "investigation",
   },
@@ -120,7 +120,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Cooperação jurídica internacional (MLAT), apreensões conjuntas de infraestrutura, legislação de proteção de dados e limites éticos da perícia.",
     description_en:
       "Cross-border legal cooperation (MLAT), law enforcement infrastructure takedowns, data privacy statutes, and ethical boundaries of forensics.",
-    icon: "⚖️",
+    icon: "law",
     itemCount: 6,
     pillar: "both",
   },
@@ -133,7 +133,7 @@ export const RESEARCH_CATEGORIES: ResearchCategory[] = [
       "Perfis táticos de grupos patrocinados por Estados e sindicatos do crime organizado, mapeamento de TTPs no MITRE ATT&CK e infraestrutura C2.",
     description_en:
       "Tactical dossiers on state-sponsored actors and organized cybercrime syndicates, MITRE ATT&CK TTP mapping, and command-and-control tracking.",
-    icon: "🎯",
+    icon: "apt",
     itemCount: 13,
     pillar: "underground",
   },

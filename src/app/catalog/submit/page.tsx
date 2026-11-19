@@ -4,15 +4,27 @@ import Link from "next/link";
 import { type FormEvent, useMemo, useRef, useState } from "react";
 import type {
   DifficultyLevel,
+  ResourceCreditCardRequirement,
   ResourceLanguage,
+  ResourceOptionalTag,
+  ResourcePricingModel,
   ResourceType,
 } from "@/config/site";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { submitCatalogResource } from "@/features/catalog/catalog-service";
+import {
+  CREDIT_CARD_OPTIONS,
+  getCreditCardLabel,
+  getPricingModelLabel,
+  getResourceTagLabel,
+  OPTIONAL_TAG_OPTIONS,
+  PRICING_MODEL_OPTIONS,
+} from "@/features/catalog/pricing-labels";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import {
+  computeResourceTags,
   type ResourceSubmissionInput,
   validateResourceSubmission,
 } from "@/features/catalog/validation";
@@ -58,6 +70,12 @@ export default function SubmitResourcePage() {
   const [language, setLanguage] = useState<ResourceLanguage>("en");
   const [authorName, setAuthorName] = useState("");
   const [description, setDescription] = useState("");
+  const [pricingModel, setPricingModel] = useState<ResourcePricingModel | "">("free");
+  const [requiresCreditCard, setRequiresCreditCard] =
+    useState<ResourceCreditCardRequirement | "">("no");
+  const [freeTierLimits, setFreeTierLimits] = useState("");
+  const [pricingNotes, setPricingNotes] = useState("");
+  const [optionalTags, setOptionalTags] = useState<ResourceOptionalTag[]>([]);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof ResourceSubmissionInput, string>>
   >({});
@@ -67,6 +85,16 @@ export default function SubmitResourcePage() {
   const inFlightRef = useRef(false);
 
   const effectiveCategorySlug = categorySlug || categories[0]?.slug || "";
+  const previewTags = useMemo(() => {
+    if (!pricingModel || !requiresCreditCard) return [];
+    return computeResourceTags(pricingModel, requiresCreditCard, optionalTags);
+  }, [optionalTags, pricingModel, requiresCreditCard]);
+
+  const toggleOptionalTag = (tag: ResourceOptionalTag) => {
+    setOptionalTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -87,11 +115,21 @@ export default function SubmitResourcePage() {
       language,
       authorName,
       description,
+      pricingModel,
+      requiresCreditCard,
+      freeTierLimits,
+      pricingNotes,
+      optionalTags,
     };
 
     const validation = validateResourceSubmission(submissionInput, [], dict);
 
-    if (!validation.valid || !selectedCategory) {
+    if (
+      !validation.valid ||
+      !selectedCategory ||
+      !pricingModel ||
+      !requiresCreditCard
+    ) {
       setFieldErrors({
         ...validation.errors,
         ...(!selectedCategory
@@ -122,6 +160,11 @@ export default function SubmitResourcePage() {
           language,
           difficulty,
           authorName: authorName.trim() || `@${user.username}`,
+          pricingModel,
+          requiresCreditCard,
+          freeTierLimits: freeTierLimits.trim() || undefined,
+          pricingNotes: pricingNotes.trim() || undefined,
+          optionalTags,
         },
         { locale }
       );
@@ -147,6 +190,11 @@ export default function SubmitResourcePage() {
     setDescription("");
     setAuthorName("");
     setDifficulty("");
+    setPricingModel("free");
+    setRequiresCreditCard("no");
+    setFreeTierLimits("");
+    setPricingNotes("");
+    setOptionalTags([]);
     setFieldErrors({});
     setCreatedSlug(null);
   };
@@ -500,6 +548,209 @@ export default function SubmitResourcePage() {
                         {fieldErrors.description}
                       </p>
                     )}
+                  </div>
+
+                  {/* Pricing Model + Credit Card + Free Tier Limits + Pricing Notes + Tags */}
+                  <div className="space-y-4 rounded-xl border border-slate-800/90 bg-[#070b14]/70 p-4 sm:p-5">
+                    <div>
+                      <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-cyan-400">
+                        {isPt
+                          ? "Modelo de preço e acesso"
+                          : "Pricing model & access"}
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {isPt
+                          ? "Informe como o recurso é cobrado e se exige cartão de crédito."
+                          : "Specify how the resource is priced and whether a credit card is required."}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="resource-pricing-model"
+                          className="block text-sm font-medium text-slate-200"
+                        >
+                          {isPt ? "Modelo de preço *" : "Pricing model *"}
+                        </label>
+                        <select
+                          id="resource-pricing-model"
+                          required
+                          value={pricingModel}
+                          onChange={(e) =>
+                            setPricingModel(
+                              e.target.value as ResourcePricingModel | ""
+                            )
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-800 bg-[#0d1322] px-3.5 py-2.5 text-base text-slate-100 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
+                        >
+                          {PRICING_MODEL_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {getPricingModelLabel(opt, locale)}
+                            </option>
+                          ))}
+                        </select>
+                        {fieldErrors.pricingModel && (
+                          <p className="mt-1 text-xs font-medium text-rose-400">
+                            {fieldErrors.pricingModel}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="resource-credit-card"
+                          className="block text-sm font-medium text-slate-200"
+                        >
+                          {isPt
+                            ? "Exige cartão de crédito? *"
+                            : "Requires credit card? *"}
+                        </label>
+                        <select
+                          id="resource-credit-card"
+                          required
+                          value={requiresCreditCard}
+                          onChange={(e) =>
+                            setRequiresCreditCard(
+                              e.target.value as
+                                | ResourceCreditCardRequirement
+                                | ""
+                            )
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-800 bg-[#0d1322] px-3.5 py-2.5 text-base text-slate-100 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
+                        >
+                          {CREDIT_CARD_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {getCreditCardLabel(opt, locale)}
+                            </option>
+                          ))}
+                        </select>
+                        {fieldErrors.requiresCreditCard && (
+                          <p className="mt-1 text-xs font-medium text-rose-400">
+                            {fieldErrors.requiresCreditCard}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="resource-free-tier-limits"
+                        className="block text-sm font-medium text-slate-200"
+                      >
+                        {isPt
+                          ? "Limitações do plano gratuito (opcional)"
+                          : "Free tier limits (optional)"}
+                      </label>
+                      <textarea
+                        id="resource-free-tier-limits"
+                        rows={3}
+                        maxLength={1000}
+                        value={freeTierLimits}
+                        onChange={(e) => setFreeTierLimits(e.target.value)}
+                        placeholder={
+                          isPt
+                            ? "Ex.: 500 consultas/mês, 1 usuário, 5 GB de armazenamento, trial de 14 dias ou recursos bloqueados..."
+                            : "E.g., 500 queries/month, 1 user, 5 GB storage, 14-day trial, or gated features..."
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-slate-800 bg-[#0d1322] p-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
+                      />
+                      <div className="mt-1 flex justify-between text-xs text-slate-500">
+                        <span>
+                          {fieldErrors.freeTierLimits ??
+                            (isPt
+                              ? "Consultas, usuários, armazenamento ou período de teste."
+                              : "Queries, users, storage, or trial period.")}
+                        </span>
+                        <span className="font-mono">
+                          {freeTierLimits.trim().length} / 1000
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="resource-pricing-notes"
+                        className="block text-sm font-medium text-slate-200"
+                      >
+                        {isPt
+                          ? "Informações adicionais de preço (opcional)"
+                          : "Additional pricing notes (optional)"}
+                      </label>
+                      <textarea
+                        id="resource-pricing-notes"
+                        rows={2}
+                        maxLength={500}
+                        value={pricingNotes}
+                        onChange={(e) => setPricingNotes(e.target.value)}
+                        placeholder={
+                          isPt
+                            ? "Ex.: A partir de US$ 19/mês, desconto anual ou licença comunitária."
+                            : "E.g., Starting at $19/month, annual billing discount, or community license."
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-slate-800 bg-[#0d1322] p-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
+                      />
+                      <div className="mt-1 flex justify-between text-xs text-slate-500">
+                        <span>
+                          {fieldErrors.pricingNotes ??
+                            (isPt
+                              ? "Preencha apenas se souber detalhes de planos ou cobrança."
+                              : "Fill in only if you know plan or billing details.")}
+                        </span>
+                        <span className="font-mono">
+                          {pricingNotes.trim().length} / 500
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Complementary Tags + Automatic Tags Read-Only Preview */}
+                    <div className="space-y-2.5 border-t border-slate-800/80 pt-3">
+                      <span className="block text-sm font-medium text-slate-200">
+                        {isPt
+                          ? "Tags complementares (opcional)"
+                          : "Complementary tags (optional)"}
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {OPTIONAL_TAG_OPTIONS.map((tag) => {
+                          const active = optionalTags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              aria-pressed={active}
+                              onClick={() => toggleOptionalTag(tag)}
+                              className={`rounded-lg border px-3 py-1.5 font-mono text-xs font-medium transition-colors ${
+                                active
+                                  ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-300"
+                                  : "border-slate-800 bg-[#0d1322] text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                              }`}
+                            >
+                              {active ? "✓ " : "+ "}
+                              {getResourceTagLabel(tag, locale)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {previewTags.length > 0 && (
+                        <div className="pt-1">
+                          <p className="font-mono text-[11px] text-slate-500">
+                            {isPt
+                              ? "Tags geradas automaticamente (somente leitura):"
+                              : "Auto-generated tags (read-only):"}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {previewTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 font-mono text-[11px] text-sky-300"
+                              >
+                                {getResourceTagLabel(tag, locale)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {submitError && (

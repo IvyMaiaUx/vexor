@@ -592,25 +592,25 @@ export default function TopicDetailPage() {
                   </span>
                 </div>
 
-                {/* Topic Body (Rendered via Safe Markdown) */}
-                <div className="mt-6 border-t border-slate-800/80 pt-6">
-                  <MarkdownView content={topic.body} />
-                </div>
-
-                {/* Topic Tags */}
+                {/* Topic Tags (right below title & author) */}
                 {topic.tags.length > 0 && (
-                  <div className="mt-6 flex flex-wrap gap-1.5 border-t border-slate-800/80 pt-4">
+                  <div className="mt-4 flex flex-wrap gap-1.5">
                     {topic.tags.map((tag) => (
                       <Link
                         key={tag}
                         href={`/forum?tag=${tag}`}
-                        className="rounded border border-slate-800 bg-[#070b14] px-2.5 py-1 font-mono text-xs text-slate-400 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
+                        className="rounded-md border border-cyan-500/20 bg-[#070b14] px-2.5 py-1 font-mono text-[11px] text-cyan-300/90 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-200"
                       >
                         #{tag}
                       </Link>
                     ))}
                   </div>
                 )}
+
+                {/* Topic Body (Rendered via Safe Markdown) */}
+                <div className="mt-6 border-t border-slate-800/80 pt-6">
+                  <MarkdownView content={topic.body} />
+                </div>
               </>
             )}
           </article>

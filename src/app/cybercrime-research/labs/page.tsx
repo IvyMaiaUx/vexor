@@ -10,6 +10,7 @@ import type { AnalysisLabGuide } from "@/features/cybercrime-research/types";
 import { ResearchBreadcrumbs } from "@/features/cybercrime-research/components/research-breadcrumbs";
 import { LabGuideModal } from "@/features/cybercrime-research/components/lab-guide-modal";
 import { ResearchAccessGuard } from "@/features/cybercrime-research/components/research-access-guard";
+import { ResearchIcon } from "@/features/cybercrime-research/components/research-icon";
 
 export default function AnalysisLabsPage() {
   const { locale, setLocale } = useCatalogStore();
@@ -51,8 +52,8 @@ export default function AnalysisLabsPage() {
           {/* OPSEC Pillars Warning Card */}
           <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-6 sm:p-8">
             <div className="flex items-start gap-4">
-              <span className="text-3xl p-2 rounded-2xl bg-amber-950/60 border border-amber-500/40 shrink-0">
-                🛡️
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-500/40 bg-amber-950/60 text-amber-300 shrink-0">
+                <ResearchIcon name="shield" className="h-6 w-6" />
               </span>
               <div className="space-y-2">
                 <h2 className="text-base font-bold text-amber-200 sm:text-lg">

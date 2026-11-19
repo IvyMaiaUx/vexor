@@ -18,7 +18,7 @@ export const RESEARCH_PILLARS: ResearchPillar[] = [
       "Focado na análise minuciosa de ataques reais, exames periciais em artefatos e sistemas comprometidos, telemetria forense e documentação de IoCs para resposta e prevenção eficazes.",
     description_en:
       "Focused on detailed forensic dissection of real-world intrusions, artifact examinations, telemetry extraction, and IoC attribution to build resilient defensive measures.",
-    icon: "🔬",
+    icon: "investigation",
     topics_pt: [
       "Análise e dessecação de ataques reais",
       "Investigação forense digital (DFIR)",
@@ -50,7 +50,7 @@ export const RESEARCH_PILLARS: ResearchPillar[] = [
       "Focado na compreensão dos modelos econômicos e organizacionais do cibercrime contemporâneo, relações entre operadores, táticas de extorsão e cadeias de suprimento ilícitas.",
     description_en:
       "Focused on understanding the business models, market dynamics, and operational structures of modern cybercrime syndicates, monetization schemes, and criminal supply chains.",
-    icon: "🌐",
+    icon: "underground",
     topics_pt: [
       "Mercados clandestinos e modelos econômicos",
       "Fóruns fechados e Initial Access Brokers (IABs)",

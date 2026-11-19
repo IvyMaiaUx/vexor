@@ -12,6 +12,7 @@ import { ResearchBreadcrumbs } from "@/features/cybercrime-research/components/r
 import { ResearchArticleDetailModal } from "@/features/cybercrime-research/components/research-article-detail-modal";
 import { CaseStudyDetailModal } from "@/features/cybercrime-research/components/case-study-detail-modal";
 import { ResearchAccessGuard } from "@/features/cybercrime-research/components/research-access-guard";
+import { ResearchIcon } from "@/features/cybercrime-research/components/research-icon";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -59,7 +60,9 @@ export default function CategoryDetailPage({ params }: CategoryPageProps) {
         <Header locale={locale} onLocaleChange={setLocale} dict={dict} />
         <main className="flex-1 flex items-center justify-center p-6 text-center">
           <div className="max-w-md space-y-4 rounded-3xl border border-slate-800 bg-[#0d1322] p-8">
-            <span className="text-4xl">🔍</span>
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 text-cyan-400">
+              <ResearchIcon name="search" className="h-7 w-7" />
+            </span>
             <h1 className="text-xl font-bold text-slate-100">
               {isPt ? "Categoria Não Encontrada" : "Category Not Found"}
             </h1>
@@ -104,8 +107,8 @@ export default function CategoryDetailPage({ params }: CategoryPageProps) {
           {/* Category Header Banner */}
           <section className="relative overflow-hidden rounded-3xl border border-slate-800 bg-[#0d1322] p-6 sm:p-10">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              <span className="text-5xl p-4 rounded-3xl bg-slate-900 border border-slate-800 shrink-0">
-                {category.icon}
+              <span className="flex h-20 w-20 items-center justify-center rounded-3xl border border-slate-800 bg-slate-900 text-cyan-300 shrink-0">
+                <ResearchIcon name={category.icon} className="h-10 w-10" />
               </span>
 
               <div className="space-y-3 max-w-3xl">
@@ -166,7 +169,7 @@ export default function CategoryDetailPage({ params }: CategoryPageProps) {
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2">
-                  <span>📖</span>
+                  <ResearchIcon name="library" className="h-5 w-5 text-cyan-400 shrink-0" />
                   <span>{isPt ? "Artigos e Relatórios da Categoria" : "Category Research Articles"}</span>
                 </h2>
                 <Link
@@ -223,7 +226,7 @@ export default function CategoryDetailPage({ params }: CategoryPageProps) {
           {relatedCases.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2">
-                <span>📁</span>
+                <ResearchIcon name="cases" className="h-5 w-5 text-indigo-400 shrink-0" />
                 <span>{isPt ? "Estudos de Casos Reais Vinculados" : "Associated Real-World Case Studies"}</span>
               </h2>
 
@@ -273,7 +276,7 @@ export default function CategoryDetailPage({ params }: CategoryPageProps) {
           {relatedDiscussions.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2">
-                <span>💬</span>
+                <ResearchIcon name="discussions" className="h-5 w-5 text-purple-400 shrink-0" />
                 <span>{isPt ? "Debates em Andamento" : "Ongoing Discussions"}</span>
               </h2>
 
@@ -307,7 +310,9 @@ export default function CategoryDetailPage({ params }: CategoryPageProps) {
           {/* Empty Fallback */}
           {totalContentCount === 0 && (
             <div className="rounded-3xl border border-slate-800 bg-[#0d1322]/50 p-12 text-center space-y-3">
-              <span className="text-3xl">📦</span>
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-slate-400">
+                <ResearchIcon name="empty" className="h-6 w-6" />
+              </span>
               <h3 className="text-base font-bold text-slate-200">
                 {isPt ? "Nenhum conteúdo específico nesta categoria ainda" : "No content in this category yet"}
               </h3>
