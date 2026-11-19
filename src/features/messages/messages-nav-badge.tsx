@@ -41,26 +41,34 @@ export function MessagesNavBadge({
     syncUnread();
 
     const supabase = createClient();
-    const channel = supabase
-      .channel(`dm-badge:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "direct_messages",
-        },
-        () => {
-          syncUnread();
-        }
-      )
-      .subscribe();
+    const channelName = `dm-badge:${user.id}:${Math.random().toString(36).slice(2, 10)}`;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "direct_messages",
+          },
+          () => {
+            syncUnread();
+          }
+        )
+        .subscribe();
+    } catch {
+      channel = null;
+    }
 
     const interval = setInterval(syncUnread, 25000);
     return () => {
       cancelled = true;
       clearInterval(interval);
-      void supabase.removeChannel(channel);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
   }, [user?.id]);
 

@@ -85,6 +85,11 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inFlightMarkRef = useRef(false);
+  const openRef = useRef(open);
+
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   const refreshUnread = useCallback(async () => {
     if (!user?.id) {
@@ -130,34 +135,42 @@ export function NotificationBell({ locale }: NotificationBellProps) {
     };
     syncUnread();
 
-    // Realtime subscription with safe periodic polling fallback
+    // Realtime subscription with unique channel name + safe polling fallback
     const supabase = createClient();
-    const channel = supabase
-      .channel(`notifications:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          syncUnread();
-          if (open) {
-            void loadNotifications();
+    const channelName = `notifications:${user.id}:${Math.random().toString(36).slice(2, 10)}`;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            syncUnread();
+            if (openRef.current) {
+              void loadNotifications();
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    } catch {
+      channel = null;
+    }
 
     const interval = setInterval(syncUnread, 25000);
     return () => {
       cancelled = true;
       clearInterval(interval);
-      void supabase.removeChannel(channel);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
-  }, [loadNotifications, open, user?.id]);
+  }, [loadNotifications, user?.id]);
 
   useEffect(() => {
     if (!open) return;

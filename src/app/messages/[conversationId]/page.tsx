@@ -129,21 +129,27 @@ export default function ConversationDetailPage() {
     });
 
     const supabase = createClient();
-    const channel = supabase
-      .channel(`dm-conv:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "direct_messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        () => {
-          void loadConversation(false);
-        }
-      )
-      .subscribe();
+    const channelName = `dm-conv:${conversationId}:${Math.random().toString(36).slice(2, 10)}`;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "direct_messages",
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          () => {
+            void loadConversation(false);
+          }
+        )
+        .subscribe();
+    } catch {
+      channel = null;
+    }
 
     const interval = setInterval(() => {
       void loadConversation(false);
@@ -152,7 +158,9 @@ export default function ConversationDetailPage() {
     return () => {
       cancelled = true;
       clearInterval(interval);
-      void supabase.removeChannel(channel);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
   }, [applyDetailResult, authLoading, conversationId, loadConversation, user?.id]);
 
