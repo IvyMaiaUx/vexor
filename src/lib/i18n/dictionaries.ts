@@ -2526,7 +2526,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
       documentation: "Documentação",
       lab: "Laboratório",
       ctf_platform: "Plataforma CTF",
-      course: "Curso / Tutorial",
+      course: "Curso",
       article: "Artigo Técnico",
     },
     difficulties: {
@@ -3938,7 +3938,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
       documentation: "Documentation",
       lab: "Hands-on Lab",
       ctf_platform: "CTF Platform",
-      course: "Course / Tutorial",
+      course: "Course",
       article: "Technical Article",
     },
     difficulties: {
