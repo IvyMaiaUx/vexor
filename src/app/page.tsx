@@ -21,6 +21,7 @@ import {
   queryForumTopics,
 } from "@/features/forum/forum-service";
 import { useForumStore } from "@/features/forum/use-forum-store";
+import { TimelineFeed } from "@/features/timeline/timeline-feed";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
 const RESOURCE_TYPE_KEYS: ResourceType[] = [
@@ -330,6 +331,9 @@ export default function HomePage() {
 
         {user && (
           <>
+        {/* 1.5 SOCIAL TIMELINE (Authenticated Members Only) */}
+        <TimelineFeed locale={locale} />
+
         {/* 2. CATEGORIES SECTION (12 Initial Categories from seed.sql) */}
         <section
           id="categories"
