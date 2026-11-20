@@ -947,6 +947,8 @@ export type Database = {
           course_metadata: Json | null
           created_at: string
           description: string
+          description_en: string | null
+          description_pt: string | null
           difficulty: Database["public"]["Enums"]["difficulty_level"] | null
           free_tier_limits: string | null
           id: string
@@ -974,6 +976,8 @@ export type Database = {
           course_metadata?: Json | null
           created_at?: string
           description: string
+          description_en?: string | null
+          description_pt?: string | null
           difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
           free_tier_limits?: string | null
           id?: string
@@ -1001,6 +1005,8 @@ export type Database = {
           course_metadata?: Json | null
           created_at?: string
           description?: string
+          description_en?: string | null
+          description_pt?: string | null
           difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
           free_tier_limits?: string | null
           id?: string

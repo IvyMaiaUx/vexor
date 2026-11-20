@@ -107,7 +107,7 @@ export default function HomePage() {
                   <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
                     <div className="rounded-2xl border border-slate-800/90 bg-[#070b14]/80 p-5">
                       <span className="font-mono text-xs font-semibold text-cyan-400">
-                        STATUS: PENDING
+                        {locale === "pt-BR" ? "STATUS: PENDENTE" : "STATUS: PENDING"}
                       </span>
                       <h3 className="mt-2 text-base font-semibold text-slate-100">
                         {dict.contributeSection.steps.step1Title}
@@ -119,7 +119,7 @@ export default function HomePage() {
 
                     <div className="rounded-2xl border border-slate-800/90 bg-[#070b14]/80 p-5">
                       <span className="font-mono text-xs font-semibold text-indigo-400">
-                        MODERATION REVIEW
+                        {locale === "pt-BR" ? "REVISÃO DE MODERAÇÃO" : "MODERATION REVIEW"}
                       </span>
                       <h3 className="mt-2 text-base font-semibold text-slate-100">
                         {dict.contributeSection.steps.step2Title}
@@ -131,7 +131,7 @@ export default function HomePage() {
 
                     <div className="rounded-2xl border border-slate-800/90 bg-[#070b14]/80 p-5">
                       <span className="font-mono text-xs font-semibold text-emerald-400">
-                        STATUS: APPROVED
+                        {locale === "pt-BR" ? "STATUS: APROVADO" : "STATUS: APPROVED"}
                       </span>
                       <h3 className="mt-2 text-base font-semibold text-slate-100">
                         {dict.contributeSection.steps.step3Title}

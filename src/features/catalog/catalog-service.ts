@@ -180,7 +180,7 @@ export interface CatalogSupabaseError {
 export type CatalogSupabaseClientLike = any;
 
 export const RESOURCE_SELECT_COLUMNS =
-  "id, slug, name, description, category_id, type, url, language, difficulty, author_name, submitted_by, status, published_at, created_at, pricing_model, requires_credit_card, free_tier_limits, pricing_notes, tags, course_metadata";
+  "id, slug, name, description, description_pt, description_en, category_id, type, url, language, difficulty, author_name, submitted_by, status, published_at, created_at, pricing_model, requires_credit_card, free_tier_limits, pricing_notes, tags, course_metadata";
 
 export const CATEGORY_SELECT_COLUMNS =
   "id, slug, name_en, name_pt, description_en, description_pt, scope, sort_order, is_active";
@@ -254,8 +254,8 @@ export function mapResourceRow(
     id: row.id,
     slug: row.slug,
     name: row.name,
-    description_pt: row.description,
-    description_en: row.description,
+    description_pt: row.description_pt || row.description,
+    description_en: row.description_en || row.description,
     categoryId: row.category_id,
     categorySlug,
     type: row.type,
