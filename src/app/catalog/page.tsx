@@ -522,9 +522,14 @@ function CatalogContent() {
           <div className="no-scrollbar mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 sm:px-6 lg:px-8">
             <button
               type="button"
-              onClick={() => updateUrlParams({ category: null })}
+              onClick={() =>
+                updateUrlParams({
+                  category: null,
+                  ...(activeTab === "ai" ? { tab: null } : {}),
+                })
+              }
               className={`shrink-0 rounded-lg border px-3 py-1 font-mono text-xs transition-colors ${
-                selectedCategory === "all"
+                effectiveCategory === "all"
                   ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
                   : "border-slate-800 bg-[#0d1322] text-slate-400 hover:text-slate-200"
               }`}
@@ -532,13 +537,19 @@ function CatalogContent() {
               {dict.categoriesSection.allFilter}
             </button>
             {categories.map((cat) => {
-              const active = selectedCategory === cat.slug;
+              const active = effectiveCategory === cat.slug;
               return (
                 <button
                   key={cat.slug}
                   type="button"
                   onClick={() =>
-                    updateUrlParams({ category: active ? null : cat.slug })
+                    updateUrlParams({
+                      category: active ? null : cat.slug,
+                      ...(activeTab === "ai" &&
+                      (active || cat.slug !== AI_CATEGORY_SLUG)
+                        ? { tab: null }
+                        : {}),
+                    })
                   }
                   className={`shrink-0 rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
                     active
