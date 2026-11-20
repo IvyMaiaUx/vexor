@@ -8,6 +8,20 @@ import {
 } from "@/lib/supabase/auth";
 import type { Database } from "@/types/database.types";
 
+const SOCIAL_PREVIEW_BOT_UA_RE =
+  /(WhatsApp|Discordbot|TelegramBot|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Slack-ImgProxy|Embedly|Applebot|Pinterestbot|SkypeUriPreview)/i;
+
+function isForumOpenGraphCrawlerRequest(request: NextRequest, pathname: string): boolean {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return false;
+  }
+  if (pathname !== "/forum" && !pathname.startsWith("/forum/")) {
+    return false;
+  }
+  const ua = request.headers.get("user-agent") ?? "";
+  return SOCIAL_PREVIEW_BOT_UA_RE.test(ua);
+}
+
 /**
  * Updates the user's Supabase auth session by reading cookies from the incoming
  * request, writing refreshed token cookies to the outgoing response, and enforcing
@@ -48,6 +62,10 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
 
   const pathname = request.nextUrl.pathname;
   const isProtectedArea = isProtectedAppRoute(pathname);
+
+  if (isProtectedArea && isForumOpenGraphCrawlerRequest(request, pathname)) {
+    return response;
+  }
 
   if (isProtectedArea) {
     const resolution = await resolveServerSessionWithClient(
