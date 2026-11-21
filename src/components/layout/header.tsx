@@ -450,11 +450,11 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
       {user && (
         <nav
           aria-label="Mobile Quick Bar"
-          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-800/90 bg-[#070b14]/95 px-1 py-1.5 backdrop-blur-md sm:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 items-end border-t border-slate-800/90 bg-[#070b14]/95 px-1 pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-md sm:hidden"
         >
           <Link
             href="/"
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
               isHomeActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -476,7 +476,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
 
           <Link
             href="/catalog"
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
               isCatalogActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -497,7 +497,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
 
           <Link
             href="/forum"
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
               isForumActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -519,29 +519,38 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
 
           <Link
             href="/catalog/submit"
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-              isSubmitActive
-                ? "text-cyan-400 font-semibold"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            aria-label={dict.nav.contribute}
+            className="flex flex-col items-center justify-center gap-0.5"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-4 w-4"
+            <span
+              className={`-mt-6 inline-flex h-12 w-12 items-center justify-center rounded-full shadow-[0_6px_18px_rgba(6,182,212,0.35)] ring-4 ring-[#070b14] transition-colors ${
+                isSubmitActive
+                  ? "bg-cyan-400 text-slate-950"
+                  : "bg-cyan-500 text-slate-950"
+              }`}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="max-w-[62px] truncate">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-5 w-5"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+              </svg>
+            </span>
+            <span
+              className={`text-[10px] font-medium ${
+                isSubmitActive ? "text-cyan-400" : "text-slate-400"
+              }`}
+            >
               {dict.nav.contribute}
             </span>
           </Link>
 
           <Link
             href="/profile"
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
+            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
               isProfileActive || isAuthActive
                 ? "text-cyan-400 font-semibold"
                 : "text-emerald-400 hover:text-emerald-300"

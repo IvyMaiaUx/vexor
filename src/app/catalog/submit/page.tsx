@@ -82,6 +82,7 @@ export default function SubmitResourcePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdSlug, setCreatedSlug] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const inFlightRef = useRef(false);
 
   const effectiveCategorySlug = categorySlug || categories[0]?.slug || "";
@@ -336,6 +337,35 @@ export default function SubmitResourcePage() {
                   noValidate
                   className="mt-6 space-y-5 rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-4 sm:space-y-6 sm:p-8"
                 >
+                  {/* Step progress (mobile-first wizard) */}
+                  <div className="space-y-1.5">
+                    <div className="flex gap-1.5" aria-hidden="true">
+                      {[1, 2, 3].map((index) => (
+                        <span
+                          key={index}
+                          className={`h-1 flex-1 rounded-full transition-colors ${
+                            index <= step ? "bg-cyan-400" : "bg-slate-800"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      {isPt ? `Etapa ${step} de 3 · ` : `Step ${step} of 3 · `}
+                      {step === 1
+                        ? isPt
+                          ? "O recurso"
+                          : "The resource"
+                        : step === 2
+                          ? isPt
+                            ? "Detalhes técnicos"
+                            : "Technical details"
+                          : isPt
+                            ? "Preço, acesso e tags"
+                            : "Pricing, access & tags"}
+                    </p>
+                  </div>
+
+                  <div className={step === 1 ? "space-y-5 sm:space-y-6" : "hidden"}>
                   {/* Name */}
                   <div>
                     <label
@@ -444,6 +474,9 @@ export default function SubmitResourcePage() {
                     </div>
                   </div>
 
+                  </div>
+
+                  <div className={step === 2 ? "space-y-5 sm:space-y-6" : "hidden"}>
                   {/* Difficulty + Language + Author */}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
@@ -550,6 +583,9 @@ export default function SubmitResourcePage() {
                     )}
                   </div>
 
+                  </div>
+
+                  <div className={step === 3 ? "space-y-5 sm:space-y-6" : "hidden"}>
                   {/* Pricing Model + Credit Card + Free Tier Limits + Pricing Notes + Tags */}
                   <div className="space-y-4 rounded-xl border border-slate-800/90 bg-[#070b14]/70 p-4 sm:p-5">
                     <div>
@@ -753,6 +789,8 @@ export default function SubmitResourcePage() {
                     </div>
                   </div>
 
+                  </div>
+
                   {submitError && (
                     <div
                       role="alert"
@@ -762,24 +800,72 @@ export default function SubmitResourcePage() {
                     </div>
                   )}
 
-                  <div className="flex flex-col-reverse items-stretch justify-end gap-2.5 border-t border-slate-800 pt-5 sm:flex-row sm:items-center sm:gap-3">
-                    <Link
-                      href="/catalog"
-                      className="rounded-xl border border-slate-700 bg-[#070b14] px-4 py-3 text-center text-xs font-medium text-slate-300 hover:border-slate-600 sm:py-2.5"
-                    >
-                      {dict.submitPage.cancelButton}
-                    </Link>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting || categories.length === 0}
-                      className="rounded-xl bg-cyan-500 px-5 py-3 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400 disabled:opacity-50 sm:py-2.5"
-                    >
-                      {isSubmitting
-                        ? isPt
-                          ? "Enviando..."
-                          : "Submitting..."
-                        : dict.submitPage.submitButton}
-                    </button>
+                  <div className="flex flex-col-reverse items-stretch justify-between gap-2.5 border-t border-slate-800 pt-5 sm:flex-row sm:items-center sm:gap-3">
+                    <div className="flex flex-col-reverse items-stretch gap-2.5 sm:flex-row sm:items-center">
+                      {step > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => setStep((prev) => (prev - 1) as 1 | 2 | 3)}
+                          className="rounded-xl border border-slate-700 bg-[#070b14] px-4 py-3 text-center text-xs font-medium text-slate-300 hover:border-slate-600 sm:py-2.5"
+                        >
+                          {isPt ? "Voltar" : "Back"}
+                        </button>
+                      ) : (
+                        <Link
+                          href="/catalog"
+                          className="rounded-xl border border-slate-700 bg-[#070b14] px-4 py-3 text-center text-xs font-medium text-slate-300 hover:border-slate-600 sm:py-2.5"
+                        >
+                          {dict.submitPage.cancelButton}
+                        </Link>
+                      )}
+                    </div>
+
+                    {step < 3 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (step === 1) {
+                            if (
+                              !name.trim() ||
+                              !url.trim() ||
+                              !categorySlug
+                            ) {
+                              setSubmitError(
+                                isPt
+                                  ? "Preencha nome, link oficial e categoria para continuar."
+                                  : "Fill in name, official link and category to continue."
+                              );
+                              return;
+                            }
+                          }
+                          if (step === 2 && description.trim().length < 10) {
+                            setSubmitError(
+                              isPt
+                                ? "A descrição precisa ter pelo menos 10 caracteres."
+                                : "The description must be at least 10 characters."
+                            );
+                            return;
+                          }
+                          setSubmitError(null);
+                          setStep((prev) => (prev + 1) as 1 | 2 | 3);
+                        }}
+                        className="rounded-xl bg-cyan-500 px-5 py-3 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400 sm:py-2.5"
+                      >
+                        {isPt ? "Continuar" : "Continue"}
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={isSubmitting || categories.length === 0}
+                        className="rounded-xl bg-cyan-500 px-5 py-3 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400 disabled:opacity-50 sm:py-2.5"
+                      >
+                        {isSubmitting
+                          ? isPt
+                            ? "Enviando..."
+                            : "Submitting..."
+                          : dict.submitPage.submitButton}
+                      </button>
+                    )}
                   </div>
                 </form>
               )}

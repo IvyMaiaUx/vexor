@@ -97,6 +97,7 @@ function CatalogContent() {
   const [loadedKey, setLoadedKey] = useState<string>("");
   const [queryError, setQueryError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState<number>(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const currentQueryKey = `${activeTab}|${searchQuery}|${effectiveCategory}|${excludeCategory ?? ""}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${currentPage}|${reloadNonce}|${categories.length}`;
   const isLoading = categoriesLoading || loadedKey !== currentQueryKey;
@@ -377,8 +378,66 @@ function CatalogContent() {
 
             {/* Search & Multi-Filter Panel */}
             <div className="mt-4 rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3.5 shadow-xl sm:p-4">
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
-                <div className="relative sm:col-span-2 lg:col-span-5">
+              {/* Mobile: single search row + filter toggle (mockup pattern) */}
+              <div className="flex gap-2 sm:hidden">
+                <div className="relative flex-1">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) =>
+                      updateUrlParams({ q: e.target.value.trim() || null })
+                    }
+                    placeholder={dict.hero.searchPlaceholder}
+                    aria-label={dict.hero.searchPlaceholder}
+                    className="min-h-[48px] w-full rounded-xl border border-slate-800 bg-[#070b14] pl-9 pr-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((prev) => !prev)}
+                  aria-expanded={filtersOpen}
+                  aria-label={isPt ? "Filtros" : "Filters"}
+                  className={`relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+                    filtersOpen || hasActiveFilters
+                      ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                      : "border-slate-800 bg-[#070b14] text-slate-300"
+                  }`}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-5 w-5"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 5h18M6 12h12M10 19h4" />
+                  </svg>
+                  {hasActiveFilters && (
+                    <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-cyan-400" />
+                  )}
+                </button>
+              </div>
+
+              <div
+                className={`mt-2.5 grid-cols-1 gap-2.5 sm:mt-0 sm:grid sm:grid-cols-2 lg:grid-cols-12 lg:gap-3 ${
+                  filtersOpen ? "grid" : "hidden"
+                }`}
+              >
+                <div className="relative hidden sm:col-span-2 sm:block lg:col-span-5">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"

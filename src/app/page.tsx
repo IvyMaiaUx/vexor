@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
+import { HomeResourceStrip } from "@/features/feed/home-resource-strip";
 import { TimelineFeed } from "@/features/timeline/timeline-feed";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
@@ -21,7 +22,10 @@ export default function HomePage() {
 
       <main className="flex-1">
         {user ? (
-          <TimelineFeed locale={locale} />
+          <>
+            <HomeResourceStrip locale={locale} dict={dict} />
+            <TimelineFeed locale={locale} />
+          </>
         ) : (
           <>
             {/* 1. HERO SECTION (Public Landing) */}

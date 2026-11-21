@@ -17,7 +17,7 @@ export function Footer({ locale, dict }: FooterProps) {
   return (
     <footer
       className={`border-t border-slate-800/80 bg-[#050811] ${
-        user ? "pb-16 sm:pb-0" : ""
+        user ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-0" : ""
       }`}
     >
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
