@@ -6,8 +6,7 @@ export const MAX_PAGE_SIZE = 100;
 
 export function paginateItems<T>(
   items: readonly T[],
-  pagination?: PaginationParams,
-  isSimulatedDemoData = false
+  pagination?: PaginationParams
 ): PaginatedResult<T> {
   const pageSize = Math.min(
     Math.max(1, pagination?.pageSize ?? DEFAULT_PAGE_SIZE),
@@ -24,7 +23,6 @@ export function paginateItems<T>(
     page,
     pageSize,
     totalPages,
-    isSimulatedDemoData,
   };
 }
 

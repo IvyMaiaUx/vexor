@@ -435,11 +435,10 @@ await test("06. Admin is allowed (200) on users & audit endpoints", async () => 
 });
 
 // 7-9: Dashboard
-await test("07. Dashboard aggregates real counts with isSimulatedDemoData=false", async () => {
+await test("07. Dashboard aggregates real counts", async () => {
   const sb = createMockSupabase();
   const res = await handlers.handleGetAdminDashboard(sb);
   assert.equal(res.status, 200);
-  assert.equal(res.body.isSimulatedDemoData, false);
   assert.equal(res.body.totalUsers, 3);
   assert.equal(res.body.pendingResources, 1);
   assert.equal(res.body.totalTopics, 1);
@@ -457,11 +456,10 @@ await test("08. Dashboard propagates DB error instead of falling back to simulat
 });
 
 // 9-15: Users & RPCs
-await test("09. Users list supports filtering and pagination with isSimulatedDemoData=false", async () => {
+await test("09. Users list supports filtering and pagination", async () => {
   const sb = createMockSupabase();
   const res = await handlers.handleListAdminUsers(sb, { role: "moderator" }, { page: 1, pageSize: 10 });
   assert.equal(res.status, 200);
-  assert.equal(res.body.isSimulatedDemoData, false);
   assert.equal(res.body.total, 1);
   assert.equal(res.body.items[0].username, "bob_mod");
 });
@@ -482,7 +480,6 @@ await test("11. Users summary computes real role and suspension counts", async (
   assert.equal(res.body.totalUsers, 3);
   assert.equal(res.body.adminUsers, 1);
   assert.equal(res.body.moderatorUsers, 1);
-  assert.equal(res.body.isSimulatedDemoData, false);
 });
 
 await test("12. Self-demote is blocked (403) before RPC", async () => {
@@ -562,7 +559,6 @@ await test("17. Research tab returns empty without fabricating simulated items",
   const res = await handlers.handleListModerationQueue(sb, { contentType: "research" });
   assert.equal(res.status, 200);
   assert.equal(res.body.total, 0);
-  assert.equal(res.body.isSimulatedDemoData, false);
 });
 
 await test("18. Unsupported moderation actions (escalate, request_revision) return 400", async () => {
@@ -698,13 +694,12 @@ await test("26. Audit getAuditEntryById returns sanitized entry or null", async 
   assert.equal(missing.body, null);
 });
 
-await test("27. Audit summary returns real counts and isSimulatedDemoData=false", async () => {
+await test("27. Audit summary returns real counts", async () => {
   const sb = createMockSupabase();
   const res = await handlers.handleGetAdminAuditSummary(sb);
   assert.equal(res.status, 200);
   assert.equal(res.body.totalEvents, 2);
   assert.equal(res.body.adminChanges, 1);
-  assert.equal(res.body.isSimulatedDemoData, false);
 });
 
 await test("28. Audit export returns filtered entries read-only", async () => {
@@ -726,10 +721,10 @@ await test("29. Error mapper maps 42501, P0002, 22023, last-admin cleanly", asyn
   );
 });
 
-await test("30. Live adminDataProvider uses Supabase provider (isSimulated === false)", async () => {
-  assert.equal(adminProviderMod.adminDataProvider.isSimulated, false);
-  const sim = adminProviderMod.createSimulatedAdminProvider();
-  assert.equal(sim.isSimulated, true);
+await test("30. Live adminDataProvider has no simulated fallback", async () => {
+  assert.equal(typeof adminProviderMod.adminDataProvider.dashboard.getDashboardStats, "function");
+  assert.equal("isSimulated" in adminProviderMod.adminDataProvider, false);
+  assert.equal("createSimulatedAdminProvider" in adminProviderMod, false);
 });
 
 await test("31. Static check: no service_role or simulated fallback in Supabase admin provider/routes", async () => {

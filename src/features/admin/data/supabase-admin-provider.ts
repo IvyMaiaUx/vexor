@@ -21,58 +21,7 @@ import type {
   ReportTargetType,
   ResourceStatus,
 } from "../types";
-function getSupabaseModerationAvailableActions(
-  item: Pick<ModerationQueueItem, "contentType" | "status">
-): ModerationAction[] {
-  const { contentType, status } = item;
-  if (contentType === "research") {
-    switch (status) {
-      case "pending":
-        return ["approve", "reject", "archive"];
-      case "approved":
-      case "rejected":
-        return ["archive"];
-      case "archived":
-      default:
-        return [];
-    }
-  }
-  if (contentType === "resource") {
-    switch (status) {
-      case "pending":
-        return ["approve", "reject", "archive"];
-      case "approved":
-        return ["reject", "archive"];
-      case "rejected":
-        return ["approve", "archive"];
-      case "archived":
-        return ["approve", "reject"];
-      default:
-        return [];
-    }
-  }
-  if (contentType === "topic") {
-    switch (status) {
-      case "published":
-        return ["hide", "delete", "pin", "unpin", "lock", "unlock"];
-      case "hidden":
-        return ["unhide", "delete"];
-      default:
-        return [];
-    }
-  }
-  if (contentType === "post") {
-    switch (status) {
-      case "published":
-        return ["hide", "delete"];
-      case "hidden":
-        return ["unhide", "delete"];
-      default:
-        return [];
-    }
-  }
-  return [];
-}
+import { getModerationAvailableActions } from "../utils/moderation-actions";
 
 function buildSearchParams(
   params: Record<string, string | number | boolean | undefined | null>
@@ -159,8 +108,6 @@ async function mutateAdminAction(
 
 export function createSupabaseAdminProvider(): IAdminDataProvider {
   return {
-    isSimulated: false,
-
     dashboard: {
       async getDashboardStats(): Promise<AdminDashboardStats> {
         return fetchAdminJson<AdminDashboardStats>("/api/admin/dashboard");
@@ -253,7 +200,7 @@ export function createSupabaseAdminProvider(): IAdminDataProvider {
       },
 
       getAvailableActions(item: ModerationQueueItem): ModerationAction[] {
-        return getSupabaseModerationAvailableActions(item);
+        return getModerationAvailableActions(item);
       },
 
       async executeAction(

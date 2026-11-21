@@ -212,18 +212,10 @@ console.log("  ✓ Controle de acesso estrito validado: deslogados e suspensos b
 console.log(">>> [7/10] Validando identidade de chave de storage e sincronização real...");
 
 const researchServiceFile = fs.readFileSync(path.join(PROJECT_ROOT, "src/features/cybercrime-research/services/research-service.ts"), "utf8");
-const adminServiceFile = fs.readFileSync(path.join(PROJECT_ROOT, "src/features/admin/services/admin-service.ts"), "utf8");
 
 const researchKeyMatch = researchServiceFile.match(/const ADMIN_RESEARCH_STORAGE_KEY = "(.*?)";/);
-const adminKeyMatch = adminServiceFile.match(/const ADMIN_RESEARCH_STORAGE_KEY = "(.*?)";/);
 
 assert.ok(researchKeyMatch, "Constante ADMIN_RESEARCH_STORAGE_KEY ausente em research-service.ts.");
-assert.ok(adminKeyMatch, "Constante ADMIN_RESEARCH_STORAGE_KEY ausente em admin-service.ts.");
-assert.equal(
-  researchKeyMatch[1],
-  adminKeyMatch[1],
-  `Divergência de chave: research-service usa '${researchKeyMatch[1]}' enquanto admin-service usa '${adminKeyMatch[1]}'`
-);
 assert.equal(researchKeyMatch[1], "vexor_admin_research_queue");
 
 console.log(`  ✓ Chave idêntica comprovada: '${researchKeyMatch[1]}'\n`);

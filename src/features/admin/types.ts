@@ -9,10 +9,8 @@
  * - public.report_reason ('spam', 'malicious_content', 'personal_data', 'harassment', 'unauthorized_attack', 'copyright', 'other')
  *
  * NOTE on Cybercrime Research:
- * The current database schema does not have a dedicated `cybercrime_research` table.
- * Research submissions are maintained in an isolated simulated layer in this phase,
- * ready to be mapped to a dedicated table or public.resources (category: 'cybercrime')
- * during backend integration.
+ * Research submissions are persisted in `public.research_submissions` and moderated
+ * through the authenticated admin API backed by the `moderate_research` RPC.
  */
 
 import type { FeaturedResourceItem } from "@/config/site";
@@ -285,7 +283,6 @@ export interface AdminUser {
   isSuspended: boolean;
   createdAt: string;
   lastActivityAt?: string;
-  isSimulatedDemoData?: boolean;
 }
 
 export interface AdminUserFilters {
@@ -303,7 +300,6 @@ export interface AdminUsersSummary {
   adminUsers: number;
   activeAdminUsers: number;
   moderatorUsers: number;
-  isSimulatedDemoData: boolean;
 }
 
 export interface AdminDashboardStats extends AdminStats {
@@ -311,8 +307,6 @@ export interface AdminDashboardStats extends AdminStats {
   totalPublications: number;
   /** Count of moderation queue items currently awaiting review. */
   pendingModerationItems: number;
-  /** Explicit flag indicating whether counts come from simulated demo data. */
-  isSimulatedDemoData: boolean;
 }
 
 export type ModerationQueueItem = UnifiedModerationItem;
@@ -363,7 +357,6 @@ export interface AdminResource {
   reviewedAt?: string;
   publishedAt?: string;
   createdAt?: string;
-  isSimulatedDemoData?: boolean;
 }
 
 export type AdminAuditEntry = AuditLog;
@@ -379,7 +372,6 @@ export interface PaginatedResult<T> {
   page: number;
   pageSize: number;
   totalPages: number;
-  isSimulatedDemoData?: boolean;
 }
 
 export interface IAdminDashboardService {
@@ -476,7 +468,6 @@ export interface AdminAuditSummary {
   adminChanges: number;
   accessDeniedEvents: number;
   recentEvents: number;
-  isSimulatedDemoData: boolean;
 }
 
 export interface IAdminAuditService {
@@ -490,7 +481,6 @@ export interface IAdminAuditService {
 }
 
 export interface IAdminDataProvider {
-  readonly isSimulated: boolean;
   readonly dashboard: IAdminDashboardService;
   readonly users: IAdminUsersService;
   readonly moderation: IAdminModerationService;

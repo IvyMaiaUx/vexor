@@ -243,7 +243,6 @@ export async function handleGetAdminDashboard(
       ...baseStats,
       totalPublications: totalResources + totalTopics + totalPosts,
       pendingModerationItems: pendingResources,
-      isSimulatedDemoData: false,
     },
   };
 }
@@ -269,7 +268,6 @@ function mapProfileRowToAdminUser(
     status: row.is_suspended ? "suspended" : "active",
     isSuspended: row.is_suspended,
     createdAt: row.created_at,
-    isSimulatedDemoData: false,
   };
 }
 
@@ -322,7 +320,7 @@ export async function handleListAdminUsers(
 
   return {
     status: 200,
-    body: paginateItems(users, pagination, false),
+    body: paginateItems(users, pagination),
   };
 }
 
@@ -390,7 +388,6 @@ export async function handleGetAdminUsersSummary(
       adminUsers,
       activeAdminUsers,
       moderatorUsers,
-      isSimulatedDemoData: false,
     },
   };
 }
@@ -853,7 +850,7 @@ export async function handleListModerationQueue(
 
   return {
     status: 200,
-    body: paginateItems(filtered, pagination, false),
+    body: paginateItems(filtered, pagination),
   };
 }
 
@@ -1117,7 +1114,6 @@ export async function handleListAdminResources(
     reviewedAt: r.reviewed_at ?? undefined,
     publishedAt: r.published_at ?? undefined,
     createdAt: r.created_at,
-    isSimulatedDemoData: false,
   }));
 
   if (filter?.query?.trim()) {
@@ -1132,7 +1128,7 @@ export async function handleListAdminResources(
 
   return {
     status: 200,
-    body: paginateItems(mapped, pagination, false),
+    body: paginateItems(mapped, pagination),
   };
 }
 
@@ -1216,7 +1212,7 @@ export async function handleListAdminReports(
 
   return {
     status: 200,
-    body: paginateItems(mappedReports, pagination, false),
+    body: paginateItems(mappedReports, pagination),
   };
 }
 
@@ -1369,7 +1365,7 @@ export async function handleListAdminAudit(
 
   return {
     status: 200,
-    body: paginateItems(res.entries, pagination, false),
+    body: paginateItems(res.entries, pagination),
   };
 }
 
@@ -1491,7 +1487,6 @@ export async function handleGetAdminAuditSummary(
       recentEvents: entries.filter(
         (e) => new Date(e.createdAt).getTime() >= recentCutoff
       ).length,
-      isSimulatedDemoData: false,
     },
   };
 }

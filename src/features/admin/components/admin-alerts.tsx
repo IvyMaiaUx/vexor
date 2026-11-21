@@ -123,12 +123,6 @@ export function AdminAlerts({ stats }: AdminAlertsProps) {
             <span>{dict.adminPanel.alerts.systemHealthy}</span>
           </div>
         )}
-
-        {/* Nota Explícita do Modelo RBAC / Backend */}
-        <div className="rounded-xl border border-slate-800/80 bg-[#080d19] p-3 text-[11px] text-slate-400">
-          <span className="font-semibold text-slate-300">Aviso Arquitetural: </span>
-          {dict.adminPanel.alerts.demoNotice}
-        </div>
       </div>
     </section>
   );

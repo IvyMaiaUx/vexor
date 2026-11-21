@@ -76,7 +76,6 @@ export default function AdminAuditPage() {
     page: 1,
     pageSize: 8,
     totalPages: 1,
-    isSimulatedDemoData: true,
   });
   const [summary, setSummary] = useState<AdminAuditSummary | null>(null);
   const [loading, setLoading] = useState(true);

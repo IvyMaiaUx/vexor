@@ -146,9 +146,6 @@ export function AdminUserDetailModal({
       <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-slate-800 bg-[#091020] p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
           <div>
-            <span className="font-mono text-[11px] uppercase tracking-wider text-cyan-400">
-              {t.demoBadge}
-            </span>
             <h2
               id="user-detail-modal-title"
               className="mt-1 text-lg font-bold text-white"
@@ -314,7 +311,7 @@ export function AdminUserDetailModal({
               </div>
             </div>
 
-            {/* Demonstrative Activity */}
+            {/* Administrative Activity */}
             <div className="space-y-2.5 rounded-xl border border-slate-800/80 bg-[#0c1220] p-4">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
                 {t.detailsModal.activityTitle}
@@ -376,22 +373,22 @@ export function AdminUserDetailModal({
               )}
             </div>
 
-            {/* Demonstrative Admin Actions */}
+            {/* Administrative Actions */}
             <div className="space-y-3 rounded-xl border border-slate-800 bg-[#070b14] p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-200">
-                  {t.demoActions.title}
+                  {t.adminActions.title}
                 </span>
                 <span className="rounded border border-violet-500/40 bg-violet-500/15 px-2 py-0.5 font-mono text-[10px] uppercase text-violet-300">
-                  {t.demoActions.badge}
+                  {t.adminActions.badge}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
                 {isSelf
-                  ? t.demoActions.selfProtected
+                  ? t.adminActions.selfProtected
                   : isLastActiveAdmin
-                    ? t.demoActions.lastAdminProtected
-                    : t.demoActions.notice}
+                    ? t.adminActions.lastAdminProtected
+                    : t.adminActions.notice}
               </p>
               <div className="flex flex-wrap gap-2">
                 <button

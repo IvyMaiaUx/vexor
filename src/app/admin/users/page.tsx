@@ -40,7 +40,6 @@ export default function AdminUsersPage() {
     page: 1,
     pageSize: 5,
     totalPages: 1,
-    isSimulatedDemoData: true,
   });
   const [summary, setSummary] = useState<AdminUsersSummary | null>(null);
   const [auditEntries, setAuditEntries] = useState<AdminAuditEntry[]>([]);
@@ -662,7 +661,7 @@ export default function AdminUsersPage() {
           </div>
         )}
 
-        {/* Demonstrative Audit History (Append-Only) */}
+        {/* Audit History (Append-Only) */}
         <section
           aria-label={t.auditHistory.title}
           className="rounded-2xl border border-slate-800/90 bg-[#0c1220]/90 p-5"

@@ -195,7 +195,7 @@ export function AdminReportModal({
           </div>
 
           <div className="rounded-lg bg-slate-900/60 p-2.5 font-mono text-[10px] text-slate-400">
-            Registro demonstrativo local atribuído a{" "}
+            Registro atribuído a{" "}
             <span className="text-cyan-300">@{user?.username}</span>.
           </div>
 

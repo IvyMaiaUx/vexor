@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { ModerationAction, UnifiedModerationItem } from "../types";
-import { getModerationAvailableActions } from "../services/moderation-service";
+import { getModerationAvailableActions } from "../utils/moderation-actions";
 import { useI18n } from "@/lib/i18n/context";
 import { analyzeUrlSafety } from "../utils/url-safety";
 import { researchService } from "@/features/cybercrime-research/services/research-service";

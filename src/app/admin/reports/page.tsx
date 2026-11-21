@@ -299,7 +299,7 @@ export default function AdminReportsPage() {
           report={activeReport}
           onClose={() => setActiveReport(null)}
           onSuccess={() => {
-            setSuccessToast("Denúncia atualizada com sucesso na trilha de auditoria demonstrativa.");
+            setSuccessToast("Denúncia atualizada com sucesso.");
             setReloadKey((prev) => prev + 1);
           }}
         />

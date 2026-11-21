@@ -7,7 +7,7 @@ import { AdminModerationDetailModal } from "@/features/admin/components/admin-mo
 import { AdminModerationDecisionModal } from "@/features/admin/components/admin-moderation-decision-modal";
 import { AdminReportModal } from "@/features/admin/components/admin-report-modal";
 import { adminDataProvider } from "@/features/admin/services/admin-provider";
-import { getModerationAvailableActions } from "@/features/admin/services/moderation-service";
+import { getModerationAvailableActions } from "@/features/admin/utils/moderation-actions";
 import type {
   AdminReport,
   ModerationAction,

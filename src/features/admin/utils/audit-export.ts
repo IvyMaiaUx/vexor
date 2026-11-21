@@ -181,7 +181,7 @@ export function generateAuditLogsCsv(
 
 /**
  * Client-side browser download helper for the generated CSV file.
- * Notice: exports strictly demonstrative in-memory audit records.
+ * Exports the audit records returned by the authenticated admin API.
  */
 export function exportAuditLogsToCsv(
   logs: readonly AuditLog[],
@@ -196,7 +196,7 @@ export function exportAuditLogsToCsv(
     const url = URL.createObjectURL(blob);
 
     const now = new Date().toISOString().slice(0, 10);
-    const filename = customFilename || `vexor-demo-audit-${now}.csv`;
+    const filename = customFilename || `vexor-audit-${now}.csv`;
 
     const link = document.createElement("a");
     link.href = url;

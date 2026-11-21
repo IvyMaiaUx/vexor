@@ -641,9 +641,6 @@ export interface Dictionary {
       title: string;
       subtitle: string;
       greeting: (name: string) => string;
-      demoBadge: string;
-      demoNoticeTitle: string;
-      demoNoticeBody: string;
       currentDateLabel: string;
       refreshButton: string;
       refreshingButton: string;
@@ -712,7 +709,6 @@ export interface Dictionary {
       pendingResearch: (count: number) => string;
       recentSuspensions: (count: number) => string;
       systemHealthy: string;
-      demoNotice: string;
     };
     queue: {
       tabs: {
@@ -769,9 +765,6 @@ export interface Dictionary {
       title: string;
       rbacTitle: string;
       subtitle: string;
-      demoBadge: string;
-      demoNoticeTitle: string;
-      demoNoticeBody: string;
       refreshButton: string;
       refreshingButton: string;
       loadingMessage: string;
@@ -823,7 +816,7 @@ export interface Dictionary {
       emptyState: string;
       selfBadge: string;
       roleLabels: Record<string, string>;
-      demoActions: {
+      adminActions: {
         title: string;
         badge: string;
         notice: string;
@@ -924,9 +917,6 @@ export interface Dictionary {
       eyebrow: string;
       title: string;
       subtitle: string;
-      demoBadge: string;
-      demoNoticeTitle: string;
-      demoNoticeBody: string;
       refreshButton: string;
       refreshingButton: string;
       summary: {
@@ -1016,8 +1006,6 @@ export interface Dictionary {
       eyebrow: string;
       title: string;
       subtitle: string;
-      demoBadge: string;
-      demoNotice: string;
       queueTab: string;
       reportsTab: string;
       searchPlaceholder: string;
@@ -1865,10 +1853,6 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         subtitle:
           "Visão geral da comunidade, publicações, fila de moderação, denúncias e atividade administrativa recente.",
         greeting: (name: string) => `Olá, ${name}`,
-        demoBadge: "DADOS DEMONSTRATIVOS",
-        demoNoticeTitle: "Ambiente com Dados Simulados:",
-        demoNoticeBody:
-          "Os indicadores e eventos abaixo são fornecidos pelo provedor em memória da Etapa 1 apenas para demonstração. Nenhuma operação de escrita é executada no Supabase.",
         currentDateLabel: "Data atual",
         refreshButton: "Atualizar dados",
         refreshingButton: "Atualizando...",
@@ -1877,12 +1861,12 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         errorMessage:
           "Não foi possível consultar os serviços administrativos neste momento. Tente atualizar novamente.",
         retryButton: "Tentar novamente",
-        statsTitle: "Indicadores Principais (Estado Simulado)",
+        statsTitle: "Indicadores Principais",
         alertsTitle: "Alertas Administrativos e Prioridades",
         queueTitle: "Fila de Moderação",
         auditTitle: "Atividade Recente",
         noHistoricalTrends:
-          "Métricas demonstrativas sem série histórica conectada ao Supabase; variações percentuais não são exibidas.",
+          "Métricas consolidadas diretamente do banco de dados; variações percentuais não são exibidas.",
         viewReportsCta: "Central de Denúncias",
         viewCatalogCta: "Catálogo Admin",
         viewQueueCta: "Ir para Moderação",
@@ -1963,8 +1947,6 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         recentSuspensions: (count: number) =>
           `Segurança: ${count} conta${count === 1 ? "" : "s"} suspensa${count === 1 ? "" : "s"} preventivamente no período recente.`,
         systemHealthy: "Status operacional estável: não há pendências críticas na fila de moderação.",
-        demoNotice:
-          "Ambiente de Simulação RBAC: As ações operacionais abaixo manipulam a camada em memória/localStorage espelhando as RPCs do PostgreSQL. Persistência e RLS definitivos serão vinculados na integração com o Supabase.",
       },
       queue: {
         tabs: {
@@ -2042,14 +2024,10 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         title: "Gerenciamento de usuários",
         rbacTitle: "Gestão de Usuários (RBAC)",
         subtitle:
-          "Consulte, pesquise e filtre contas cadastradas na comunidade, papéis de acesso e situação cadastral em ambiente demonstrativo.",
-        demoBadge: "DADOS DEMONSTRATIVOS",
-        demoNoticeTitle: "Ambiente com Dados Simulados:",
-        demoNoticeBody:
-          "A listagem e os detalhes abaixo consomem exclusivamente o provedor em memória da Etapa 1. Operações mutáveis em profiles ou contas do Supabase estão desabilitadas nesta etapa.",
+          "Consulte, pesquise e filtre contas cadastradas na comunidade, papéis de acesso e situação cadastral.",
         refreshButton: "Atualizar dados",
         refreshingButton: "Atualizando...",
-        loadingMessage: "Carregando usuários demonstrativos...",
+        loadingMessage: "Carregando usuários...",
         errorTitle: "Falha ao carregar usuários",
         errorMessage:
           "Não foi possível consultar o serviço administrativo de usuários. Tente novamente.",
@@ -2105,11 +2083,11 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           moderator: "Moderator",
           admin: "Admin",
         },
-        demoActions: {
-          title: "Ações administrativas (demonstração)",
-          badge: "Ambiente simulado",
+        adminActions: {
+          title: "Ações administrativas",
+          badge: "RBAC",
           notice:
-            "As operações abaixo alteram apenas o estado em memória da demonstração e registram eventos na trilha de auditoria local. Nenhuma conta real do Supabase é modificada.",
+            "As operações abaixo são aplicadas no banco de dados via RPCs administrativas autenticadas e registradas na trilha de auditoria.",
           selfProtected: "Administradores não podem rebaixar ou suspender a própria conta.",
           lastAdminProtected: "O último administrador ativo não pode ser rebaixado ou suspenso.",
         },
@@ -2122,18 +2100,18 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           loadingMessage: "Carregando ficha do usuário...",
           notFoundTitle: "Usuário não encontrado",
           notFoundMessage:
-            "O registro solicitado não foi localizado no provedor demonstrativo.",
+            "O registro solicitado não foi localizado.",
           joinedLabel: "Data de cadastro",
-          lastActivityLabel: "Última atividade demonstrativa",
+          lastActivityLabel: "Última atividade",
           publicLinksTitle: "Links públicos",
           noPublicLinks: "Nenhum link público informado.",
           activityTitle: "Histórico administrativo do usuário",
           noRecentActivity: "Nenhum evento administrativo recente para este usuário.",
         },
         roleModal: {
-          eyebrow: "GOVERNANÇA RBAC (DEMONSTRAÇÃO)",
+          eyebrow: "GOVERNANÇA RBAC",
           title: "Alterar Papel do Usuário",
-          desc: "A alteração de papel modifica as permissões demonstrativas em memória e grava o evento user.role_changed na auditoria local.",
+          desc: "A alteração de papel aplica as novas permissões no banco de dados e grava o evento user.role_changed na auditoria.",
           currentRoleLabel: "Papel Atual:",
           newRoleLabel: "Novo Papel RBAC *",
           targetRoleLabel: "Papel de Destino:",
@@ -2147,11 +2125,11 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
             "Atenção: A concessão do papel 'admin' libera controle administrativo completo no ambiente da plataforma.",
           confirmStepTitle: "Confirmar alteração de papel",
           confirmStepDesc: (username: string, fromRole: string, toRole: string) =>
-            `Confirma a alteração demonstrativa do papel de @${username} de ${fromRole} para ${toRole}?`,
+            `Confirma a alteração do papel de @${username} de ${fromRole} para ${toRole}?`,
           confirmActionBtn: "Confirmar e aplicar",
           backBtn: "Voltar",
           processingBtn: "Processando...",
-          successMessage: "Papel atualizado com sucesso no ambiente demonstrativo.",
+          successMessage: "Papel atualizado com sucesso.",
           sameRoleError: "Selecione um papel diferente do papel atual.",
           roleDescriptions: {
             member:
@@ -2166,14 +2144,14 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           closeAriaLabel: "Fechar modal",
         },
         suspensionModal: {
-          suspendEyebrow: "SANÇÃO DEMONSTRATIVA",
-          unsuspendEyebrow: "REABILITAÇÃO DEMONSTRATIVA",
+          suspendEyebrow: "SANÇÃO ADMINISTRATIVA",
+          unsuspendEyebrow: "REABILITAÇÃO ADMINISTRATIVA",
           suspendTitle: "Suspender Conta de Usuário",
           unsuspendTitle: "Reativar Conta de Usuário",
           suspendDesc:
-            "A suspensão revoga demonstrativamente a capacidade do usuário de interagir na comunidade e registra o evento user.suspended.",
+            "A suspensão revoga a capacidade do usuário de interagir na comunidade e registra o evento user.suspended.",
           unsuspendDesc:
-            "A reativação restaura demonstrativamente o estado ativo da conta e registra o evento user.unsuspended.",
+            "A reativação restaura o estado ativo da conta e registra o evento user.unsuspended.",
           statusLabel: "Situação:",
           reasonLabel: "Justificativa Técnica (Obrigatória) *",
           reasonPlaceholder:
@@ -2187,14 +2165,14 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
             "Operação bloqueada: não é permitido suspender o último administrador ativo.",
           confirmStepTitle: "Confirmar operação",
           confirmSuspendDesc: (username: string) =>
-            `Confirma a suspensão demonstrativa da conta @${username}?`,
+            `Confirma a suspensão da conta @${username}?`,
           confirmUnsuspendDesc: (username: string) =>
-            `Confirma a reativação demonstrativa da conta @${username}?`,
+            `Confirma a reativação da conta @${username}?`,
           confirmActionBtn: "Confirmar e aplicar",
           backBtn: "Voltar",
           processingBtn: "Processando...",
-          suspendSuccessMessage: "Usuário suspenso com sucesso no ambiente demonstrativo.",
-          unsuspendSuccessMessage: "Usuário reativado com sucesso no ambiente demonstrativo.",
+          suspendSuccessMessage: "Usuário suspenso com sucesso.",
+          unsuspendSuccessMessage: "Usuário reativado com sucesso.",
           cancelBtn: "Cancelar",
           confirmBtn: "Revisar ação",
           closeAriaLabel: "Fechar modal",
@@ -2202,9 +2180,9 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         auditHistory: {
           title: "Histórico de Alterações de Acesso e Situação",
           subtitle:
-            "Registro append-only das alterações demonstrativas de papel, suspensão e reativação.",
+            "Registro append-only das alterações de papel, suspensão e reativação.",
           appendOnlyBadge: "APPEND-ONLY",
-          loading: "Carregando histórico demonstrativo...",
+          loading: "Carregando histórico...",
           empty: "Nenhuma alteração administrativa registrada ainda.",
           actorLabel: "Ator",
           targetLabel: "Usuário afetado",
@@ -2226,18 +2204,14 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           alreadySuspended: "Operação inválida (22023): o usuário já está suspenso.",
           alreadyActive: "Operação inválida (22023): o usuário já está ativo.",
           notFound: "Registro não encontrado (P0002).",
-          generic: "Não foi possível concluir a operação demonstrativa.",
+          generic: "Não foi possível concluir a operação.",
         },
       },
       auditPage: {
         eyebrow: "SEGURANÇA & CONFORMIDADE",
         title: "Central de Auditoria de Segurança",
         subtitle:
-          "Registro demonstrativo somente leitura (append-only) de intervenções administrativas, alterações de papéis, moderação, suspensões e bloqueios de acesso.",
-        demoBadge: "DADOS DEMONSTRATIVOS",
-        demoNoticeTitle: "Ambiente Simulado (Somente Leitura):",
-        demoNoticeBody:
-          "Os eventos abaixo são provenientes exclusivamente do provedor em memória da Etapa 1. Não representam logs oficiais do Supabase nem permitem edição ou exclusão.",
+          "Registro somente leitura (append-only) de intervenções administrativas, alterações de papéis, moderação, suspensões e bloqueios de acesso.",
         refreshButton: "Atualizar registros",
         refreshingButton: "Atualizando...",
         summary: {
@@ -2287,18 +2261,18 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         viewDetailsBtn: "Detalhes",
         exportCsvBtn: "Exportar CSV",
         exportSuccess: (count: number) =>
-          `CSV demonstrativo exportado com segurança (${count} registro${count === 1 ? "" : "s"}).`,
+          `CSV exportado com segurança (${count} registro${count === 1 ? "" : "s"}).`,
         exportEmptyError: "Não há registros filtrados para exportar.",
         exportError: "Não foi possível gerar o arquivo CSV.",
-        loadingMessage: "Carregando trilha de auditoria demonstrativa...",
+        loadingMessage: "Carregando trilha de auditoria...",
         errorTitle: "Falha ao consultar auditoria",
-        errorMessage: "Não foi possível carregar os registros demonstrativos. Tente novamente.",
+        errorMessage: "Não foi possível carregar os registros. Tente novamente.",
         retryButton: "Tentar novamente",
         emptyTitle: "Nenhum evento encontrado",
         emptyState: "Nenhum registro de auditoria encontrado para os filtros selecionados.",
         incompleteBadge: "Informação Parcial",
         immutableNotice:
-          "Registros de auditoria são estritamente append-only na interface demonstrativa. A imutabilidade real em produção depende das triggers e políticas RLS do PostgreSQL.",
+          "Registros de auditoria são estritamente append-only. A imutabilidade é garantida por triggers e políticas RLS do PostgreSQL.",
         severityLabels: {
           info: "Informativo",
           warning: "Aviso",
@@ -2306,7 +2280,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           access_denied: "Acesso negado",
         },
         detailsModal: {
-          eyebrow: "AUDITORIA DE SEGURANÇA (DEMO)",
+          eyebrow: "AUDITORIA DE SEGURANÇA",
           title: "Detalhes do Evento de Auditoria",
           eventInfoTitle: "Parâmetros do Evento",
           rawMetadataTitle: "Metadados Estruturados (JSON Sanitizado)",
@@ -2326,7 +2300,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           integrityComplete: "Íntegro",
           sanitizedBadge: "Higienização ativa",
           loadingMessage: "Carregando detalhes do evento...",
-          notFoundMessage: "Evento não localizado no provedor demonstrativo.",
+          notFoundMessage: "Evento não localizado.",
           ipNotice: "Dados sensíveis (senhas, chaves, e-mails e tokens) são automaticamente mascarados antes da exibição.",
         },
         actionLabels: {
@@ -2372,9 +2346,6 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         title: "Central de Moderação de Conteúdo",
         subtitle:
           "Fila unificada para análise, validação técnica, aprovação e rejeição fundamentada de recursos, tópicos, respostas e submissões da comunidade.",
-        demoBadge: "MODO DEMONSTRATIVO LOCAL",
-        demoNotice:
-          "Camada demonstrativa em memória (adminDataProvider). Decisões e registros de auditoria gerados aqui são locais e não alteram o banco Supabase remoto.",
         queueTab: "Fila Unificada",
         reportsTab: "Denúncias",
         searchPlaceholder: "Buscar por título, autor, categoria, motivo ou ID...",
@@ -2418,7 +2389,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         resubmitBtn: "Reenviar",
         emptyState: "Nenhum conteúdo encontrado na fila com os filtros selecionados.",
         noQueueItems: "A fila de moderação está vazia no momento.",
-        loadError: "Não foi possível carregar a fila de moderação demonstrativa.",
+        loadError: "Não foi possível carregar a fila de moderação.",
         retryBtn: "Tentar novamente",
         conflictError: "Conflito de estado (409): a ação selecionada é incompatível com o estado atual do item.",
         unauthorizedError: "Acesso negado (42501): apenas moderadores ou administradores ativos podem moderar.",
@@ -2478,7 +2449,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           urlNonConclusiveNotice:
             "Análise estática e defensiva — nenhum link é acessado automaticamente. Indicadores heurísticos não comprovam atividade ilícita.",
           contentBodyTitle: "Corpo do Conteúdo Submetido",
-          historyTitle: "Histórico Demonstrativo de Decisões",
+          historyTitle: "Histórico de Decisões",
           noHistory: "Nenhuma decisão registrada ainda para este item.",
           closeBtn: "Fechar",
         },
@@ -2490,7 +2461,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           escalateTitle: "Encaminhar para Análise Adicional",
           requestRevisionTitle: "Solicitar Revisão ao Autor",
           approveDesc:
-            "A aprovação torna o conteúdo visível na plataforma. Esta ação será registrada no histórico demonstrativo.",
+            "A aprovação torna o conteúdo visível na plataforma. Esta ação será registrada no histórico de auditoria.",
           rejectDesc:
             "A rejeição exige justificativa técnica obrigatória (mínimo 5 caracteres).",
           hideDesc:
@@ -2505,7 +2476,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           reasonOptionalLabel: "Observação Técnica (Opcional)",
           reasonPlaceholder:
             "Descreva detalhadamente o motivo da decisão (mínimo 5 caracteres para ações restritivas)...",
-          reasonHint: "Mínimo 5 caracteres. Será arquivada para rastreabilidade demonstrativa.",
+          reasonHint: "Mínimo 5 caracteres. Será arquivada para rastreabilidade.",
           reasonMinError: "A justificativa deve conter pelo menos 5 caracteres.",
           generalError: "Erro ao registrar a decisão de moderação. Verifique permissões e estado do item.",
           confirmApproveBtn: "Confirmar Aprovação",
@@ -3278,10 +3249,6 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         subtitle:
           "Community overview, publications, moderation queue, reports, and recent administrative activity.",
         greeting: (name: string) => `Hello, ${name}`,
-        demoBadge: "SIMULATED DATA",
-        demoNoticeTitle: "Simulated Data Environment:",
-        demoNoticeBody:
-          "The indicators and events below come from the Stage 1 in-memory provider for demonstration purposes only. No write operations are sent to Supabase.",
         currentDateLabel: "Current date",
         refreshButton: "Refresh data",
         refreshingButton: "Refreshing...",
@@ -3290,12 +3257,12 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         errorMessage:
           "Unable to query administrative services right now. Please try refreshing again.",
         retryButton: "Try again",
-        statsTitle: "Key Indicators (Simulated State)",
+        statsTitle: "Key Indicators",
         alertsTitle: "Administrative Alerts & Priorities",
         queueTitle: "Moderation Queue",
         auditTitle: "Recent Activity",
         noHistoricalTrends:
-          "Demonstrative metrics without live historical telemetry in Supabase; percentage trends are not shown.",
+          "Metrics consolidated directly from the database; percentage trends are not shown.",
         viewReportsCta: "Reports Desk",
         viewCatalogCta: "Admin Catalog",
         viewQueueCta: "Go to Moderation",
@@ -3375,8 +3342,6 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         recentSuspensions: (count: number) =>
           `Security: ${count} account${count === 1 ? "" : "s"} placed under preventative suspension recently.`,
         systemHealthy: "Operational status optimal: no critical bottlenecks in the moderation pipeline.",
-        demoNotice:
-          "RBAC Simulation Environment: Actions below operate on the simulated storage layer mirroring PostgreSQL RPCs. Production persistence and authoritative RLS will be wired during Supabase integration.",
       },
       queue: {
         tabs: {
@@ -3454,14 +3419,10 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         title: "User Management",
         rbacTitle: "User Management (RBAC)",
         subtitle:
-          "Browse, search, and filter community accounts, access roles, and account status in a demonstrative environment.",
-        demoBadge: "SIMULATED DATA",
-        demoNoticeTitle: "Simulated Data Environment:",
-        demoNoticeBody:
-          "The listing and details below consume exclusively the Stage 1 in-memory provider. Write operations on Supabase profiles or accounts are disabled in this stage.",
+          "Browse, search, and filter community accounts, access roles, and account status.",
         refreshButton: "Refresh data",
         refreshingButton: "Refreshing...",
-        loadingMessage: "Loading demonstrative users...",
+        loadingMessage: "Loading users...",
         errorTitle: "Failed to load users",
         errorMessage:
           "Unable to query the administrative users service right now. Please try again.",
@@ -3517,11 +3478,11 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           moderator: "Moderator",
           admin: "Admin",
         },
-        demoActions: {
-          title: "Administrative actions (demonstration)",
-          badge: "Simulated environment",
+        adminActions: {
+          title: "Administrative actions",
+          badge: "RBAC",
           notice:
-            "Actions below update only the in-memory demonstration state and append local audit events. No real Supabase accounts are modified.",
+            "Actions below are applied to the database through authenticated administrative RPCs and recorded in the audit trail.",
           selfProtected: "Administrators cannot demote or suspend their own account.",
           lastAdminProtected: "The last active administrator cannot be demoted or suspended.",
         },
@@ -3534,18 +3495,18 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           loadingMessage: "Loading user record...",
           notFoundTitle: "User not found",
           notFoundMessage:
-            "The requested record was not found in the demonstrative provider.",
+            "The requested record was not found.",
           joinedLabel: "Joined date",
-          lastActivityLabel: "Last demonstrative activity",
+          lastActivityLabel: "Last activity",
           publicLinksTitle: "Public links",
           noPublicLinks: "No public links provided.",
           activityTitle: "User administrative history",
           noRecentActivity: "No recent administrative events for this user.",
         },
         roleModal: {
-          eyebrow: "RBAC GOVERNANCE (DEMO)",
+          eyebrow: "RBAC GOVERNANCE",
           title: "Change User Role",
-          desc: "Changing a role updates in-memory demonstrative permissions and records a user.role_changed event in the local audit trail.",
+          desc: "Changing a role applies the new permissions in the database and records a user.role_changed event in the audit trail.",
           currentRoleLabel: "Current Role:",
           newRoleLabel: "New RBAC Role *",
           targetRoleLabel: "Target Role:",
@@ -3559,11 +3520,11 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
             "Warning: Granting the 'admin' role provides full administrative control across the platform environment.",
           confirmStepTitle: "Confirm role change",
           confirmStepDesc: (username: string, fromRole: string, toRole: string) =>
-            `Confirm the demonstrative role change for @${username} from ${fromRole} to ${toRole}?`,
+            `Confirm the role change for @${username} from ${fromRole} to ${toRole}?`,
           confirmActionBtn: "Confirm and apply",
           backBtn: "Back",
           processingBtn: "Processing...",
-          successMessage: "Role updated successfully in the demonstrative environment.",
+          successMessage: "Role updated successfully.",
           sameRoleError: "Select a role different from the current role.",
           roleDescriptions: {
             member:
@@ -3578,14 +3539,14 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           closeAriaLabel: "Close modal",
         },
         suspensionModal: {
-          suspendEyebrow: "DEMONSTRATIVE SANCTION",
-          unsuspendEyebrow: "DEMONSTRATIVE REACTIVATION",
+          suspendEyebrow: "ADMINISTRATIVE SANCTION",
+          unsuspendEyebrow: "ADMINISTRATIVE REACTIVATION",
           suspendTitle: "Suspend User Account",
           unsuspendTitle: "Reactivate User Account",
           suspendDesc:
-            "Suspension demonstratively revokes the user's ability to interact in the community and records a user.suspended event.",
+            "Suspension revokes the user's ability to interact in the community and records a user.suspended event.",
           unsuspendDesc:
-            "Reactivation demonstratively restores active account status and records a user.unsuspended event.",
+            "Reactivation restores active account status and records a user.unsuspended event.",
           statusLabel: "Status:",
           reasonLabel: "Technical Justification (Mandatory) *",
           reasonPlaceholder:
@@ -3599,14 +3560,14 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
             "Operation blocked: you cannot suspend the last active administrator.",
           confirmStepTitle: "Confirm operation",
           confirmSuspendDesc: (username: string) =>
-            `Confirm the demonstrative suspension of @${username}?`,
+            `Confirm the suspension of @${username}?`,
           confirmUnsuspendDesc: (username: string) =>
-            `Confirm the demonstrative reactivation of @${username}?`,
+            `Confirm the reactivation of @${username}?`,
           confirmActionBtn: "Confirm and apply",
           backBtn: "Back",
           processingBtn: "Processing...",
-          suspendSuccessMessage: "User suspended successfully in the demonstrative environment.",
-          unsuspendSuccessMessage: "User reactivated successfully in the demonstrative environment.",
+          suspendSuccessMessage: "User suspended successfully.",
+          unsuspendSuccessMessage: "User reactivated successfully.",
           cancelBtn: "Cancel",
           confirmBtn: "Review action",
           closeAriaLabel: "Close modal",
@@ -3614,9 +3575,9 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         auditHistory: {
           title: "Access & Status Change History",
           subtitle:
-            "Append-only log of demonstrative role changes, suspensions, and reactivations.",
+            "Append-only log of role changes, suspensions, and reactivations.",
           appendOnlyBadge: "APPEND-ONLY",
-          loading: "Loading demonstrative history...",
+          loading: "Loading history...",
           empty: "No administrative changes recorded yet.",
           actorLabel: "Actor",
           targetLabel: "Affected user",
@@ -3638,18 +3599,14 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           alreadySuspended: "Invalid operation (22023): user is already suspended.",
           alreadyActive: "Invalid operation (22023): user is already active.",
           notFound: "Record not found (P0002).",
-          generic: "Could not complete the demonstrative operation.",
+          generic: "Could not complete the operation.",
         },
       },
       auditPage: {
         eyebrow: "SECURITY & COMPLIANCE",
         title: "Security Audit Center",
         subtitle:
-          "Read-only demonstrative (append-only) log of administrative interventions, role changes, moderation, suspensions, and access denials.",
-        demoBadge: "SIMULATED DATA",
-        demoNoticeTitle: "Simulated Environment (Read-Only):",
-        demoNoticeBody:
-          "Events below come exclusively from the Stage 1 in-memory provider. They are not official Supabase logs and cannot be edited or deleted.",
+          "Read-only (append-only) log of administrative interventions, role changes, moderation, suspensions, and access denials.",
         refreshButton: "Refresh logs",
         refreshingButton: "Refreshing...",
         summary: {
@@ -3699,18 +3656,18 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         viewDetailsBtn: "Details",
         exportCsvBtn: "Export CSV",
         exportSuccess: (count: number) =>
-          `Demonstrative CSV exported safely (${count} record${count === 1 ? "" : "s"}).`,
+          `CSV exported safely (${count} record${count === 1 ? "" : "s"}).`,
         exportEmptyError: "There are no filtered records to export.",
         exportError: "Could not generate the CSV file.",
-        loadingMessage: "Loading demonstrative audit trail...",
+        loadingMessage: "Loading audit trail...",
         errorTitle: "Failed to query audit logs",
-        errorMessage: "Unable to load demonstrative records right now. Please try again.",
+        errorMessage: "Unable to load records right now. Please try again.",
         retryButton: "Try again",
         emptyTitle: "No events found",
         emptyState: "No audit logs found matching the selected filters.",
         incompleteBadge: "Partial Information",
         immutableNotice:
-          "Audit logs are strictly append-only in the demonstrative UI. Real production immutability depends on PostgreSQL triggers and RLS policies.",
+          "Audit logs are strictly append-only. Immutability is enforced by PostgreSQL triggers and RLS policies.",
         severityLabels: {
           info: "Informational",
           warning: "Warning",
@@ -3718,7 +3675,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           access_denied: "Access denied",
         },
         detailsModal: {
-          eyebrow: "SECURITY AUDIT (DEMO)",
+          eyebrow: "SECURITY AUDIT",
           title: "Audit Event Details",
           eventInfoTitle: "Event Parameters",
           rawMetadataTitle: "Structured Metadata (Sanitized JSON)",
@@ -3738,7 +3695,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           integrityComplete: "Complete",
           sanitizedBadge: "Sanitization active",
           loadingMessage: "Loading event details...",
-          notFoundMessage: "Event not found in the demonstrative provider.",
+          notFoundMessage: "Event not found.",
           ipNotice: "Sensitive data (passwords, secret keys, emails, and tokens) is automatically masked before display.",
         },
         actionLabels: {
@@ -3784,9 +3741,6 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         title: "Content Moderation Center",
         subtitle:
           "Unified queue for technical validation, justified approval and rejection of resources, forum topics, replies, and community research submissions.",
-        demoBadge: "LOCAL DEMO MODE",
-        demoNotice:
-          "In-memory demonstrative layer (adminDataProvider). Moderation decisions and audit records generated here are local and do not modify the remote Supabase database.",
         queueTab: "Unified Queue",
         reportsTab: "Reports",
         searchPlaceholder: "Search by title, author, category, reason, or ID...",
@@ -3830,7 +3784,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         resubmitBtn: "Resubmit",
         emptyState: "No content found in the queue matching the selected filters.",
         noQueueItems: "The moderation queue is currently empty.",
-        loadError: "Unable to load the demonstrative moderation queue.",
+        loadError: "Unable to load the moderation queue.",
         retryBtn: "Retry",
         conflictError: "State conflict (409): the selected action is incompatible with the item's current status.",
         unauthorizedError: "Access denied (42501): only active moderators or administrators can moderate.",
@@ -3890,7 +3844,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           urlNonConclusiveNotice:
             "Static defensive analysis — no external link is automatically fetched. Heuristic indicators are not proof of malicious activity.",
           contentBodyTitle: "Submitted Content Body",
-          historyTitle: "Demonstrative Decision History",
+          historyTitle: "Decision History",
           noHistory: "No decisions recorded for this item yet.",
           closeBtn: "Close",
         },
@@ -3902,7 +3856,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           escalateTitle: "Escalate for Additional Review",
           requestRevisionTitle: "Request Author Revision",
           approveDesc:
-            "Approval makes this content visible on the platform. This action is recorded in the demonstrative history.",
+            "Approval makes this content visible on the platform. This action is recorded in the audit history.",
           rejectDesc:
             "Rejection requires a mandatory technical justification (minimum 5 characters).",
           hideDesc:
@@ -3917,7 +3871,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
           reasonOptionalLabel: "Technical Note (Optional)",
           reasonPlaceholder:
             "Provide detailed feedback on this moderation decision (minimum 5 characters for restrictive actions)...",
-          reasonHint: "Minimum 5 characters. Archived for demonstrative traceability.",
+          reasonHint: "Minimum 5 characters. Archived for traceability.",
           reasonMinError: "Justification must contain at least 5 characters.",
           generalError: "Error recording moderation decision. Please check permissions and item status.",
           confirmApproveBtn: "Confirm Approval",
