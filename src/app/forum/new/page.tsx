@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
+import { describeForumMutationError } from "@/features/forum/barrier-messages";
 import { createForumTopic } from "@/features/forum/forum-service";
 import { MarkdownView } from "@/features/forum/markdown-view";
 import { useForumStore } from "@/features/forum/use-forum-store";
@@ -87,7 +88,7 @@ export default function NewTopicPage() {
       );
 
       if (result.status === "error") {
-        setSubmitError(result.message);
+        setSubmitError(describeForumMutationError(result, dict));
         return;
       }
 

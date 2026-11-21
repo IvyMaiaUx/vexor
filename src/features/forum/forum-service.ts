@@ -12,6 +12,8 @@ export interface ForumSupabaseError {
   message?: string;
   code?: string;
   status?: number;
+  hint?: string;
+  details?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,6 +148,9 @@ export type ForumMutationErrorCode =
   | "validation_error"
   | "duplicate"
   | "connection_error"
+  | "rate_limited"
+  | "account_too_new"
+  | "daily_limit_reached"
   | "mutation_failed";
 
 export type ForumTopicMutationResult =
@@ -157,6 +162,7 @@ export type ForumTopicMutationResult =
       status: "error";
       errorCode: ForumMutationErrorCode;
       message: string;
+      retryAfterSeconds?: number;
     };
 
 export type ForumPostMutationResult =
@@ -168,6 +174,7 @@ export type ForumPostMutationResult =
       status: "error";
       errorCode: ForumMutationErrorCode;
       message: string;
+      retryAfterSeconds?: number;
     };
 
 export type ForumVoteMutationResult =
@@ -219,6 +226,41 @@ function isRlsOrPermissionError(error: ForumSupabaseError): boolean {
     msg.includes("permission denied") ||
     msg.includes("forbidden")
   );
+}
+
+/**
+ * Forum posting barriers live in Postgres (public.enforce_forum_posting_barriers).
+ * The trigger raises `forum_barrier:<reason>` and puts the retry delay in `hint`,
+ * so a client-side bypass would still be blocked by the database.
+ */
+function parseForumBarrierError(error: ForumSupabaseError): {
+  errorCode: ForumMutationErrorCode;
+  message: string;
+  retryAfterSeconds?: number;
+} | null {
+  const message = error.message ?? "";
+  if (!message.startsWith("forum_barrier:")) {
+    return null;
+  }
+
+  const reason = message.slice("forum_barrier:".length).trim();
+  const errorCode: ForumMutationErrorCode =
+    reason === "cooldown"
+      ? "rate_limited"
+      : reason === "account_too_new"
+        ? "account_too_new"
+        : reason === "daily_limit"
+          ? "daily_limit_reached"
+          : "mutation_failed";
+
+  const retryAfter = Number.parseInt(error.hint ?? "", 10);
+
+  return {
+    errorCode,
+    message,
+    retryAfterSeconds:
+      Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+  };
 }
 
 function hasForbiddenKeys(
@@ -1052,6 +1094,10 @@ export async function createForumTopic(
       .single();
 
     if (error || !data) {
+      const barrier = error ? parseForumBarrierError(error) : null;
+      if (barrier) {
+        return { status: "error", ...barrier };
+      }
       if (error && isRlsOrPermissionError(error)) {
         return {
           status: "error",
@@ -1319,6 +1365,10 @@ export async function createForumPost(
       .single();
 
     if (error || !data) {
+      const barrier = error ? parseForumBarrierError(error) : null;
+      if (barrier) {
+        return { status: "error", ...barrier };
+      }
       if (error && isRlsOrPermissionError(error)) {
         return {
           status: "error",

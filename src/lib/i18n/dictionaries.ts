@@ -352,6 +352,11 @@ export interface Dictionary {
       tagFormat: string;
     };
   };
+  forumBarriers: {
+    accountTooNew: string;
+    rateLimited: (seconds: number) => string;
+    dailyLimitReached: string;
+  };
   contributeSection: {
     eyebrow: string;
     title: string;
@@ -1524,6 +1529,14 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         tagFormat:
           "Tags devem conter apenas letras minúsculas, números e hífens (1 a 30 caracteres).",
       },
+    },
+    forumBarriers: {
+      accountTooNew:
+        "Contas novas precisam de 24 horas de cadastro antes de publicar no fórum. Enquanto isso, você pode ler, votar e denunciar conteúdos.",
+      rateLimited: (seconds) =>
+        `Aguarde ${seconds} segundo${seconds === 1 ? "" : "s"} antes de publicar novamente.`,
+      dailyLimitReached:
+        "Você atingiu o limite diário de publicações no fórum (tópicos e respostas). Tente novamente mais tarde.",
     },
     contributeSection: {
       eyebrow: "CONSTRUÍDO PELA COMUNIDADE",
@@ -2920,6 +2933,14 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         tagFormat:
           "Tags must contain only lowercase letters, numbers, and hyphens (1 to 30 characters).",
       },
+    },
+    forumBarriers: {
+      accountTooNew:
+        "New accounts must be 24 hours old before publishing in the forum. Meanwhile, you can read, vote, and report content.",
+      rateLimited: (seconds) =>
+        `Wait ${seconds} second${seconds === 1 ? "" : "s"} before publishing again.`,
+      dailyLimitReached:
+        "You have reached the daily forum publishing limit (topics and replies). Please try again later.",
     },
     contributeSection: {
       eyebrow: "COMMUNITY-DRIVEN",

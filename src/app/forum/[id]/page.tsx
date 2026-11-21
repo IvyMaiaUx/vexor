@@ -14,6 +14,7 @@ import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
+import { describeForumMutationError } from "@/features/forum/barrier-messages";
 import {
   createForumPost,
   fetchForumTopicDetail,
@@ -317,7 +318,7 @@ export default function TopicDetailPage() {
       });
 
       if (result.status === "error") {
-        setReplyError(result.message);
+        setReplyError(describeForumMutationError(result, dict));
         return;
       }
 
