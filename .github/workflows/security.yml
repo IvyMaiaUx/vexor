@@ -90,3 +90,27 @@ jobs:
       # Roda em uma transação com rollback: qualquer assert quebrado aborta o job.
       - name: Rodar smoke test de RLS
         run: psql -v ON_ERROR_STOP=1 --no-psqlrc -f supabase/tests/rls_smoke_test.sql
+
+  quality:
+    name: Tipos, lint e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src --max-warnings=0
+
+      - name: Build
+        run: npm run build
