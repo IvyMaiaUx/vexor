@@ -1,17 +1,17 @@
 [
   {
-    "severity": "info",
+    "severity": "medium",
     "code": "secdef_anon_execute",
     "object": "public.current_user_role()",
-    "detail": "Corrigido na migration 20261121150000_public_view_invoker_and_secdef_grants.sql: EXECUTE revogado de PUBLIC/anon, mantido para authenticated. is_moderator()/is_admin()/is_active_member() continuam executáveis por anon porque são os helpers avaliados nas policies.",
-    "fix": "aplicar a migration e reauditar o banco para regenerar este snapshot"
+    "detail": "Pendente: a correção existe na migration 20261121150000_public_view_invoker_and_secdef_grants.sql (REVOKE EXECUTE de PUBLIC/anon, mantido para authenticated) e no smoke test, mas a migration ainda não rodou no banco de produção. Estado real de hoje: SECURITY DEFINER chamável por anon, retornando user_role; para anon auth.uid() é nulo, então o retorno é nulo e não há vazamento conhecido — é o único RPC SECURITY DEFINER alcançável por visitante.",
+    "fix": "aplicar a migration com supabase db push e reauditar com supabase-catalog-audit.sql; só depois da reauditoria trocar esta entrada pelo resultado real do catálogo"
   },
   {
-    "severity": "info",
+    "severity": "medium",
     "code": "view_security_invoker_off",
     "object": "public.public_profiles",
-    "detail": "Corrigido na migration 20261121150000_public_view_invoker_and_secdef_grants.sql: security_invoker=true + policy profiles_select_public_rows (helpers is_public_profile). anon lê só as colunas públicas via GRANT por coluna; suspensos ficam fora da policy.",
-    "fix": "aplicar a migration e reauditar o banco para regenerar este snapshot"
+    "detail": "Pendente: a correção existe na migration 20261121150000_public_view_invoker_and_secdef_grants.sql (security_invoker=true, policy profiles_select_public_rows e GRANT por coluna), mas ainda não foi aplicada em produção. Estado real de hoje: a view roda como owner postgres e ignora a RLS de profiles; projeta só colunas públicas (id, username, display_name, avatar_url, bio, interests, github_url, linkedin_url, preferred_locale, created_at) e filtra suspensos, então não há vazamento atual — o risco é uma coluna sensível entrar nessa projeção no futuro.",
+    "fix": "aplicar a migration com supabase db push e reauditar com supabase-catalog-audit.sql; a entrada só sai daqui quando a reauditoria confirmar security_invoker=true"
   },
   {
     "severity": "info",
