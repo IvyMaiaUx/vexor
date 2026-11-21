@@ -1,19 +1,5 @@
 [
   {
-    "severity": "medium",
-    "code": "secdef_anon_execute",
-    "object": "public.current_user_role()",
-    "detail": "Pendente: a correção existe na migration 20261121150000_public_view_invoker_and_secdef_grants.sql (REVOKE EXECUTE de PUBLIC/anon, mantido para authenticated) e no smoke test, mas a migration ainda não rodou no banco de produção. Estado real de hoje: SECURITY DEFINER chamável por anon, retornando user_role; para anon auth.uid() é nulo, então o retorno é nulo e não há vazamento conhecido — é o único RPC SECURITY DEFINER alcançável por visitante.",
-    "fix": "aplicar a migration com supabase db push e reauditar com supabase-catalog-audit.sql; só depois da reauditoria trocar esta entrada pelo resultado real do catálogo"
-  },
-  {
-    "severity": "medium",
-    "code": "view_security_invoker_off",
-    "object": "public.public_profiles",
-    "detail": "Pendente: a correção existe na migration 20261121150000_public_view_invoker_and_secdef_grants.sql (security_invoker=true, policy profiles_select_public_rows e GRANT por coluna), mas ainda não foi aplicada em produção. Estado real de hoje: a view roda como owner postgres e ignora a RLS de profiles; projeta só colunas públicas (id, username, display_name, avatar_url, bio, interests, github_url, linkedin_url, preferred_locale, created_at) e filtra suspensos, então não há vazamento atual — o risco é uma coluna sensível entrar nessa projeção no futuro.",
-    "fix": "aplicar a migration com supabase db push e reauditar com supabase-catalog-audit.sql; a entrada só sai daqui quando a reauditoria confirmar security_invoker=true"
-  },
-  {
     "severity": "info",
     "code": "rls_no_policies",
     "object": "public.forum_access_log",
@@ -137,6 +123,13 @@
     "code": "secdef_rls_helper",
     "object": "public.is_moderator()",
     "detail": "Helper referenciado por policy de RLS.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_rls_helper",
+    "object": "public.is_public_profile(p_profile_id uuid)",
+    "detail": "Helper criado na migration 20261121150000: avalia a visibilidade pública dentro da policy profiles_select_public_rows, sem exigir SELECT em is_suspended de quem consulta.",
     "fix": "nenhuma ação necessária"
   },
   {
