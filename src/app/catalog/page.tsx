@@ -22,7 +22,6 @@ import {
   queryCatalogResources,
 } from "@/features/catalog/catalog-service";
 import { Pagination } from "@/features/catalog/pagination";
-import { getResourceTagLabel } from "@/features/catalog/pricing-labels";
 import { ResourceCard } from "@/features/catalog/resource-card";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -535,10 +534,7 @@ function CatalogContent() {
 
               {/* Mobile filter sheet: grouped chips + result count CTA (mockup) */}
               {filtersOpen && (
-                <div
-                  aria-label={isPt ? "Filtros" : "Filters"}
-                  className="mt-3 rounded-2xl border border-slate-800 bg-[#0d1322] p-4 sm:hidden"
-                >
+                <div className="mt-3 rounded-2xl border border-slate-800 bg-[#0d1322] p-4 sm:hidden">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-base font-semibold text-slate-100">
                       {isPt ? "Filtros" : "Filters"}
@@ -673,13 +669,9 @@ function CatalogContent() {
                     </FilterChip>
                     <FilterChip
                       active={selectedCard === "no"}
-                      onClick={() =>
-                        updateUrlParams({
-                          card: selectedCard === "no" ? null : "no",
-                        })
-                      }
+                      onClick={() => updateUrlParams({ card: "no" })}
                     >
-                      {getResourceTagLabel("no_card", locale)}
+                      {isPt ? "Sem cartão" : "No card required"}
                     </FilterChip>
                   </div>
 
