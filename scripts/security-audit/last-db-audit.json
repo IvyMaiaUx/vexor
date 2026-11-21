@@ -1,0 +1,156 @@
+[
+  {
+    "severity": "medium",
+    "code": "secdef_anon_execute",
+    "object": "public.current_user_role()",
+    "detail": "SECURITY DEFINER chamável por anon, retorna user_role. Lê profiles filtrando por auth.uid(); para anon o uid é nulo, então retorna nulo. Sem vazamento, mas é o único RPC SECURITY DEFINER alcançável por visitante — manter assim.",
+    "fix": "nenhuma ação necessária; se virar RPC pública, exigir authenticated"
+  },
+  {
+    "severity": "medium",
+    "code": "view_security_invoker_off",
+    "object": "public.public_profiles",
+    "detail": "View sem security_invoker=true, owner postgres: o WHERE roda com privilégios do owner e ignora RLS de profiles. Hoje projeta só colunas públicas (id, username, display_name, avatar_url, bio, interests, github_url, linkedin_url, preferred_locale, created_at) e filtra suspensos. Não é vazamento atual; o risco é adicionar coluna sensível (email, role, is_suspended) a essa view no futuro.",
+    "fix": "manter projeção pública e revisar a cada migration em profiles; alternativa: security_invoker=true + policy de leitura pública"
+  },
+  {
+    "severity": "info",
+    "code": "rls_no_policies",
+    "object": "public.forum_access_log",
+    "detail": "RLS ligado sem policies: acesso negado por padrão (seguro). Tabela só escrita por trigger SECURITY DEFINER.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "rls_no_policies",
+    "object": "public.forum_access_log_secret",
+    "detail": "RLS ligado sem policies: acesso negado por padrão (seguro). Guarda o salt do hash de IP.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "rls_no_policies",
+    "object": "public.reported_message_snapshots",
+    "detail": "RLS ligado sem policies: acesso negado por padrão (seguro).",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.capture_forum_access_log()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres. search_path fixo em \"\".",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.enforce_forum_posting_barriers()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres. search_path fixo em \"\".",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.handle_new_user()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.on_category_changed()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.on_post_created()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.on_topic_created_mentions()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.on_topic_vote_changed()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.on_vote_changed()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.protect_last_admin_delete()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.resources_sync_pricing_tags()",
+    "detail": "Retorna trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_not_callable",
+    "object": "public.rls_auto_enable()",
+    "detail": "Retorna event_trigger: chamada direta recusada pelo Postgres.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_rls_helper",
+    "object": "public.is_active_member()",
+    "detail": "Helper referenciado por policy de RLS; EXECUTE para o chamador é obrigatório para a policy avaliar.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_rls_helper",
+    "object": "public.is_admin()",
+    "detail": "Helper referenciado por policy de RLS.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_rls_helper",
+    "object": "public.is_dm_participant(p_conversation_id uuid)",
+    "detail": "Helper referenciado por policy de RLS.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_rls_helper",
+    "object": "public.is_moderator()",
+    "detail": "Helper referenciado por policy de RLS.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_rls_helper",
+    "object": "public.is_research_author(p_research_id uuid)",
+    "detail": "Helper referenciado por policy de RLS.",
+    "fix": "nenhuma ação necessária"
+  },
+  {
+    "severity": "info",
+    "code": "secdef_rls_helper",
+    "object": "public.topic_has_replies(p_topic_id uuid)",
+    "detail": "Helper referenciado por policy de RLS.",
+    "fix": "nenhuma ação necessária"
+  }
+]

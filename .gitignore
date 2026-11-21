@@ -36,3 +36,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Saída do scanner de segurança
+security-report.md
