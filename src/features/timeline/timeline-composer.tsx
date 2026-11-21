@@ -159,8 +159,30 @@ export function TimelineComposer({
       className="rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-4 shadow-xl sm:p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
-        <span className="font-mono text-xs font-semibold uppercase tracking-wider text-cyan-400">
-          {isPt ? "Nova Publicação" : "New Post"}
+        <span className="flex items-center gap-1.5">
+          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-cyan-400">
+            {isPt ? "Nova Publicação" : "New Post"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            aria-label={isPt ? "Recolher composer" : "Collapse composer"}
+            title={isPt ? "Recolher (o texto digitado é mantido)" : "Collapse (draft is kept)"}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-800 bg-[#070b14] text-slate-400 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <path d="M6 15l6-6 6 6" />
+            </svg>
+          </button>
         </span>
 
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={isPt ? "Tipo de publicação" : "Post type"}>
