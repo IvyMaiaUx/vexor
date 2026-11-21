@@ -2,6 +2,7 @@
 
 import { type FormEvent, useEffect, useState } from "react";
 import type { SupportedLocale } from "@/config/site";
+import { useAuthStore } from "@/features/auth/use-auth-store";
 import type { ForumCategoryItem } from "@/features/forum/forum-service";
 import {
   createTimelinePost,
@@ -36,7 +37,9 @@ export function TimelineComposer({
   onCreated,
 }: TimelineComposerProps) {
   const isPt = locale === "pt-BR";
+  const user = useAuthStore((state) => state.user);
 
+  const [expanded, setExpanded] = useState(false);
   const [kind, setKind] = useState<TopicKind>("discussion");
   const [categoryId, setCategoryId] = useState<string>("");
   const effectiveCategoryId = categoryId || categories[0]?.id || "";
@@ -112,6 +115,43 @@ export function TimelineComposer({
       setSubmitting(false);
     }
   };
+
+  const initial = user?.username?.charAt(0)?.toUpperCase() ?? "V";
+
+  // Mockup: the composer starts as a single prompt row and expands on tap.
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="flex w-full items-center gap-2.5 rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3 text-left shadow-xl transition-colors hover:border-cyan-500/40 sm:p-3.5"
+      >
+        <span
+          aria-hidden="true"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-500/30 bg-cyan-500/15 font-mono text-sm font-semibold text-cyan-300"
+        >
+          {initial}
+        </span>
+        <span className="flex-1 text-sm text-slate-400">
+          {isPt
+            ? "Compartilhe uma discussão, pergunta ou recurso…"
+            : "Share a discussion, question or resource…"}
+        </span>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-5 w-5 shrink-0 text-slate-400"
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+    );
+  }
 
   return (
     <form

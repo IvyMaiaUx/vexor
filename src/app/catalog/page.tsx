@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type {
   DifficultyLevel,
   ResourceLanguage,
@@ -432,11 +439,7 @@ function CatalogContent() {
                 </button>
               </div>
 
-              <div
-                className={`mt-2.5 grid-cols-1 gap-2.5 sm:mt-0 sm:grid sm:grid-cols-2 lg:grid-cols-12 lg:gap-3 ${
-                  filtersOpen ? "grid" : "hidden"
-                }`}
-              >
+              <div className="mt-2.5 hidden grid-cols-1 gap-2.5 sm:mt-0 sm:grid sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
                 <div className="relative hidden sm:col-span-2 sm:block lg:col-span-5">
                   <svg
                     viewBox="0 0 24 24"
@@ -519,16 +522,149 @@ function CatalogContent() {
                 </div>
               </div>
 
+              {/* Mobile filter sheet: grouped chips + result count CTA (mockup) */}
+              {filtersOpen && (
+                <div
+                  aria-label={isPt ? "Filtros" : "Filters"}
+                  className="mt-3 rounded-2xl border border-slate-800 bg-[#0d1322] p-4 sm:hidden"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-slate-100">
+                      {isPt ? "Filtros" : "Filters"}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="text-xs font-medium text-slate-400 hover:text-cyan-300"
+                    >
+                      {isPt ? "Limpar tudo" : "Clear all"}
+                    </button>
+                  </div>
+
+                  <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {isPt ? "Categoria" : "Category"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <FilterChip
+                      active={effectiveCategory === "all"}
+                      onClick={() =>
+                        updateUrlParams({
+                          category: null,
+                          ...(activeTab === "ai" ? { tab: null } : {}),
+                        })
+                      }
+                    >
+                      {dict.categoriesSection.allFilter}
+                    </FilterChip>
+                    {visibleCategories.map((cat) => (
+                      <FilterChip
+                        key={cat.slug}
+                        active={effectiveCategory === cat.slug}
+                        onClick={() =>
+                          updateUrlParams({
+                            category:
+                              effectiveCategory === cat.slug ? null : cat.slug,
+                            ...(activeTab === "ai" &&
+                            (effectiveCategory === cat.slug ||
+                              cat.slug !== AI_CATEGORY_SLUG)
+                              ? { tab: null }
+                              : {}),
+                          })
+                        }
+                      >
+                        {isPt ? cat.name_pt : cat.name_en}
+                      </FilterChip>
+                    ))}
+                  </div>
+
+                  <p className="mb-2 mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {isPt ? "Tipo" : "Type"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <FilterChip
+                      active={selectedType === "all"}
+                      onClick={() => updateUrlParams({ type: null })}
+                    >
+                      {dict.hero.allTypes}
+                    </FilterChip>
+                    {RESOURCE_TYPE_KEYS.map((typeKey) => (
+                      <FilterChip
+                        key={typeKey}
+                        active={selectedType === typeKey}
+                        onClick={() => updateUrlParams({ type: typeKey })}
+                      >
+                        {dict.resourceTypes[typeKey]}
+                      </FilterChip>
+                    ))}
+                  </div>
+
+                  <p className="mb-2 mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {isPt ? "Nível" : "Level"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <FilterChip
+                      active={selectedDifficulty === "all"}
+                      onClick={() => updateUrlParams({ difficulty: null })}
+                    >
+                      {dict.hero.allDifficulties}
+                    </FilterChip>
+                    {DIFFICULTY_KEYS.map((diffKey) => (
+                      <FilterChip
+                        key={diffKey}
+                        active={selectedDifficulty === diffKey}
+                        onClick={() =>
+                          updateUrlParams({ difficulty: diffKey })
+                        }
+                      >
+                        {dict.difficulties[diffKey]}
+                      </FilterChip>
+                    ))}
+                  </div>
+
+                  <p className="mb-2 mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {isPt ? "Idioma" : "Language"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <FilterChip
+                      active={selectedLanguage === "all"}
+                      onClick={() => updateUrlParams({ language: null })}
+                    >
+                      {dict.catalogSection.allLanguages}
+                    </FilterChip>
+                    {LANGUAGE_KEYS.map((langKey) => (
+                      <FilterChip
+                        key={langKey}
+                        active={selectedLanguage === langKey}
+                        onClick={() =>
+                          updateUrlParams({ language: langKey })
+                        }
+                      >
+                        {dict.languages[langKey]}
+                      </FilterChip>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen(false)}
+                    className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-cyan-500 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)]"
+                  >
+                    {isPt ? "Ver" : "View"}{" "}
+                    {dict.catalogSection.resultsCount(totalItems)}
+                  </button>
+                </div>
+              )}
+
               {/* Secondary Filter Bar: Language, Sort & Active Count */}
               <div className="mt-3 flex flex-col justify-between gap-3 border-t border-slate-800/80 pt-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+                <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                   <select
                     value={selectedLanguage}
                     onChange={(e) =>
                       updateUrlParams({ language: e.target.value })
                     }
                     aria-label={dict.catalogSection.allLanguages}
-                    className="w-full rounded-lg border border-slate-800 bg-[#070b14] px-2.5 py-2 text-xs text-slate-300 focus:border-cyan-500/60 focus:outline-none sm:w-auto sm:py-1.5"
+                    className="hidden w-full rounded-lg border border-slate-800 bg-[#070b14] px-2.5 py-2 text-xs text-slate-300 focus:border-cyan-500/60 focus:outline-none sm:block sm:w-auto sm:py-1.5"
                   >
                     <option value="all">
                       {dict.catalogSection.allLanguages}
@@ -713,6 +849,31 @@ function CatalogContent() {
 
       <Footer locale={locale} dict={dict} />
     </div>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex min-h-[44px] items-center rounded-full border px-3.5 text-xs font-medium transition-colors ${
+        active
+          ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-200"
+          : "border-slate-800 bg-[#070b14] text-slate-300 hover:border-slate-700"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
