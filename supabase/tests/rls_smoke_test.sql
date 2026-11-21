@@ -191,6 +191,34 @@ select pg_temp.expect('suspended user cannot delete bookmark',
 select pg_temp.expect('suspended user cannot upload avatar',
   $q$insert into storage.objects (bucket_id, name) values ('avatars', '00000000-0000-0000-0000-0000000000c1/avatar.png')$q$, false);
 
+-- Hardening: view pública com privilégios do chamador + helper não exposto a anon
+select pg_temp.as_anon();
+do $$ begin
+  assert (select count(*) from public.public_profiles) > 0,
+    'anon reads active profiles through the view';
+  assert (select count(*) from public.public_profiles
+          where id = '00000000-0000-0000-0000-0000000000c1') = 0,
+    'suspended profile hidden from anon';
+  assert (select coalesce(array_to_string(reloptions, ','), '') like '%security_invoker=true%'
+          from pg_class where oid = 'public.public_profiles'::regclass),
+    'public_profiles must run with security_invoker=true';
+  assert exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'profiles'
+      and policyname = 'profiles_select_public_rows'
+  ), 'public_profiles needs a public read policy';
+end $$;
+select pg_temp.expect('anon cannot execute current_user_role directly',
+  $q$select public.current_user_role()$q$, false);
+select pg_temp.expect('anon cannot read profiles.role directly',
+  $q$select role from public.profiles$q$, false);
 select pg_temp.reset();
+do $$ begin
+  assert has_function_privilege('authenticated', 'public.current_user_role()', 'EXECUTE'),
+    'authenticated keeps current_user_role()';
+  assert not has_function_privilege('anon', 'public.current_user_role()', 'EXECUTE'),
+    'anon lost current_user_role()';
+end $$;
+
 rollback;
 \echo 'ALL RLS CHECKS PASSED'

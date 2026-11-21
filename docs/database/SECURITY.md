@@ -74,7 +74,8 @@ Legenda: ✅ permitido · 🔒 somente via RPC · ❌ negado · 👤 apenas o pr
 | **Adulteração de auditoria** | Tabela só de inserção; trigger bloqueia `UPDATE`/`DELETE`/`TRUNCATE`; nenhuma policy de escrita. |
 | **Admin se trancar para fora** | Admin não rebaixa nem suspende a si mesmo. |
 | **`search_path` hijacking** | Todas as funções `SECURITY DEFINER` usam `set search_path = ''`. |
-| **Funções internas chamadas pelo cliente** | `EXECUTE` revogado de `public/anon/authenticated` nas funções internas; RPCs públicas exigem `authenticated` e revalidam o papel. |
+| **Funções internas chamadas pelo cliente** | `EXECUTE` revogado de `public/anon/authenticated` nas funções internas; RPCs públicas exigem `authenticated` e revalidam o papel. Helpers de policy para visitantes (`is_admin`, `is_moderator`, `is_active_member`) continuam executáveis por `anon`; `current_user_role()` só por `authenticated`. |
+| **View pública lendo com privilégios do owner** | `public_profiles` tem `security_invoker = true`: a RLS de `profiles` vale para quem consulta. Suspensos ficam fora pela policy `profiles_select_public_rows` (helper `is_public_profile`); `anon` só tem `SELECT` nas colunas que a view projeta. |
 | **Upload malicioso de avatar** | Bucket limitado a PNG/JPEG/WebP, 2 MB, pasta do próprio usuário ativo (`is_active_member()`); SVG proibido. |
 | **Spam de denúncias** | Uma denúncia aberta por usuário e alvo (índices únicos parciais). |
 | **Usuário suspenso tentando alterar dados** | Todas as policies de escrita (`profiles`, `bookmarks`, `votes`, `notifications`, `storage.objects`, `resources`, `topics`, `posts`, `tags`, `topic_tags`, `reports`) exigem `is_active_member()`. |
@@ -109,4 +110,4 @@ supabase db reset                                   # aplica migrations + seed.s
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_smoke_test.sql
 ```
 
-O teste (48 verificações) roda em transação e faz rollback. Ele cobre escalada de privilégio, autoaprovação, deduplicação RFC 3986 de URLs, falsificação de autoria, visibilidade por papel, fluxo de moderação, busca textual no fórum, congelamento de tópicos bloqueados, resposta aceita, votos, denúncias, auditoria imutável (incluindo categorias) e bloqueio total de escrita para usuários suspensos. **Rode-o no CI a cada mudança em `supabase/migrations/`.**
+O teste roda em transação e faz rollback. Ele cobre escalada de privilégio, autoaprovação, deduplicação RFC 3986 de URLs, falsificação de autoria, visibilidade por papel, fluxo de moderação, busca textual no fórum, congelamento de tópicos bloqueados, resposta aceita, votos, denúncias, auditoria imutável (incluindo categorias) e bloqueio total de escrita para usuários suspensos. **Rode-o no CI a cada mudança em `supabase/migrations/`.**

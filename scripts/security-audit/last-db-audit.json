@@ -1,17 +1,17 @@
 [
   {
-    "severity": "medium",
+    "severity": "info",
     "code": "secdef_anon_execute",
     "object": "public.current_user_role()",
-    "detail": "SECURITY DEFINER chamável por anon, retorna user_role. Lê profiles filtrando por auth.uid(); para anon o uid é nulo, então retorna nulo. Sem vazamento, mas é o único RPC SECURITY DEFINER alcançável por visitante — manter assim.",
-    "fix": "nenhuma ação necessária; se virar RPC pública, exigir authenticated"
+    "detail": "Corrigido na migration 20261121150000_public_view_invoker_and_secdef_grants.sql: EXECUTE revogado de PUBLIC/anon, mantido para authenticated. is_moderator()/is_admin()/is_active_member() continuam executáveis por anon porque são os helpers avaliados nas policies.",
+    "fix": "aplicar a migration e reauditar o banco para regenerar este snapshot"
   },
   {
-    "severity": "medium",
+    "severity": "info",
     "code": "view_security_invoker_off",
     "object": "public.public_profiles",
-    "detail": "View sem security_invoker=true, owner postgres: o WHERE roda com privilégios do owner e ignora RLS de profiles. Hoje projeta só colunas públicas (id, username, display_name, avatar_url, bio, interests, github_url, linkedin_url, preferred_locale, created_at) e filtra suspensos. Não é vazamento atual; o risco é adicionar coluna sensível (email, role, is_suspended) a essa view no futuro.",
-    "fix": "manter projeção pública e revisar a cada migration em profiles; alternativa: security_invoker=true + policy de leitura pública"
+    "detail": "Corrigido na migration 20261121150000_public_view_invoker_and_secdef_grants.sql: security_invoker=true + policy profiles_select_public_rows (helpers is_public_profile). anon lê só as colunas públicas via GRANT por coluna; suspensos ficam fora da policy.",
+    "fix": "aplicar a migration e reauditar o banco para regenerar este snapshot"
   },
   {
     "severity": "info",
