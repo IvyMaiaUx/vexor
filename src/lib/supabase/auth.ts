@@ -314,14 +314,26 @@ export type ProxyRouteDecision =
   | { action: "allow" }
   | { action: "redirect"; target: string; reason: AuthorizationCheckResult["reason"] };
 
+/**
+ * The catalog directory and its approved resource pages are public so search
+ * engines can index them; bookmarks and submission keep requiring a session.
+ */
+function isPrivateCatalogRoute(pathname: string): boolean {
+  return (
+    pathname === "/catalog/bookmarks" ||
+    pathname.startsWith("/catalog/bookmarks/") ||
+    pathname === "/catalog/submit" ||
+    pathname.startsWith("/catalog/submit/")
+  );
+}
+
 export function isProtectedAppRoute(pathname: string): boolean {
   return (
     pathname === "/admin" ||
     pathname.startsWith("/admin/") ||
     pathname === "/cybercrime-research" ||
     pathname.startsWith("/cybercrime-research/") ||
-    pathname === "/catalog" ||
-    pathname.startsWith("/catalog/") ||
+    isPrivateCatalogRoute(pathname) ||
     pathname === "/forum" ||
     pathname.startsWith("/forum/") ||
     pathname === "/my-contributions" ||
@@ -335,9 +347,10 @@ export function isProtectedAppRoute(pathname: string): boolean {
 
 /**
  * Evaluates server-side access control for protected routes (`/admin/*`,
- * `/cybercrime-research/*`, `/catalog/*`, `/forum/*`, `/my-contributions/*`,
- * `/profile/*`) inside `src/proxy.ts` using only server-verified session and
- * profile data. Public routes (`/`, `/login`, `/register`, `/forgot-password`,
+ * `/cybercrime-research/*`, `/catalog/bookmarks`, `/catalog/submit`,
+ * `/forum/*`, `/my-contributions/*`, `/profile/*`) inside `src/proxy.ts`
+ * using only server-verified session and profile data. Public routes (`/`,
+ * `/catalog`, `/catalog/<slug>`, `/login`, `/register`, `/forgot-password`,
  * `/reset-password`, `/auth/*`) remain accessible.
  */
 export function evaluateProtectedRouteAccess(

@@ -13,6 +13,20 @@ test.describe("Auth - Proteção de Rotas e Acesso Anônimo", () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
   });
 
+  test("mantém bookmarks e submissão do catálogo atrás do login", async ({
+    page,
+  }) => {
+    for (const route of ["/catalog/bookmarks", "/catalog/submit"]) {
+      await page.goto(route);
+      await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
+    }
+  });
+
+  test("permite acesso anônimo ao catálogo público", async ({ page }) => {
+    await page.goto("/catalog");
+    await expect(page).not.toHaveURL(/\/login/);
+  });
+
   test("permite acesso anônimo às rotas públicas /, /login e /register", async ({
     page,
   }) => {

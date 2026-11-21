@@ -157,6 +157,57 @@ async function loadCatalogRows(options?: { slug?: string }) {
   }
 }
 
+const SITEMAP_PAGE_SIZE = 1000;
+const SITEMAP_MAX_PAGES = 20;
+
+/**
+ * Every approved resource slug, paginated past the PostgREST row cap, for
+ * `/sitemap.xml`. JSON-LD keeps the lighter `loadCatalogRows` window.
+ */
+export async function fetchSeoCatalogResourceEntries(): Promise<
+  Array<{ slug: string; lastModified: string }>
+> {
+  const supabase = createSeoClient();
+  if (!supabase) {
+    return [];
+  }
+
+  const entries: Array<{ slug: string; lastModified: string }> = [];
+
+  try {
+    for (let page = 0; page < SITEMAP_MAX_PAGES; page += 1) {
+      const from = page * SITEMAP_PAGE_SIZE;
+      const { data, error } = await supabase
+        .from("resources")
+        .select("slug, updated_at, published_at, created_at")
+        .eq("status", "approved")
+        .order("slug", { ascending: true })
+        .range(from, from + SITEMAP_PAGE_SIZE - 1);
+
+      if (error || !Array.isArray(data)) {
+        return entries;
+      }
+
+      for (const row of data) {
+        const slug = row.slug?.trim();
+        if (!slug) {
+          continue;
+        }
+        const lastModified = row.updated_at ?? row.published_at ?? row.created_at ?? "";
+        entries.push({ slug, lastModified: lastModified.slice(0, 10) });
+      }
+
+      if (data.length < SITEMAP_PAGE_SIZE) {
+        break;
+      }
+    }
+  } catch {
+    return entries;
+  }
+
+  return entries;
+}
+
 /** Approved catalog resources for the sitemap and collection JSON-LD. */
 export async function fetchSeoCatalogResources(): Promise<SeoCatalogResource[]> {
   return loadCatalogRows();
