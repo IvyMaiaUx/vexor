@@ -64,6 +64,8 @@ export interface CatalogQueryParams {
   type?: ResourceType | "all";
   difficulty?: DifficultyLevel | "all";
   language?: ResourceLanguage | "all";
+  pricingModel?: ResourcePricingModel | "all";
+  requiresCreditCard?: ResourceCreditCardRequirement | "all";
   onlyBookmarks?: boolean;
   bookmarkedIds?: string[];
   sortBy?: "newest" | "alphabetical";
@@ -378,6 +380,14 @@ export async function queryCatalogResources(
 
     if (params.language && params.language !== "all") {
       query = query.eq("language", params.language);
+    }
+
+    if (params.pricingModel && params.pricingModel !== "all") {
+      query = query.eq("pricing_model", params.pricingModel);
+    }
+
+    if (params.requiresCreditCard && params.requiresCreditCard !== "all") {
+      query = query.eq("requires_credit_card", params.requiresCreditCard);
     }
 
     if (params.onlyBookmarks && params.bookmarkedIds) {

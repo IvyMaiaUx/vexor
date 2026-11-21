@@ -22,6 +22,7 @@ import {
   queryCatalogResources,
 } from "@/features/catalog/catalog-service";
 import { Pagination } from "@/features/catalog/pagination";
+import { getResourceTagLabel } from "@/features/catalog/pricing-labels";
 import { ResourceCard } from "@/features/catalog/resource-card";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -89,6 +90,10 @@ function CatalogContent() {
   const selectedDifficulty = searchParams?.get("difficulty") ?? "all";
   const selectedLanguage =
     searchParams?.get("language") ?? searchParams?.get("lang") ?? "all";
+  const selectedPricing =
+    searchParams?.get("pricing") === "free" ? "free" : "all";
+  const selectedCard =
+    searchParams?.get("card") === "no" ? "no" : "all";
   const onlyBookmarks =
     searchParams?.get("bookmarks") === "true" ||
     searchParams?.get("bookmarks") === "1";
@@ -106,7 +111,7 @@ function CatalogContent() {
   const [reloadNonce, setReloadNonce] = useState<number>(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const currentQueryKey = `${activeTab}|${searchQuery}|${effectiveCategory}|${excludeCategory ?? ""}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${currentPage}|${reloadNonce}|${categories.length}`;
+  const currentQueryKey = `${activeTab}|${searchQuery}|${effectiveCategory}|${excludeCategory ?? ""}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${selectedPricing}|${selectedCard}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${currentPage}|${reloadNonce}|${categories.length}`;
   const isLoading = categoriesLoading || loadedKey !== currentQueryKey;
 
   // Helper to push updated search parameters to the URL
@@ -152,6 +157,8 @@ function CatalogContent() {
         type: selectedType as ResourceType | "all",
         difficulty: selectedDifficulty as DifficultyLevel | "all",
         language: selectedLanguage as ResourceLanguage | "all",
+        pricingModel: selectedPricing,
+        requiresCreditCard: selectedCard,
         onlyBookmarks,
         bookmarkedIds,
         sortBy,
@@ -198,8 +205,10 @@ function CatalogContent() {
     onlyBookmarks,
     reloadNonce,
     searchQuery,
+    selectedCard,
     selectedDifficulty,
     selectedLanguage,
+    selectedPricing,
     selectedType,
     sortBy,
   ]);
@@ -225,6 +234,8 @@ function CatalogContent() {
     selectedType !== "all" ||
     selectedDifficulty !== "all" ||
     selectedLanguage !== "all" ||
+    selectedPricing !== "all" ||
+    selectedCard !== "all" ||
     onlyBookmarks;
 
   const handleTabChange = (nextTab: CatalogTab) => {
@@ -642,6 +653,34 @@ function CatalogContent() {
                         {dict.languages[langKey]}
                       </FilterChip>
                     ))}
+                  </div>
+
+                  <p className="mb-2 mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {isPt ? "Preço" : "Price"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <FilterChip
+                      active={selectedPricing === "all"}
+                      onClick={() => updateUrlParams({ pricing: null })}
+                    >
+                      {isPt ? "Todos" : "All"}
+                    </FilterChip>
+                    <FilterChip
+                      active={selectedPricing === "free"}
+                      onClick={() => updateUrlParams({ pricing: "free" })}
+                    >
+                      {isPt ? "Grátis" : "Free"}
+                    </FilterChip>
+                    <FilterChip
+                      active={selectedCard === "no"}
+                      onClick={() =>
+                        updateUrlParams({
+                          card: selectedCard === "no" ? null : "no",
+                        })
+                      }
+                    >
+                      {getResourceTagLabel("no_card", locale)}
+                    </FilterChip>
                   </div>
 
                   <button
