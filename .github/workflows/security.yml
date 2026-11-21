@@ -1,0 +1,92 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-scan:
+    name: Scanner de segurança (deps, secrets, code, db)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      # O runner sai com código 1 quando há achado em "high" ou acima,
+      # então o job falha exatamente nesses casos (alto e crítico).
+      - name: Rodar security:scan
+        run: npm run security:scan -- --fail-on high
+
+      - name: Anexar relatório ao resumo do job
+        if: always()
+        run: |
+          if [ -f security-report.md ]; then
+            cat security-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "security-report.md não foi gerado." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Guardar relatório como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: security-report.md
+          if-no-files-found: ignore
+          retention-days: 30
+
+  rls-smoke-test:
+    name: RLS smoke test (PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vexor
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vexor"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: vexor
+      PGCLIENTENCODING: UTF8
+    steps:
+      - uses: actions/checkout@v4
+
+      # PostgreSQL puro não tem os schemas auth/storage nem as roles anon/authenticated
+      # do Supabase: o bootstrap emula os dois antes das migrations reais.
+      - name: Aplicar bootstrap, migrations e seed
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 --no-psqlrc -f supabase/tests/postgres_bootstrap.sql
+          for migration in $(ls supabase/migrations/*.sql | sort); do
+            echo "→ aplicando ${migration}"
+            psql -q -v ON_ERROR_STOP=1 --no-psqlrc -f "$migration"
+          done
+          psql -q -v ON_ERROR_STOP=1 --no-psqlrc -f supabase/seed.sql
+
+      # Roda em uma transação com rollback: qualquer assert quebrado aborta o job.
+      - name: Rodar smoke test de RLS
+        run: psql -v ON_ERROR_STOP=1 --no-psqlrc -f supabase/tests/rls_smoke_test.sql
