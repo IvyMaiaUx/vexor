@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { type FormEvent, useEffect, useState } from "react";
 import type { SupportedLocale } from "@/config/site";
 import { useAuthStore } from "@/features/auth/use-auth-store";
@@ -116,6 +117,9 @@ export function TimelineComposer({
     }
   };
 
+  const avatarUrl = user?.avatarUrl ?? "";
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const showAvatarImage = Boolean(avatarUrl && failedAvatarUrl !== avatarUrl);
   const initial = user?.username?.charAt(0)?.toUpperCase() ?? "V";
 
   // Mockup: the composer starts as a single prompt row and expands on tap.
@@ -128,9 +132,22 @@ export function TimelineComposer({
       >
         <span
           aria-hidden="true"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-500/30 bg-cyan-500/15 font-mono text-sm font-semibold text-cyan-300"
+          className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-cyan-500/30 bg-cyan-500/15 font-mono text-sm font-semibold text-cyan-300"
         >
-          {initial}
+          {showAvatarImage ? (
+            <Image
+              key={avatarUrl}
+              src={avatarUrl}
+              alt=""
+              width={36}
+              height={36}
+              unoptimized
+              onError={() => setFailedAvatarUrl(avatarUrl)}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            initial
+          )}
         </span>
         <span className="flex-1 text-sm text-slate-400">
           {isPt
