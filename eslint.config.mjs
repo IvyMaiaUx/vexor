@@ -12,7 +12,6 @@ const eslintConfig = defineConfig([
     "**/build/**",
     "**/coverage/**",
     "**/.turbo/**",
-    "cybersec-community-platform-app/**",
     "next-env.d.ts",
   ]),
 ]);
