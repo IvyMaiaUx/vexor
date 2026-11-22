@@ -164,7 +164,7 @@ select pg_temp.expect('mod unlocks topic',
 select pg_temp.expect('mod hides post', $q$select public.moderate_post((select id from public.posts), 'hide', 'spam')$q$, true);
 select pg_temp.expect('mod resolves report', $q$select public.resolve_report((select id from public.reports), 'resolved', 'done')$q$, true);
 select pg_temp.reset(); select pg_temp.as_anon();
-do $$ begin assert (select count(*) from public.posts) = 0, 'hidden post invisible to visitors'; end $$;
+select pg_temp.expect('hidden post invisible to visitors', $q$select 1 from public.posts$q$, false);
 select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
 select pg_temp.expect('admin promotes user', $q$select public.admin_set_user_role('00000000-0000-0000-0000-0000000000c2', 'moderator')$q$, true);
 select pg_temp.expect('admin cannot demote self', $q$select public.admin_set_user_role('00000000-0000-0000-0000-0000000000a1', 'member')$q$, false);
