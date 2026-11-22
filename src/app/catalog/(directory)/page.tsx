@@ -134,7 +134,7 @@ function CatalogContent() {
         setQueryError(
           res.errorMessage ||
             (isPt
-              ? "N├úo foi poss├¡vel carregar os recursos do cat├ílogo."
+              ? "Não foi possível carregar os recursos do catálogo."
               : "Could not load catalog resources.")
         );
       } else {
@@ -281,7 +281,7 @@ function CatalogContent() {
     if (noCardOnly) {
       chips.push({
         key: "noCard",
-        label: isPt ? "Sem cart├úo" : "No card required",
+        label: isPt ? "Sem cartão" : "No card required",
         onRemove: () => updateUrlParams({ noCard: null }),
       });
     }
@@ -318,7 +318,7 @@ function CatalogContent() {
                 {dict.catalogSection.eyebrow}
               </p>
               <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
-                {isPt ? "Cat├ílogo" : "Catalog"}
+                {isPt ? "Catálogo" : "Catalog"}
               </h1>
             </div>
             <span className="shrink-0 text-xs font-medium text-slate-400 sm:text-sm">
@@ -359,10 +359,10 @@ function CatalogContent() {
                 onChange={(e) => updateUrlParams({ q: e.target.value })}
                 placeholder={
                   isPt
-                    ? "Pesquisar ferramentas, labsÔÇª"
-                    : "Search tools, labsÔÇª"
+                    ? "Pesquisar ferramentas, labs…"
+                    : "Search tools, labs…"
                 }
-                aria-label={isPt ? "Pesquisar no cat├ílogo" : "Search catalog"}
+                aria-label={isPt ? "Pesquisar no catálogo" : "Search catalog"}
                 className="min-w-0 flex-1 bg-transparent text-[15px] text-slate-100 placeholder:text-slate-500 focus:outline-none sm:text-sm"
               />
             </label>
@@ -409,7 +409,7 @@ function CatalogContent() {
           {/* 3. Primary Scope Chips (Tudo / Ferramentas / IAs e Modelos / Salvos) */}
           <div
             role="tablist"
-            aria-label={isPt ? "Se├º├Áes do cat├ílogo" : "Catalog sections"}
+            aria-label={isPt ? "Seções do catálogo" : "Catalog sections"}
             className="no-scrollbar -mx-4 mb-2 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0"
           >
             <button
@@ -546,7 +546,7 @@ function CatalogContent() {
                   value="alphabetical"
                   className="bg-[#0d1322] text-slate-200"
                 >
-                  {isPt ? "Nome (AÔÇôZ)" : "Name (AÔÇôZ)"}
+                  {isPt ? "Nome (A–Z)" : "Name (A–Z)"}
                 </option>
               </select>
             </label>
@@ -673,7 +673,7 @@ export default function CatalogPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-[#070b14] font-mono text-sm text-cyan-400">
-          Carregando cat├ílogo...
+          Carregando catálogo...
         </div>
       }
     >
