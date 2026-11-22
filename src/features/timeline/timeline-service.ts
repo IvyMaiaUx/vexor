@@ -180,7 +180,7 @@ export async function fetchTimelineFeed(
       authorIds.length > 0
         ? supabase
             .from("profiles")
-            .select(FORUM_PUBLIC_PROFILE_SELECT_COLUMNS)
+            .select(`${FORUM_PUBLIC_PROFILE_SELECT_COLUMNS}, role`)
             .in("id", authorIds)
         : Promise.resolve({ data: [] }),
       supabase
@@ -200,7 +200,7 @@ export async function fetchTimelineFeed(
       resourceIds.length > 0
         ? supabase
             .from("resources")
-            .select("id, slug, name, type, url")
+            .select("id, slug, name, type, url, pricing_model, requires_credit_card")
             .eq("status", "approved")
             .in("id", resourceIds)
         : Promise.resolve({ data: [] }),
@@ -208,13 +208,19 @@ export async function fetchTimelineFeed(
 
     const profileMap = new Map<
       string,
-      { username: string; display_name: string | null; avatar_url: string | null }
+      {
+        username: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        role?: string | null;
+      }
     >();
     ((profilesRes.data ?? []) as Array<{
       id: string;
       username: string;
       display_name: string | null;
       avatar_url: string | null;
+      role?: string | null;
     }>).forEach((p) => profileMap.set(p.id, p));
 
     const replyCountMap = new Map<string, number>();
@@ -254,8 +260,24 @@ export async function fetchTimelineFeed(
     );
 
     const resourceMap = new Map<string, TimelineLinkedResource>();
-    ((resourcesRes.data ?? []) as TimelineLinkedResource[]).forEach((r) =>
-      resourceMap.set(r.id, r)
+    ((resourcesRes.data ?? []) as Array<{
+      id: string;
+      slug: string;
+      name: string;
+      type: string;
+      url: string;
+      pricing_model?: TimelineLinkedResource["pricingModel"];
+      requires_credit_card?: TimelineLinkedResource["requiresCreditCard"];
+    }>).forEach((r) =>
+      resourceMap.set(r.id, {
+        id: r.id,
+        slug: r.slug,
+        name: r.name,
+        type: r.type,
+        url: r.url,
+        pricingModel: r.pricing_model ?? null,
+        requiresCreditCard: r.requires_credit_card ?? null,
+      })
     );
 
     const items: TimelinePostItem[] = rows.map((row) => {
@@ -271,6 +293,7 @@ export async function fetchTimelineFeed(
         authorUsername: author?.username ?? "vexor_member",
         authorDisplayName: author?.display_name ?? null,
         authorAvatarUrl: author?.avatar_url ?? null,
+        authorRole: author?.role ?? null,
         title: row.title,
         body: row.body,
         kind: row.kind ?? "discussion",

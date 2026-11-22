@@ -81,18 +81,43 @@ export function MessagesNavBadge({
       <Link
         href="/messages"
         onClick={onClick}
-        className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium ${
-          active
-            ? "bg-cyan-500/10 text-cyan-400"
-            : "text-slate-300 hover:bg-slate-800/50"
+        className={`flex min-h-[52px] items-center gap-3 border-b border-slate-800/70 px-1 text-base font-medium transition-colors ${
+          active ? "text-cyan-400" : "text-slate-100 hover:text-cyan-300"
         }`}
       >
-        <span>{label}</span>
+        <span className="text-cyan-400" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[22px] w-[22px]"
+          >
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M3 7l9 6 9-6" />
+          </svg>
+        </span>
+        <span className="flex-1">{label}</span>
         {unreadCount > 0 && (
-          <span className="rounded-full bg-cyan-500 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-950">
+          <span className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-md border border-cyan-500/40 bg-cyan-500/15 px-2 font-mono text-[11px] font-semibold text-cyan-300">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
+        <span className="text-slate-400" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[18px] w-[18px]"
+          >
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </span>
       </Link>
     );
   }

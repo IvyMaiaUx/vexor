@@ -2,18 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  type ReactNode,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import type {
-  DifficultyLevel,
-  ResourceLanguage,
-  ResourceType,
+  type DifficultyLevel,
+  type ResourceLanguage,
+  type ResourcePricingModel,
+  type ResourceType,
 } from "@/config/site";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
@@ -21,38 +15,15 @@ import {
   type CatalogResourceItem,
   queryCatalogResources,
 } from "@/features/catalog/catalog-service";
-import { Pagination } from "@/features/catalog/pagination";
+import { FilterSheet } from "@/features/catalog/filter-sheet";
+import { getPricingModelLabel } from "@/features/catalog/pricing-labels";
 import { ResourceCard } from "@/features/catalog/resource-card";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
-const RESOURCE_TYPE_KEYS: ResourceType[] = [
-  "tool",
-  "repository",
-  "script",
-  "framework",
-  "documentation",
-  "lab",
-  "ctf_platform",
-  "course",
-  "article",
-];
-
-const DIFFICULTY_KEYS: DifficultyLevel[] = [
-  "beginner",
-  "intermediate",
-  "advanced",
-];
-
-const LANGUAGE_KEYS: ResourceLanguage[] = [
-  "en",
-  "pt-BR",
-  "multilingual",
-  "other",
-];
-
-const ITEMS_PER_PAGE = 9;
+const ITEMS_PER_PAGE = 12;
 const AI_CATEGORY_SLUG = "ai-security";
+
 type CatalogTab = "all" | "resources" | "ai";
 
 function CatalogContent() {
@@ -65,8 +36,6 @@ function CatalogContent() {
     categoriesLoading,
     bookmarkedIds,
     bookmarkedSlugs,
-    bookmarkError,
-    dismissBookmarkError,
     toggleBookmark,
   } = useCatalogStore();
 
@@ -89,33 +58,29 @@ function CatalogContent() {
   const selectedDifficulty = searchParams?.get("difficulty") ?? "all";
   const selectedLanguage =
     searchParams?.get("language") ?? searchParams?.get("lang") ?? "all";
-  const selectedPricing =
-    searchParams?.get("pricing") === "free" ? "free" : "all";
-  const selectedCard =
-    searchParams?.get("card") === "no" ? "no" : "all";
+  const selectedPricing = searchParams?.get("pricing") ?? "all";
+  const noCardOnly = searchParams?.get("noCard") === "1";
   const onlyBookmarks =
     searchParams?.get("bookmarks") === "true" ||
     searchParams?.get("bookmarks") === "1";
   const sortBy =
     searchParams?.get("sort") === "alphabetical" ? "alphabetical" : "newest";
 
-  const rawPage = parseInt(searchParams?.get("page") ?? "1", 10);
-  const currentPage = isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
-
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [items, setItems] = useState<CatalogResourceItem[]>([]);
   const [totalItems, setTotalItems] = useState<number>(0);
+  const [loadedPage, setLoadedPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [loadedKey, setLoadedKey] = useState<string>("");
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState<number>(0);
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const currentQueryKey = `${activeTab}|${searchQuery}|${effectiveCategory}|${excludeCategory ?? ""}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${selectedPricing}|${selectedCard}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${currentPage}|${reloadNonce}|${categories.length}`;
+  const currentQueryKey = `${activeTab}|${searchQuery}|${effectiveCategory}|${excludeCategory ?? ""}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${selectedPricing}|${noCardOnly}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${reloadNonce}|${categories.length}`;
   const isLoading = categoriesLoading || loadedKey !== currentQueryKey;
 
-  // Helper to push updated search parameters to the URL
   const updateUrlParams = useCallback(
-    (updates: Record<string, string | null>, resetPage = true) => {
+    (updates: Record<string, string | null>) => {
       const current = new URLSearchParams(searchParams?.toString() ?? "");
 
       Object.entries(updates).forEach(([key, value]) => {
@@ -126,10 +91,7 @@ function CatalogContent() {
         }
       });
 
-      if (resetPage) {
-        current.delete("page");
-      }
-
+      current.delete("page");
       const qs = current.toString();
       router.replace(qs ? `/catalog?${qs}` : "/catalog", { scroll: false });
     },
@@ -142,10 +104,7 @@ function CatalogContent() {
   );
 
   useEffect(() => {
-    if (categoriesLoading) {
-      return;
-    }
-
+    if (categoriesLoading) return;
     let cancelled = false;
 
     void queryCatalogResources(
@@ -156,33 +115,33 @@ function CatalogContent() {
         type: selectedType as ResourceType | "all",
         difficulty: selectedDifficulty as DifficultyLevel | "all",
         language: selectedLanguage as ResourceLanguage | "all",
-        pricingModel: selectedPricing,
-        requiresCreditCard: selectedCard,
+        pricingModel: selectedPricing as ResourcePricingModel | "all",
+        requiresCreditCard: noCardOnly ? "no" : "all",
         onlyBookmarks,
         bookmarkedIds,
         sortBy,
-        page: currentPage,
+        page: 1,
         pageSize: ITEMS_PER_PAGE,
       },
       { categories }
     ).then((res) => {
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
       if (res.status === "error") {
         setItems([]);
         setTotalItems(0);
+        setLoadedPage(1);
         setTotalPages(1);
         setQueryError(
           res.errorMessage ||
             (isPt
-              ? "Não foi possível carregar os recursos do catálogo."
+              ? "N├úo foi poss├¡vel carregar os recursos do cat├ílogo."
               : "Could not load catalog resources.")
         );
       } else {
         setQueryError(null);
         setItems(res.items);
         setTotalItems(res.totalCount);
+        setLoadedPage(1);
         setTotalPages(res.totalPages);
       }
       setLoadedKey(currentQueryKey);
@@ -196,15 +155,14 @@ function CatalogContent() {
     bookmarkedIds,
     categories,
     categoriesLoading,
-    currentPage,
     currentQueryKey,
     effectiveCategory,
     excludeCategory,
     isPt,
+    noCardOnly,
     onlyBookmarks,
     reloadNonce,
     searchQuery,
-    selectedCard,
     selectedDifficulty,
     selectedLanguage,
     selectedPricing,
@@ -212,35 +170,47 @@ function CatalogContent() {
     sortBy,
   ]);
 
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedResources = items;
+  const handleLoadMore = async () => {
+    if (loadingMore || loadedPage >= totalPages) return;
+    const nextPage = loadedPage + 1;
+    setLoadingMore(true);
 
-  const handlePageChange = (nextPage: number) => {
-    updateUrlParams({ page: nextPage > 1 ? String(nextPage) : null }, false);
-    // Smooth scroll to catalog grid
-    if (typeof window !== "undefined") {
-      const el = document.getElementById("catalog-grid");
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+    const res = await queryCatalogResources(
+      {
+        search: searchQuery,
+        categorySlug: effectiveCategory,
+        excludeCategorySlug: excludeCategory,
+        type: selectedType as ResourceType | "all",
+        difficulty: selectedDifficulty as DifficultyLevel | "all",
+        language: selectedLanguage as ResourceLanguage | "all",
+        pricingModel: selectedPricing as ResourcePricingModel | "all",
+        requiresCreditCard: noCardOnly ? "no" : "all",
+        onlyBookmarks,
+        bookmarkedIds,
+        sortBy,
+        page: nextPage,
+        pageSize: ITEMS_PER_PAGE,
+      },
+      { categories }
+    );
+
+    setLoadingMore(false);
+    if (res.status === "success") {
+      setItems((prev) => {
+        const seen = new Set(prev.map((item) => item.id));
+        return [...prev, ...res.items.filter((item) => !seen.has(item.id))];
+      });
+      setLoadedPage(nextPage);
+      setTotalItems(res.totalCount);
+      setTotalPages(res.totalPages);
     }
   };
-
-  const hasActiveFilters =
-    activeTab !== "all" ||
-    Boolean(searchQuery.trim()) ||
-    selectedCategory !== "all" ||
-    selectedType !== "all" ||
-    selectedDifficulty !== "all" ||
-    selectedLanguage !== "all" ||
-    selectedPricing !== "all" ||
-    selectedCard !== "all" ||
-    onlyBookmarks;
 
   const handleTabChange = (nextTab: CatalogTab) => {
     if (nextTab === "all") {
       updateUrlParams({
         tab: null,
+        bookmarks: null,
         category: selectedCategory === AI_CATEGORY_SLUG ? null : selectedCategory,
       });
       return;
@@ -248,677 +218,465 @@ function CatalogContent() {
     if (nextTab === "resources") {
       updateUrlParams({
         tab: "resources",
+        bookmarks: null,
         category: selectedCategory === AI_CATEGORY_SLUG ? null : selectedCategory,
       });
       return;
     }
     updateUrlParams({
       tab: "ai",
+      bookmarks: null,
       category: null,
     });
   };
 
-  const visibleCategories = useMemo(() => {
-    if (activeTab === "resources") {
-      return categories.filter((c) => c.slug !== AI_CATEGORY_SLUG);
-    }
-    if (activeTab === "ai") {
-      return categories.filter((c) => c.slug === AI_CATEGORY_SLUG);
-    }
-    return categories;
-  }, [activeTab, categories]);
-
-  const resetFilters = () => {
+  const clearAllFilters = () => {
     router.replace("/catalog", { scroll: false });
   };
+
+  // Build removable active filter chips
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+    if (effectiveCategory !== "all" && activeTab !== "ai") {
+      const cat = categoryMap.get(effectiveCategory);
+      chips.push({
+        key: "category",
+        label: cat ? (isPt ? cat.name_pt : cat.name_en) : effectiveCategory,
+        onRemove: () => updateUrlParams({ category: null }),
+      });
+    }
+    if (selectedType !== "all") {
+      chips.push({
+        key: "type",
+        label: dict.resourceTypes[selectedType as ResourceType] ?? selectedType,
+        onRemove: () => updateUrlParams({ type: null }),
+      });
+    }
+    if (selectedDifficulty !== "all") {
+      chips.push({
+        key: "difficulty",
+        label:
+          dict.difficulties[selectedDifficulty as DifficultyLevel] ??
+          selectedDifficulty,
+        onRemove: () => updateUrlParams({ difficulty: null }),
+      });
+    }
+    if (selectedLanguage !== "all") {
+      chips.push({
+        key: "language",
+        label: selectedLanguage.toUpperCase(),
+        onRemove: () => updateUrlParams({ language: null, lang: null }),
+      });
+    }
+    if (selectedPricing !== "all") {
+      chips.push({
+        key: "pricing",
+        label: getPricingModelLabel(
+          selectedPricing as ResourcePricingModel,
+          locale
+        ),
+        onRemove: () => updateUrlParams({ pricing: null }),
+      });
+    }
+    if (noCardOnly) {
+      chips.push({
+        key: "noCard",
+        label: isPt ? "Sem cart├úo" : "No card required",
+        onRemove: () => updateUrlParams({ noCard: null }),
+      });
+    }
+    return chips;
+  }, [
+    activeTab,
+    categoryMap,
+    dict.difficulties,
+    dict.resourceTypes,
+    effectiveCategory,
+    isPt,
+    locale,
+    noCardOnly,
+    selectedDifficulty,
+    selectedLanguage,
+    selectedPricing,
+    selectedType,
+    updateUrlParams,
+  ]);
+
+  const activeFilterCount = activeFilterChips.length;
+  const hasMore = loadedPage < totalPages && items.length < totalItems;
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header locale={locale} onLocaleChange={setLocale} dict={dict} />
 
-      <main className="flex-1">
-        {/* Page Header */}
-        <section className="border-b border-slate-800/80 bg-cyber-grid py-12 sm:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-              <div>
-                <p className="font-mono text-xs font-semibold uppercase tracking-widest text-cyan-400">
-                  {dict.catalogSection.eyebrow}
-                </p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl">
-                  {dict.catalogSection.title}
-                </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400 sm:text-base">
-                  {dict.catalogSection.subtitle}
-                </p>
-              </div>
-
-              <div className="grid w-full grid-cols-1 gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateUrlParams({
-                      bookmarks: onlyBookmarks ? null : "true",
-                    })
-                  }
-                  aria-pressed={onlyBookmarks}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-colors ${
-                    onlyBookmarks
-                      ? "border-cyan-400 bg-cyan-500/20 text-cyan-200"
-                      : "border-slate-800 bg-[#0d1322] text-slate-300 hover:border-cyan-500/40"
+      <main className="flex-1 py-4 sm:py-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* 1. Header Row: Eyebrow + Title + Count */}
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <div>
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-400">
+                {dict.catalogSection.eyebrow}
+              </p>
+              <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
+                {isPt ? "Cat├ílogo" : "Catalog"}
+              </h1>
+            </div>
+            <span className="shrink-0 text-xs font-medium text-slate-400 sm:text-sm">
+              {isLoading
+                ? "..."
+                : `${totalItems} ${
+                    totalItems === 1
+                      ? isPt
+                        ? "recurso"
+                        : "resource"
+                      : isPt
+                        ? "recursos"
+                        : "resources"
                   }`}
-                >
-                  <span aria-hidden="true">{onlyBookmarks ? "★" : "☆"}</span>
-                  {dict.catalogSection.onlyBookmarks} ({bookmarkedSlugs.length})
-                </button>
-
-                <Link
-                  href="/catalog/bookmarks"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-[#0d1322] px-4 py-2.5 text-xs font-medium text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
-                >
-                  ★ {dict.bookmarksPage.title}
-                </Link>
-
-                <Link
-                  href="/catalog/submit"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400"
-                >
-                  + {dict.nav.submitResource}
-                </Link>
-              </div>
-            </div>
-
-            {/* Catalog Top Tabs */}
-            <div
-              role="tablist"
-              aria-label={isPt ? "Abas do catálogo" : "Catalog tabs"}
-              className="mt-6 flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-3 sm:mt-8"
-            >
-              {(
-                [
-                  {
-                    id: "all",
-                    label: isPt ? "Tudo" : "All",
-                  },
-                  {
-                    id: "resources",
-                    label: isPt ? "Ferramentas & Recursos" : "Tools & Resources",
-                  },
-                  {
-                    id: "ai",
-                    label: isPt ? "IAs & Modelos" : "AI & Models",
-                  },
-                ] as const
-              ).map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    onClick={() => handleTabChange(tab.id)}
-                    className={`rounded-xl border px-4 py-2 text-xs font-semibold transition-all ${
-                      isActive
-                        ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.15)]"
-                        : "border-slate-800 bg-[#0d1322]/70 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {activeTab === "ai" && (
-              <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 sm:flex-row sm:items-center">
-                <div className="space-y-1">
-                  <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-emerald-300">
-                    {isPt
-                      ? "IAs & Modelos · Open-Weight, Local & Pesquisa"
-                      : "AI & Models · Open-Weight, Local & Research"}
-                  </p>
-                  <p className="text-xs leading-relaxed text-slate-300">
-                    {isPt
-                      ? "Espaço dedicado a modelos open-weight, execução local/self-hosted sem restrições comerciais e ferramentas de IA para pesquisa defensiva, Red Team autorizado e laboratório."
-                      : "Dedicated space for open-weight models, local/self-hosted execution without commercial API filters, and AI tools for defensive research, authorized Red Teaming, and lab analysis."}
-                  </p>
-                </div>
-                <Link
-                  href="/catalog/submit"
-                  className="shrink-0 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-2 text-center font-mono text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/25"
-                >
-                  + {isPt ? "Divulgar IA / Modelo" : "Submit AI / Model"}
-                </Link>
-              </div>
-            )}
-
-            {/* Search & Multi-Filter Panel */}
-            <div className="mt-4 rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3.5 shadow-xl sm:p-4">
-              {/* Mobile: single search row + filter toggle (mockup pattern) */}
-              <div className="flex gap-2 sm:hidden">
-                <div className="relative flex-1">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                  <input
-                    type="search"
-                    value={searchQuery}
-                    onChange={(e) =>
-                      updateUrlParams({ q: e.target.value.trim() || null })
-                    }
-                    placeholder={dict.hero.searchPlaceholder}
-                    aria-label={dict.hero.searchPlaceholder}
-                    className="min-h-[48px] w-full rounded-xl border border-slate-800 bg-[#070b14] pl-9 pr-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen((prev) => !prev)}
-                  aria-expanded={filtersOpen}
-                  aria-label={isPt ? "Filtros" : "Filters"}
-                  className={`relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border transition-colors ${
-                    filtersOpen || hasActiveFilters
-                      ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
-                      : "border-slate-800 bg-[#070b14] text-slate-300"
-                  }`}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                    aria-hidden="true"
-                  >
-                    <path d="M3 5h18M6 12h12M10 19h4" />
-                  </svg>
-                  {hasActiveFilters && (
-                    <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-cyan-400" />
-                  )}
-                </button>
-              </div>
-
-              <div className="mt-2.5 hidden grid-cols-1 gap-2.5 sm:mt-0 sm:grid sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
-                <div className="relative hidden sm:col-span-2 sm:block lg:col-span-5">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                    className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                  <input
-                    type="search"
-                    value={searchQuery}
-                    onChange={(e) =>
-                      updateUrlParams({ q: e.target.value.trim() || null })
-                    }
-                    placeholder={dict.hero.searchPlaceholder}
-                    aria-label={dict.hero.searchPlaceholder}
-                    className="w-full rounded-xl border border-slate-800 bg-[#070b14] py-2.5 pl-10 pr-4 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 lg:col-span-3">
-                  <select
-                    value={activeTab === "ai" ? AI_CATEGORY_SLUG : selectedCategory}
-                    disabled={activeTab === "ai"}
-                    onChange={(e) =>
-                      updateUrlParams({ category: e.target.value })
-                    }
-                    aria-label={dict.categoriesSection.allFilter}
-                    className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2.5 text-base text-slate-200 focus:border-cyan-500/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
-                  >
-                    {activeTab !== "ai" && (
-                      <option value="all">
-                        {dict.categoriesSection.allFilter}
-                      </option>
-                    )}
-                    {visibleCategories.map((cat) => (
-                      <option key={cat.slug} value={cat.slug}>
-                        {locale === "pt-BR" ? cat.name_pt : cat.name_en}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="lg:col-span-2">
-                  <select
-                    value={selectedType}
-                    onChange={(e) => updateUrlParams({ type: e.target.value })}
-                    aria-label={dict.hero.allTypes}
-                    className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2.5 text-base text-slate-200 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
-                  >
-                    <option value="all">{dict.hero.allTypes}</option>
-                    {RESOURCE_TYPE_KEYS.map((typeKey) => (
-                      <option key={typeKey} value={typeKey}>
-                        {dict.resourceTypes[typeKey]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="lg:col-span-2">
-                  <select
-                    value={selectedDifficulty}
-                    onChange={(e) =>
-                      updateUrlParams({ difficulty: e.target.value })
-                    }
-                    aria-label={dict.hero.allDifficulties}
-                    className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2.5 text-base text-slate-200 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
-                  >
-                    <option value="all">{dict.hero.allDifficulties}</option>
-                    {DIFFICULTY_KEYS.map((diffKey) => (
-                      <option key={diffKey} value={diffKey}>
-                        {dict.difficulties[diffKey]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Mobile filter sheet: grouped chips + result count CTA (mockup) */}
-              {filtersOpen && (
-                <div className="mt-3 rounded-2xl border border-slate-800 bg-[#0d1322] p-4 sm:hidden">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-base font-semibold text-slate-100">
-                      {isPt ? "Filtros" : "Filters"}
-                    </h2>
-                    <button
-                      type="button"
-                      onClick={resetFilters}
-                      className="text-xs font-medium text-slate-400 hover:text-cyan-300"
-                    >
-                      {isPt ? "Limpar tudo" : "Clear all"}
-                    </button>
-                  </div>
-
-                  <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {isPt ? "Categoria" : "Category"}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <FilterChip
-                      active={effectiveCategory === "all"}
-                      onClick={() =>
-                        updateUrlParams({
-                          category: null,
-                          ...(activeTab === "ai" ? { tab: null } : {}),
-                        })
-                      }
-                    >
-                      {dict.categoriesSection.allFilter}
-                    </FilterChip>
-                    {visibleCategories.map((cat) => (
-                      <FilterChip
-                        key={cat.slug}
-                        active={effectiveCategory === cat.slug}
-                        onClick={() =>
-                          updateUrlParams({
-                            category:
-                              effectiveCategory === cat.slug ? null : cat.slug,
-                            ...(activeTab === "ai" &&
-                            (effectiveCategory === cat.slug ||
-                              cat.slug !== AI_CATEGORY_SLUG)
-                              ? { tab: null }
-                              : {}),
-                          })
-                        }
-                      >
-                        {isPt ? cat.name_pt : cat.name_en}
-                      </FilterChip>
-                    ))}
-                  </div>
-
-                  <p className="mb-2 mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {isPt ? "Tipo" : "Type"}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <FilterChip
-                      active={selectedType === "all"}
-                      onClick={() => updateUrlParams({ type: null })}
-                    >
-                      {dict.hero.allTypes}
-                    </FilterChip>
-                    {RESOURCE_TYPE_KEYS.map((typeKey) => (
-                      <FilterChip
-                        key={typeKey}
-                        active={selectedType === typeKey}
-                        onClick={() => updateUrlParams({ type: typeKey })}
-                      >
-                        {dict.resourceTypes[typeKey]}
-                      </FilterChip>
-                    ))}
-                  </div>
-
-                  <p className="mb-2 mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {isPt ? "Nível" : "Level"}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <FilterChip
-                      active={selectedDifficulty === "all"}
-                      onClick={() => updateUrlParams({ difficulty: null })}
-                    >
-                      {dict.hero.allDifficulties}
-                    </FilterChip>
-                    {DIFFICULTY_KEYS.map((diffKey) => (
-                      <FilterChip
-                        key={diffKey}
-                        active={selectedDifficulty === diffKey}
-                        onClick={() =>
-                          updateUrlParams({ difficulty: diffKey })
-                        }
-                      >
-                        {dict.difficulties[diffKey]}
-                      </FilterChip>
-                    ))}
-                  </div>
-
-                  <p className="mb-2 mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {isPt ? "Idioma" : "Language"}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <FilterChip
-                      active={selectedLanguage === "all"}
-                      onClick={() => updateUrlParams({ language: null })}
-                    >
-                      {dict.catalogSection.allLanguages}
-                    </FilterChip>
-                    {LANGUAGE_KEYS.map((langKey) => (
-                      <FilterChip
-                        key={langKey}
-                        active={selectedLanguage === langKey}
-                        onClick={() =>
-                          updateUrlParams({ language: langKey })
-                        }
-                      >
-                        {dict.languages[langKey]}
-                      </FilterChip>
-                    ))}
-                  </div>
-
-                  <p className="mb-2 mt-4 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {isPt ? "Preço" : "Price"}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <FilterChip
-                      active={selectedPricing === "all"}
-                      onClick={() => updateUrlParams({ pricing: null })}
-                    >
-                      {isPt ? "Todos" : "All"}
-                    </FilterChip>
-                    <FilterChip
-                      active={selectedPricing === "free"}
-                      onClick={() => updateUrlParams({ pricing: "free" })}
-                    >
-                      {isPt ? "Grátis" : "Free"}
-                    </FilterChip>
-                    <FilterChip
-                      active={selectedCard === "no"}
-                      onClick={() => updateUrlParams({ card: "no" })}
-                    >
-                      {isPt ? "Sem cartão" : "No card required"}
-                    </FilterChip>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setFiltersOpen(false)}
-                    className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-cyan-500 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)]"
-                  >
-                    {isPt ? "Ver" : "View"}{" "}
-                    {dict.catalogSection.resultsCount(totalItems)}
-                  </button>
-                </div>
-              )}
-
-              {/* Secondary Filter Bar: Language, Sort & Active Count */}
-              <div className="mt-3 flex flex-col justify-between gap-3 border-t border-slate-800/80 pt-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-                  <select
-                    value={selectedLanguage}
-                    onChange={(e) =>
-                      updateUrlParams({ language: e.target.value })
-                    }
-                    aria-label={dict.catalogSection.allLanguages}
-                    className="hidden w-full rounded-lg border border-slate-800 bg-[#070b14] px-2.5 py-2 text-xs text-slate-300 focus:border-cyan-500/60 focus:outline-none sm:block sm:w-auto sm:py-1.5"
-                  >
-                    <option value="all">
-                      {dict.catalogSection.allLanguages}
-                    </option>
-                    {LANGUAGE_KEYS.map((langKey) => (
-                      <option key={langKey} value={langKey}>
-                        {dict.languages[langKey]}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={sortBy}
-                    onChange={(e) => updateUrlParams({ sort: e.target.value })}
-                    aria-label={dict.catalogSection.sortLabel}
-                    className="w-full rounded-lg border border-slate-800 bg-[#070b14] px-2.5 py-2 text-xs text-slate-300 focus:border-cyan-500/60 focus:outline-none sm:w-auto sm:py-1.5"
-                  >
-                    <option value="newest">
-                      {dict.catalogSection.sortLabel}:{" "}
-                      {dict.catalogSection.sortNewest}
-                    </option>
-                    <option value="alphabetical">
-                      {dict.catalogSection.sortLabel}:{" "}
-                      {dict.catalogSection.sortAlphabetical}
-                    </option>
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 sm:justify-end">
-                  <span className="font-mono text-xs text-slate-400">
-                    {dict.catalogSection.resultsCount(totalItems)}
-                  </span>
-                  {hasActiveFilters && (
-                    <button
-                      type="button"
-                      onClick={resetFilters}
-                      className="rounded-lg border border-slate-700 bg-[#070b14] px-2.5 py-1 text-xs font-medium text-cyan-300 hover:border-cyan-500/40"
-                    >
-                      {dict.catalogSection.clearFilters}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            </span>
           </div>
-        </section>
 
-        {/* Category Pills Strip */}
-        <section className="border-b border-slate-800/60 bg-[#050811] py-3">
-          <div className="no-scrollbar mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 sm:px-6 lg:px-8">
+          {/* 2. Search + Filter Button Row */}
+          <div className="mb-2.5 flex items-center gap-2">
+            <label className="flex min-h-[48px] flex-1 items-center gap-2.5 rounded-xl border border-slate-800 bg-[#0d1322] px-3 text-slate-400 focus-within:border-cyan-500/60">
+              <span aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-[18px] w-[18px]"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => updateUrlParams({ q: e.target.value })}
+                placeholder={
+                  isPt
+                    ? "Pesquisar ferramentas, labsÔÇª"
+                    : "Search tools, labsÔÇª"
+                }
+                aria-label={isPt ? "Pesquisar no cat├ílogo" : "Search catalog"}
+                className="min-w-0 flex-1 bg-transparent text-[15px] text-slate-100 placeholder:text-slate-500 focus:outline-none sm:text-sm"
+              />
+            </label>
+
             <button
               type="button"
-              onClick={() =>
-                updateUrlParams({
-                  category: null,
-                  ...(activeTab === "ai" ? { tab: null } : {}),
-                })
+              onClick={() => setFilterSheetOpen(true)}
+              aria-label={
+                activeFilterCount > 0
+                  ? isPt
+                    ? `Filtros (${activeFilterCount} ativos)`
+                    : `Filters (${activeFilterCount} active)`
+                  : isPt
+                    ? "Abrir filtros"
+                    : "Open filters"
               }
-              className={`shrink-0 rounded-lg border px-3 py-1 font-mono text-xs transition-colors ${
-                effectiveCategory === "all"
+              className={`relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+                activeFilterCount > 0
                   ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
-                  : "border-slate-800 bg-[#0d1322] text-slate-400 hover:text-slate-200"
+                  : "border-slate-800 bg-[#0d1322] text-slate-200 hover:border-cyan-500/40 hover:text-cyan-300"
               }`}
             >
-              {dict.categoriesSection.allFilter}
-            </button>
-            {categories.map((cat) => {
-              const active = effectiveCategory === cat.slug;
-              return (
-                <button
-                  key={cat.slug}
-                  type="button"
-                  onClick={() =>
-                    updateUrlParams({
-                      category: active ? null : cat.slug,
-                      ...(activeTab === "ai" &&
-                      (active || cat.slug !== AI_CATEGORY_SLUG)
-                        ? { tab: null }
-                        : {}),
-                    })
-                  }
-                  className={`shrink-0 rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
-                    active
-                      ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
-                      : "border-slate-800 bg-[#0d1322] text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                  }`}
-                >
-                  {locale === "pt-BR" ? cat.name_pt : cat.name_en}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Catalog Grid & Pagination */}
-        <section id="catalog-grid" className="py-12 sm:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {bookmarkError && (
-              <div
-                role="alert"
-                className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200"
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-[22px] w-[22px]"
               >
-                <span>{bookmarkError}</span>
-                <button
-                  type="button"
-                  onClick={dismissBookmarkError}
-                  className="rounded px-2 py-1 font-mono text-[11px] text-amber-300 hover:bg-amber-500/20"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
+                <path d="M3 5h18M6 12h12M10 19h4" />
+              </svg>
+              {activeFilterCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-cyan-400"
+                />
+              )}
+            </button>
+          </div>
 
+          {/* 3. Primary Scope Chips (Tudo / Ferramentas / IAs e Modelos / Salvos) */}
+          <div
+            role="tablist"
+            aria-label={isPt ? "Se├º├Áes do cat├ílogo" : "Catalog sections"}
+            className="no-scrollbar -mx-4 mb-2 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "all" && !onlyBookmarks}
+              onClick={() => handleTabChange("all")}
+              className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors ${
+                activeTab === "all" && !onlyBookmarks
+                  ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-300"
+                  : "border-slate-800 bg-[#0d1322] text-slate-300 hover:border-slate-700"
+              }`}
+            >
+              {isPt ? "Tudo" : "All"}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "resources" && !onlyBookmarks}
+              onClick={() => handleTabChange("resources")}
+              className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors ${
+                activeTab === "resources" && !onlyBookmarks
+                  ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-300"
+                  : "border-slate-800 bg-[#0d1322] text-slate-300 hover:border-slate-700"
+              }`}
+            >
+              {isPt ? "Ferramentas" : "Tools"}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "ai" && !onlyBookmarks}
+              onClick={() => handleTabChange("ai")}
+              className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors ${
+                activeTab === "ai" && !onlyBookmarks
+                  ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-300"
+                  : "border-slate-800 bg-[#0d1322] text-slate-300 hover:border-slate-700"
+              }`}
+            >
+              {isPt ? "IAs e Modelos" : "AI & Models"}
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={onlyBookmarks}
+              onClick={() =>
+                updateUrlParams({ bookmarks: onlyBookmarks ? null : "true" })
+              }
+              className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors ${
+                onlyBookmarks
+                  ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-300"
+                  : "border-slate-800 bg-[#0d1322] text-slate-300 hover:border-slate-700"
+              }`}
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill={onlyBookmarks ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />
+              </svg>
+              <span>
+                {isPt ? "Salvos" : "Saved"}
+                {bookmarkedSlugs.length > 0 ? ` (${bookmarkedSlugs.length})` : ""}
+              </span>
+            </button>
+          </div>
+
+          {/* 4. Removable Active Filter Chips */}
+          {activeFilterChips.length > 0 && (
+            <div className="no-scrollbar -mx-4 mb-2 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+              {activeFilterChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={chip.onRemove}
+                  aria-label={
+                    isPt ? `Remover filtro ${chip.label}` : `Remove filter ${chip.label}`
+                  }
+                  className="inline-flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-full border border-cyan-500/50 bg-cyan-500/15 px-3 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/25"
+                >
+                  <span>{chip.label}</span>
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-3.5 w-3.5"
+                  >
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="inline-flex min-h-[36px] shrink-0 items-center px-2.5 text-xs font-medium text-slate-400 hover:text-cyan-300"
+              >
+                {isPt ? "Limpar" : "Clear"}
+              </button>
+            </div>
+          )}
+
+          {/* 5. Compact Sort Row */}
+          <div className="mb-3 flex items-center justify-end">
+            <label className="inline-flex items-center gap-1 text-xs text-slate-400">
+              <span className="sr-only">
+                {isPt ? "Ordenar recursos" : "Sort resources"}
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) =>
+                  updateUrlParams({
+                    sort: e.target.value === "newest" ? null : e.target.value,
+                  })
+                }
+                className="min-h-[36px] cursor-pointer rounded-lg bg-transparent px-2 text-xs font-medium text-slate-300 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+              >
+                <option value="newest" className="bg-[#0d1322] text-slate-200">
+                  {isPt ? "Mais recentes" : "Newest"}
+                </option>
+                <option
+                  value="alphabetical"
+                  className="bg-[#0d1322] text-slate-200"
+                >
+                  {isPt ? "Nome (AÔÇôZ)" : "Name (AÔÇôZ)"}
+                </option>
+              </select>
+            </label>
+          </div>
+
+          {/* 6. Catalog Cards Grid */}
+          <section id="catalog-grid">
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, idx) => (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((idx) => (
                   <div
                     key={idx}
-                    className="h-56 animate-pulse rounded-2xl border border-slate-800/80 bg-[#0d1322]/70 p-5"
+                    className="h-48 animate-pulse rounded-2xl border border-slate-800/80 bg-[#0d1322]/70"
                   />
                 ))}
               </div>
             ) : queryError ? (
-              <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-10 text-center">
+              <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-8 text-center">
                 <p className="text-sm text-rose-200">{queryError}</p>
                 <button
                   type="button"
                   onClick={() => setReloadNonce((n) => n + 1)}
-                  className="mt-4 rounded-lg bg-rose-500/20 px-4 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-500/30"
+                  className="mt-4 inline-flex min-h-[44px] items-center rounded-xl bg-rose-500/20 px-4 text-xs font-semibold text-rose-200 hover:bg-rose-500/30"
                 >
-                  {isPt ? "Tentar novamente" : "Retry"}
+                  {isPt ? "Tentar novamente" : "Try again"}
                 </button>
               </div>
-            ) : paginatedResources.length === 0 ? (
-              <div className="rounded-2xl border border-slate-800/90 bg-[#0d1322]/70 p-12 text-center">
-                <p className="text-sm text-slate-400">
+            ) : items.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-800 bg-[#0d1322]/60 p-10 text-center">
+                <p className="text-base font-semibold text-slate-200">
                   {dict.catalogSection.noResults}
                 </p>
-                {hasActiveFilters && (
+                <p className="mx-auto mt-1.5 max-w-md text-xs text-slate-400">
+                  {isPt
+                    ? "Tente ajustar ou limpar os filtros aplicados."
+                    : "Try adjusting or clearing your active filters."}
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-2.5">
                   <button
                     type="button"
-                    onClick={resetFilters}
-                    className="mt-4 rounded-lg bg-cyan-500/20 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/30"
+                    onClick={clearAllFilters}
+                    className="inline-flex min-h-[44px] items-center rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-4 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/25"
                   >
                     {dict.catalogSection.clearFilters}
                   </button>
-                )}
+                  <Link
+                    href="/catalog/submit"
+                    className="inline-flex min-h-[44px] items-center rounded-xl bg-cyan-500 px-4 text-xs font-semibold text-slate-950 hover:bg-cyan-400"
+                  >
+                    + {dict.nav.submitResource}
+                  </Link>
+                </div>
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-                  {paginatedResources.map((resource) => (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map((resource) => (
                     <ResourceCard
                       key={resource.id}
                       resource={resource}
                       category={categoryMap.get(resource.categorySlug)}
                       locale={locale}
                       dict={dict}
-                      isBookmarked={bookmarkedIds.includes(resource.id)}
-                      onToggleBookmark={(slug) =>
-                        void toggleBookmark(slug, resource.id)
-                      }
+                      isBookmarked={bookmarkedSlugs.includes(resource.slug)}
+                      onToggleBookmark={toggleBookmark}
                     />
                   ))}
                 </div>
 
-                <div className="mt-8">
-                  <Pagination
-                    currentPage={safeCurrentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                    dict={dict.pagination}
-                    totalCount={totalItems}
-                    pageSize={ITEMS_PER_PAGE}
-                  />
+                {/* Progressive "Carregar mais" replacing 1 / 626 pagination */}
+                <div className="mt-6 flex flex-col items-center gap-3">
+                  <p className="font-mono text-xs text-slate-400">
+                    {isPt
+                      ? `Mostrando ${items.length} de ${totalItems} recursos`
+                      : `Showing ${items.length} of ${totalItems} resources`}
+                  </p>
+                  {hasMore && (
+                    <button
+                      type="button"
+                      disabled={loadingMore}
+                      onClick={() => void handleLoadMore()}
+                      className="inline-flex min-h-[48px] w-full max-w-xs items-center justify-center rounded-xl border border-slate-700 bg-[#0d1322] px-6 text-sm font-semibold text-cyan-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 disabled:opacity-50"
+                    >
+                      {loadingMore
+                        ? isPt
+                          ? "Carregando..."
+                          : "Loading..."
+                        : isPt
+                          ? "Carregar mais"
+                          : "Load more"}
+                    </button>
+                  )}
                 </div>
               </>
             )}
-          </div>
-        </section>
+          </section>
+        </div>
       </main>
+
+      <FilterSheet
+        open={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        locale={locale}
+        dict={dict}
+        categories={categories}
+        selectedCategory={effectiveCategory}
+        selectedType={selectedType}
+        selectedDifficulty={selectedDifficulty}
+        selectedLanguage={selectedLanguage}
+        selectedPricing={selectedPricing}
+        noCardOnly={noCardOnly}
+        totalCount={totalItems}
+        onUpdate={updateUrlParams}
+        onClearAll={clearAllFilters}
+      />
 
       <Footer locale={locale} dict={dict} />
     </div>
   );
 }
 
-function FilterChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
+export default function CatalogPage() {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`inline-flex min-h-[44px] items-center rounded-full border px-3.5 text-xs font-medium transition-colors ${
-        active
-          ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-200"
-          : "border-slate-800 bg-[#070b14] text-slate-300 hover:border-slate-700"
-      }`}
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#070b14] font-mono text-sm text-cyan-400">
+          Carregando cat├ílogo...
+        </div>
+      }
     >
-      {children}
-    </button>
-  );
-}
-
-function CatalogFallback() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[#070b14] text-slate-400 font-mono text-xs">
-      Loading catalog...
-    </div>
-  );
-}
-
-export default function CatalogDirectoryPage() {
-  return (
-    <Suspense fallback={<CatalogFallback />}>
       <CatalogContent />
     </Suspense>
   );

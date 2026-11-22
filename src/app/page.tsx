@@ -8,7 +8,6 @@ import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
-import { HomeResourceStrip } from "@/features/feed/home-resource-strip";
 import { TimelineFeed } from "@/features/timeline/timeline-feed";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
@@ -32,7 +31,6 @@ export default function HomePage() {
       <div className="flex min-h-screen flex-col">
         <Header locale={locale} onLocaleChange={setLocale} dict={dict} />
         <main className="flex-1">
-          <HomeResourceStrip locale={locale} dict={dict} />
           <TimelineFeed locale={locale} />
         </main>
         <Footer locale={locale} dict={dict} />

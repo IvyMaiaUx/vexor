@@ -242,7 +242,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
         onClick={handleToggle}
         aria-label={locale === "pt-BR" ? "Notificações" : "Notifications"}
         aria-expanded={open}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 bg-[#0d1322] text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-[#0d1322] text-slate-200 transition-colors hover:border-cyan-500/40 hover:text-cyan-300 lg:h-9 lg:w-9 lg:rounded-lg lg:text-slate-300"
       >
         <svg
           viewBox="0 0 24 24"

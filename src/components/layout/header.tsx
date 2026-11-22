@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { SignOutErrorBanner } from "@/components/auth/sign-out-error-banner";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { siteConfig, type SupportedLocale } from "@/config/site";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { NotificationBell } from "@/features/notifications/notification-bell";
@@ -216,29 +217,40 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
 
           {/* Mobile & Tablet Controls (< lg) */}
           <div className="flex shrink-0 items-center gap-2 lg:hidden">
-            {user && <NotificationBell locale={locale} />}
-            <button
-              type="button"
-              onClick={() => onLocaleChange(locale === "pt-BR" ? "en" : "pt-BR")}
-              aria-label={dict.nav.languageLabel}
-              className="flex h-10 items-center justify-center rounded-lg border border-slate-800 bg-[#0d1322] px-2.5 font-mono text-xs font-medium text-cyan-300 active:scale-95"
-            >
-              {locale.toUpperCase()}
-            </button>
+            {user ? (
+              <NotificationBell locale={locale} />
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400 active:scale-95"
+              >
+                {dict.nav.signIn}
+              </Link>
+            )}
 
             <button
               type="button"
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-expanded={mobileMenuOpen}
-              aria-label="Toggle Menu"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-800 bg-[#0d1322] text-slate-200 transition-colors hover:border-cyan-500/40 hover:text-cyan-300 active:scale-95"
+              aria-label={
+                mobileMenuOpen
+                  ? locale === "pt-BR"
+                    ? "Fechar menu"
+                    : "Close menu"
+                  : locale === "pt-BR"
+                    ? "Abrir menu"
+                    : "Open menu"
+              }
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-[#0d1322] text-slate-200 transition-colors hover:border-cyan-500/40 hover:text-cyan-300 active:scale-95"
             >
               <svg
+                aria-hidden="true"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
-                className="h-5 w-5"
+                className="h-[22px] w-[22px]"
               >
                 {mobileMenuOpen ? (
                   <path
@@ -250,7 +262,7 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    d="M4 6h16M4 12h16M4 18h16"
+                    d="M4 7h16M4 12h16M4 17h16"
                   />
                 )}
               </svg>
@@ -260,95 +272,166 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
 
         {/* Mobile & Tablet Drawer (< lg) */}
         {mobileMenuOpen && (
-          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-slate-800/80 bg-[#0b101e]/98 px-4 py-4 shadow-2xl lg:hidden">
-            <nav aria-label="Mobile Navigation" className="flex flex-col gap-1.5">
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                  isHomeActive
-                    ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                    : "text-slate-200 hover:bg-slate-800/60"
-                }`}
-              >
-                {dict.nav.home}
-              </Link>
-              {user && (
+          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-slate-800/80 bg-[#070b14]/98 px-4 pb-24 pt-4 shadow-2xl lg:hidden">
+            <nav aria-label="Menu" className="flex flex-col">
+              <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-400">
+                MENU
+              </p>
+
+              {user ? (
                 <>
-                  <Link
-                    href="/catalog"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                      isCatalogActive
-                        ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                        : "text-slate-200 hover:bg-slate-800/60"
-                    }`}
-                  >
-                    {dict.nav.catalog}
-                  </Link>
                   <Link
                     href="/catalog/bookmarks"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium text-slate-200 hover:bg-slate-800/60"
-                  >
-                    {dict.nav.bookmarks}
-                  </Link>
-                  <Link
-                    href="/#categories"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium text-slate-200 hover:bg-slate-800/60"
-                  >
-                    {dict.nav.categories}
-                  </Link>
-                  <Link
-                    href="/forum"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                      isForumActive
-                        ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                        : "text-slate-200 hover:bg-slate-800/60"
+                    className={`flex min-h-[52px] items-center gap-3 border-b border-slate-800/70 px-1 text-base font-medium transition-colors ${
+                      pathname === "/catalog/bookmarks"
+                        ? "text-cyan-400"
+                        : "text-slate-100 hover:text-cyan-300"
                     }`}
                   >
-                    {dict.nav.forum}
+                    <span className="text-cyan-400" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[22px] w-[22px]"
+                      >
+                        <path d="M6 3h12v18l-6-4-6 4z" />
+                      </svg>
+                    </span>
+                    <span className="flex-1">{dict.nav.bookmarks}</span>
+                    <span className="text-slate-400" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[18px] w-[18px]"
+                      >
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </span>
                   </Link>
+
+                  <Link
+                    href="/catalog"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex min-h-[52px] items-center gap-3 border-b border-slate-800/70 px-1 text-base font-medium text-slate-100 transition-colors hover:text-cyan-300"
+                  >
+                    <span className="text-cyan-400" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[22px] w-[22px]"
+                      >
+                        <path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" />
+                      </svg>
+                    </span>
+                    <span className="flex-1">{dict.nav.categories}</span>
+                    <span className="text-slate-400" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[18px] w-[18px]"
+                      >
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </span>
+                  </Link>
+
                   <Link
                     href="/cybercrime-research"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                      pathname?.startsWith("/cybercrime-research")
-                        ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                        : "text-slate-200 hover:bg-slate-800/60"
+                    className={`flex min-h-[52px] items-center gap-3 border-b border-slate-800/70 px-1 text-base font-medium transition-colors ${
+                      isResearchActive
+                        ? "text-cyan-400"
+                        : "text-slate-100 hover:text-cyan-300"
                     }`}
                   >
-                    {dict.cybercrimeResearchPage.title}
+                    <span className="text-cyan-400" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[22px] w-[22px]"
+                      >
+                        <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
+                      </svg>
+                    </span>
+                    <span className="flex-1">
+                      {dict.cybercrimeResearchPage.title}
+                    </span>
+                    <span className="text-slate-400" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[18px] w-[18px]"
+                      >
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </span>
                   </Link>
-                  <Link
-                    href="/catalog/submit"
+
+                  <MessagesNavBadge
+                    locale={locale}
+                    active={isMessagesActive}
+                    variant="mobile"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex min-h-[44px] items-center rounded-xl px-3.5 text-sm font-medium transition-colors ${
-                      isSubmitActive
-                        ? "border border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
-                        : "text-slate-200 hover:bg-slate-800/60"
-                    }`}
-                  >
-                    {dict.nav.contribute}
-                  </Link>
+                  />
                 </>
+              ) : (
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex min-h-[52px] items-center justify-between border-b border-slate-800/70 px-1 text-base font-medium transition-colors ${
+                    isHomeActive ? "text-cyan-400" : "text-slate-100"
+                  }`}
+                >
+                  <span>{dict.nav.home}</span>
+                  <span className="text-slate-400" aria-hidden="true">
+                    →
+                  </span>
+                </Link>
               )}
 
-              {/* Language Switcher inside Drawer */}
-              <div className="mt-2 flex items-center justify-between rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2.5">
-                <span className="text-xs font-medium text-slate-400">
+              {/* Language Switcher inside Menu */}
+              <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-800 bg-[#0d1322] px-4 py-3">
+                <span className="text-sm font-medium text-slate-200">
                   {dict.nav.languageLabel}
                 </span>
-                <div className="flex items-center gap-1.5">
+                <div
+                  role="group"
+                  aria-label={dict.nav.languageLabel}
+                  className="flex items-center gap-1.5"
+                >
                   <button
                     type="button"
                     onClick={() => onLocaleChange("pt-BR")}
-                    className={`rounded-md px-2.5 py-1 font-mono text-xs font-medium ${
+                    aria-pressed={locale === "pt-BR"}
+                    className={`min-h-[44px] rounded-full border px-3.5 font-mono text-xs font-semibold transition-colors ${
                       locale === "pt-BR"
-                        ? "border border-cyan-500/40 bg-cyan-500/20 text-cyan-300"
-                        : "text-slate-400"
+                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                        : "border-slate-800 bg-[#070b14] text-slate-400 hover:text-slate-200"
                     }`}
                   >
                     PT-BR
@@ -356,10 +439,11 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                   <button
                     type="button"
                     onClick={() => onLocaleChange("en")}
-                    className={`rounded-md px-2.5 py-1 font-mono text-xs font-medium ${
+                    aria-pressed={locale === "en"}
+                    className={`min-h-[44px] rounded-full border px-3.5 font-mono text-xs font-semibold transition-colors ${
                       locale === "en"
-                        ? "border border-cyan-500/40 bg-cyan-500/20 text-cyan-300"
-                        : "text-slate-400"
+                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                        : "border-slate-800 bg-[#070b14] text-slate-400 hover:text-slate-200"
                     }`}
                   >
                     EN
@@ -368,18 +452,30 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
               </div>
 
               {user ? (
-                <div className="mt-3 flex flex-col gap-2.5 border-t border-slate-800 pt-3">
-                  <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2.5">
-                    <Link
-                      href="/profile"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2"
-                    >
-                      <span className="font-mono text-xs font-medium text-slate-200 hover:text-cyan-400">
+                <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-[#0d1322] p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-cyan-500/30 bg-[#070b14] font-mono text-sm font-bold text-cyan-300">
+                      {user.avatarUrl ? (
+                        <Image
+                          src={user.avatarUrl}
+                          alt={user.displayName || user.username}
+                          width={40}
+                          height={40}
+                          unoptimized
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        (user.displayName || user.username || "V")
+                          .slice(0, 1)
+                          .toUpperCase()
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-mono text-sm font-semibold text-emerald-400">
                         @{user.username}
-                      </span>
+                      </div>
                       <span
-                        className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase ${
+                        className={`mt-1 inline-flex items-center rounded-md px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
                           user.isSuspended
                             ? "border border-rose-500/40 bg-rose-500/15 text-rose-300"
                             : user.role === "moderator" || user.role === "admin"
@@ -393,42 +489,32 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
                             ? "MOD"
                             : user.role.toUpperCase()}
                       </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-slate-700 bg-[#070b14] px-4 text-sm font-semibold text-slate-100 transition-colors hover:border-cyan-500/50 hover:text-cyan-300"
+                    >
+                      {dict.profilePage.title}
                     </Link>
                     <button
                       type="button"
                       onClick={() => void handleSignOut()}
-                      className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-300"
+                      className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-rose-500/35 bg-rose-500/10 px-4 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/20"
                     >
                       {dict.nav.signOut}
                     </button>
                   </div>
-                  <Link
-                    href="/profile"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex min-h-[44px] items-center justify-center rounded-xl border border-slate-700 bg-[#0d1322] text-sm font-semibold text-slate-200 hover:border-cyan-500 hover:text-cyan-300"
-                  >
-                    {dict.profilePage.title}
-                  </Link>
-                  <MessagesNavBadge
-                    locale={locale}
-                    active={isMessagesActive}
-                    variant="mobile"
-                    onClick={() => setMobileMenuOpen(false)}
-                  />
-                  <Link
-                    href="/catalog/submit"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex min-h-[44px] items-center justify-center rounded-xl bg-cyan-500 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)]"
-                  >
-                    + {dict.nav.submitResource}
-                  </Link>
                 </div>
               ) : (
-                <div className="mt-3 grid grid-cols-2 gap-2.5 border-t border-slate-800 pt-3">
+                <div className="mt-4 grid grid-cols-2 gap-2.5">
                   <Link
                     href="/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex min-h-[44px] items-center justify-center rounded-xl border border-slate-700 bg-[#070b14] text-sm font-medium text-slate-200"
+                    className="flex min-h-[44px] items-center justify-center rounded-xl border border-slate-700 bg-[#0d1322] text-sm font-medium text-slate-200"
                   >
                     {dict.nav.signIn}
                   </Link>
@@ -446,135 +532,17 @@ export function Header({ locale, onLocaleChange, dict }: HeaderProps) {
         )}
       </header>
 
-      {/* Mobile Bottom Quick Navigation Bar (< sm) — authenticated users only */}
+      {/* Mobile Bottom Navigation Bar (< lg) — authenticated users only */}
       {user && (
-        <nav
-          aria-label="Mobile Quick Bar"
-          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 items-end border-t border-slate-800/90 bg-[#070b14]/95 px-1 pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-md sm:hidden"
-        >
-          <Link
-            href="/"
-            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-              isHomeActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-4 w-4"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
-              />
-            </svg>
-            <span className="max-w-[62px] truncate">{dict.nav.home}</span>
-          </Link>
-
-          <Link
-            href="/catalog"
-            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-              isCatalogActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-4 w-4"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-            </svg>
-            <span className="max-w-[62px] truncate">{dict.nav.catalog}</span>
-          </Link>
-
-          <Link
-            href="/forum"
-            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-              isForumActive ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-4 w-4"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-              />
-            </svg>
-            <span className="max-w-[62px] truncate">{dict.nav.forum}</span>
-          </Link>
-
-          <Link
-            href="/catalog/submit"
-            aria-label={dict.nav.contribute}
-            className="flex flex-col items-center justify-center gap-0.5"
-          >
-            <span
-              className={`-mt-6 inline-flex h-12 w-12 items-center justify-center rounded-full shadow-[0_6px_18px_rgba(6,182,212,0.35)] ring-4 ring-[#070b14] transition-colors ${
-                isSubmitActive
-                  ? "bg-cyan-400 text-slate-950"
-                  : "bg-cyan-500 text-slate-950"
-              }`}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="h-5 w-5"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
-              </svg>
-            </span>
-            <span
-              className={`text-[10px] font-medium ${
-                isSubmitActive ? "text-cyan-400" : "text-slate-400"
-              }`}
-            >
-              {dict.nav.contribute}
-            </span>
-          </Link>
-
-          <Link
-            href="/profile"
-            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors ${
-              isProfileActive || isAuthActive
-                ? "text-cyan-400 font-semibold"
-                : "text-emerald-400 hover:text-emerald-300"
-            }`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-4 w-4"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-              />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            <span className="max-w-[62px] truncate">
-              @{user.username}
-            </span>
-          </Link>
-        </nav>
+        <MobileBottomNav
+          username={user.username}
+          dict={dict}
+          isHomeActive={isHomeActive}
+          isCatalogActive={isCatalogActive}
+          isSubmitActive={isSubmitActive}
+          isForumActive={isForumActive}
+          isProfileActive={isProfileActive}
+        />
       )}
       <SignOutErrorBanner dict={dict} />
     </>

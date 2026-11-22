@@ -1,3 +1,7 @@
+import type {
+  ResourceCreditCardRequirement,
+  ResourcePricingModel,
+} from "@/config/site";
 import type { Database } from "@/types/database.types";
 
 export type TopicKind = Database["public"]["Enums"]["topic_kind"];
@@ -15,6 +19,8 @@ export interface TimelineLinkedResource {
   name: string;
   type: string;
   url: string;
+  pricingModel?: ResourcePricingModel | null;
+  requiresCreditCard?: ResourceCreditCardRequirement | null;
 }
 
 export interface TimelinePostItem {
@@ -27,6 +33,7 @@ export interface TimelinePostItem {
   authorUsername: string;
   authorDisplayName: string | null;
   authorAvatarUrl: string | null;
+  authorRole?: string | null;
   title: string;
   body: string;
   kind: TopicKind;

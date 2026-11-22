@@ -7,7 +7,6 @@ import type {
   SupportedLocale,
 } from "@/config/site";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
-import { getSafeExternalHref } from "@/lib/security/sanitize";
 import {
   getPricingModelLabel,
   getResourceTagLabel,
@@ -31,119 +30,138 @@ export function ResourceCard({
   isBookmarked,
   onToggleBookmark,
 }: ResourceCardProps) {
+  const isPt = locale === "pt-BR";
   const categoryLabel = category
-    ? locale === "pt-BR"
+    ? isPt
       ? category.name_pt
       : category.name_en
     : resource.categorySlug;
 
-  const description =
-    locale === "pt-BR" ? resource.description_pt : resource.description_en;
-
-  const safeHref = getSafeExternalHref(resource.url);
+  const description = isPt ? resource.description_pt : resource.description_en;
   const isPending = resource.status === "pending";
   const showPricing = shouldShowPricingBadges(resource);
+  const initial = (resource.name || "V").slice(0, 1).toUpperCase();
+
+  const sourceLine = resource.authorName
+    ? resource.authorName === categoryLabel
+      ? resource.authorName
+      : `${categoryLabel} · ${resource.authorName}`
+    : categoryLabel;
 
   return (
-    <article className="group flex flex-col justify-between rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-4 transition-all hover:border-cyan-500/40 hover:bg-[#11192d] sm:p-5">
-      <div>
-        {/* Badges Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 font-mono text-[11px] font-medium text-cyan-300">
-              {dict.resourceTypes[resource.type]}
-            </span>
-            {isPending && (
-              <span className="rounded-md border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-                {dict.catalogSection.pendingBadge}
-              </span>
-            )}
-            {showPricing && resource.pricingModel && (
-              <span className="rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-sky-300">
-                {getPricingModelLabel(resource.pricingModel, locale)}
-              </span>
-            )}
-            {showPricing && resource.requiresCreditCard === "no" && (
-              <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-300">
-                {getResourceTagLabel("no_card", locale)}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {resource.difficulty && (
-              <span className="rounded border border-slate-700/80 bg-[#070b14] px-2 py-0.5 font-mono text-[11px] text-slate-300">
-                {dict.difficulties[resource.difficulty]}
-              </span>
-            )}
-            <span className="rounded border border-slate-800 bg-[#070b14] px-1.5 py-0.5 font-mono text-[10px] uppercase text-slate-400">
-              {resource.language}
-            </span>
-          </div>
-        </div>
-
-        {/* Clickable Resource Name -> Individual Resource Page */}
-        <h3 className="mt-3.5 text-base font-semibold leading-snug text-slate-100 transition-colors group-hover:text-cyan-300 sm:mt-4 sm:text-lg">
-          <Link
-            href={`/catalog/${resource.slug}`}
-            className="focus:outline-none focus-visible:underline"
+    <article className="group flex flex-col justify-between gap-2.5 rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-4 transition-colors hover:border-cyan-500/40">
+      <div className="space-y-2.5">
+        {/* Top Row: Square Icon + Title + Star Button */}
+        <div className="flex items-start gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 font-mono text-base font-bold text-cyan-300"
           >
-            {resource.name}
-          </Link>
-        </h3>
-
-        <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-400 sm:text-sm">
-          {description}
-        </p>
-      </div>
-
-      <div className="mt-5 border-t border-slate-800/80 pt-3.5 sm:mt-6 sm:pt-4">
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
-          <span className="truncate font-medium text-slate-300">
-            {categoryLabel}
+            {initial}
           </span>
-          <span className="max-w-[45%] truncate font-mono text-[11px] text-slate-500">
-            {resource.authorName}
-          </span>
-        </div>
 
-        {/* Responsive Action Buttons: 2-col + full CTA on mobile, inline on sm+ */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-1 items-center gap-2 sm:flex-initial">
-            <button
-              type="button"
-              onClick={() => onToggleBookmark(resource.slug)}
-              aria-pressed={isBookmarked}
-              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors sm:flex-initial sm:py-1.5 ${
-                isBookmarked
-                  ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
-                  : "border-slate-800 bg-[#070b14] text-slate-300 hover:border-slate-700"
-              }`}
-            >
-              <span aria-hidden="true">{isBookmarked ? "★" : "☆"}</span>
-              {isBookmarked
-                ? dict.catalogSection.savedBookmark
-                : dict.catalogSection.saveBookmark}
-            </button>
-
+          <h3 className="min-w-0 flex-1 pt-0.5 text-base font-semibold leading-snug text-slate-100 transition-colors group-hover:text-cyan-300">
             <Link
               href={`/catalog/${resource.slug}`}
-              className="inline-flex flex-1 items-center justify-center rounded-lg border border-slate-800 bg-[#070b14] px-2.5 py-2 text-xs font-medium text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-cyan-300 sm:flex-initial sm:py-1.5"
+              className="line-clamp-2 focus:outline-none focus-visible:underline"
             >
-              {dict.catalogSection.viewDetails}
+              {resource.name}
             </Link>
-          </div>
+          </h3>
 
-          <a
-            href={safeHref}
-            target="_blank"
-            rel="noopener noreferrer ugc"
-            className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-slate-950 sm:w-auto sm:py-1.5"
+          <button
+            type="button"
+            onClick={() => onToggleBookmark(resource.slug)}
+            aria-pressed={isBookmarked}
+            aria-label={
+              isBookmarked
+                ? isPt
+                  ? "Remover dos favoritos"
+                  : "Remove bookmark"
+                : isPt
+                  ? "Favoritar"
+                  : "Bookmark"
+            }
+            className={`-mr-1 -mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+              isBookmarked
+                ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                : "border-slate-800 bg-[#070b14] text-slate-400 hover:border-slate-700 hover:text-slate-200"
+            }`}
           >
-            {dict.catalogSection.visitResource}
-            <span aria-hidden="true">↗</span>
-          </a>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill={isBookmarked ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-[18px] w-[18px]"
+            >
+              <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />
+            </svg>
+          </button>
         </div>
+
+        {/* 2-line Description */}
+        <p className="line-clamp-2 text-sm leading-relaxed text-slate-400">
+          {description}
+        </p>
+
+        {/* Badges Row */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex h-[22px] items-center rounded-md border border-slate-700/80 bg-[#070b14] px-2 font-mono text-[11px] font-semibold text-slate-300">
+            {dict.resourceTypes[resource.type]}
+          </span>
+          {isPending && (
+            <span className="inline-flex h-[22px] items-center rounded-md border border-amber-500/40 bg-amber-500/15 px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+              {dict.catalogSection.pendingBadge}
+            </span>
+          )}
+          {showPricing && resource.pricingModel && (
+            <span className="inline-flex h-[22px] items-center rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2 font-mono text-[11px] font-semibold text-emerald-400">
+              {getPricingModelLabel(resource.pricingModel, locale)}
+            </span>
+          )}
+          {showPricing && resource.requiresCreditCard === "no" && (
+            <span className="inline-flex h-[22px] items-center rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2 font-mono text-[11px] font-semibold text-emerald-400">
+              {getResourceTagLabel("no_card", locale)}
+            </span>
+          )}
+          {resource.difficulty && (
+            <span className="inline-flex h-[22px] items-center rounded-md border border-slate-700/80 bg-[#070b14] px-2 font-mono text-[11px] font-medium text-slate-300">
+              {dict.difficulties[resource.difficulty]}
+            </span>
+          )}
+          <span className="inline-flex h-[22px] items-center rounded-md border border-slate-800 bg-[#070b14] px-2 font-mono text-[11px] uppercase text-slate-400">
+            {resource.language}
+          </span>
+        </div>
+      </div>
+
+      {/* Footer: Source + Detalhes -> */}
+      <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-800/80 pt-1">
+        <span className="min-w-0 truncate text-xs text-slate-400">
+          {sourceLine}
+        </span>
+        <Link
+          href={`/catalog/${resource.slug}`}
+          className="inline-flex min-h-[44px] shrink-0 items-center gap-1 px-1 text-sm font-semibold text-cyan-400 transition-colors hover:text-cyan-300"
+        >
+          <span>{dict.catalogSection.viewDetails}</span>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </Link>
       </div>
     </article>
   );

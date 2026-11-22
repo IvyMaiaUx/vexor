@@ -2,88 +2,79 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { type FormEvent, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { type MouseEvent, useRef, useState } from "react";
 import type { SupportedLocale } from "@/config/site";
 import {
-  createForumPost,
-  fetchForumTopicDetail,
-  type ForumPostItem,
-} from "@/features/forum/forum-service";
-import { MarkdownView } from "@/features/forum/markdown-view";
+  getPricingModelLabel,
+  getResourceTagLabel,
+} from "@/features/catalog/pricing-labels";
 import { ReportButton } from "@/features/reports/report-modal";
 import { getSafeExternalHref } from "@/lib/security/sanitize";
 import { toggleTimelineTopicVote } from "./timeline-service";
-import type { TimelinePostItem, TopicKind } from "./types";
+import type { TimelinePostItem } from "./types";
 
 interface TimelinePostCardProps {
   post: TimelinePostItem;
   locale: SupportedLocale;
   currentUserId: string | null;
   onVoteUpdated: (topicId: string, voted: boolean, delta: number) => void;
-  onReplyAdded: (topicId: string) => void;
 }
 
-function getKindBadge(kind: TopicKind, isPt: boolean) {
-  switch (kind) {
-    case "question":
-      return {
-        label: isPt ? "Pergunta" : "Question",
-        cls: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-      };
-    case "tool_share":
-      return {
-        label: isPt ? "Ferramenta / Recurso" : "Tool / Resource",
-        cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-      };
-    case "note":
-      return {
-        label: isPt ? "Nota" : "Note",
-        cls: "border-purple-500/30 bg-purple-500/10 text-purple-300",
-      };
-    case "discussion":
-    default:
-      return {
-        label: isPt ? "Discussão" : "Discussion",
-        cls: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
-      };
-  }
+function formatRelativeTime(iso: string, isPt: boolean): string {
+  const date = new Date(iso);
+  const diffMs = Date.now() - date.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return isPt ? "agora" : "now";
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} d`;
+  return date.toLocaleDateString(isPt ? "pt-BR" : "en-US", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function stripMarkdownSummary(raw: string): string {
+  return raw
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^[#>*\-\d.]+\s+/gm, "")
+    .replace(/[*_~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function AuthorAvatar({
   avatarUrl,
   name,
-  size = "md",
 }: {
   avatarUrl?: string | null;
   name: string;
-  size?: "sm" | "md";
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showImage = Boolean(avatarUrl && failedUrl !== avatarUrl);
-  const initials = (name || "VX").slice(0, 2).toUpperCase();
-  const boxClass =
-    size === "sm"
-      ? "h-6 w-6 rounded-lg text-[10px]"
-      : "h-10 w-10 rounded-xl text-xs";
-  const px = size === "sm" ? 24 : 40;
+  const initial = (name || "V").slice(0, 1).toUpperCase();
 
   return (
-    <span
-      className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-cyan-500/30 bg-[#070b14] font-mono font-bold text-cyan-300 ${boxClass}`}
-    >
+    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-cyan-500/30 bg-cyan-500/15 font-mono text-sm font-bold text-cyan-300">
       {showImage && avatarUrl ? (
         <Image
           key={avatarUrl}
           src={avatarUrl}
           alt={name}
-          width={px}
-          height={px}
+          width={40}
+          height={40}
           unoptimized
           onError={() => setFailedUrl(avatarUrl)}
           className="h-full w-full object-cover"
         />
       ) : (
-        initials
+        initial
       )}
     </span>
   );
@@ -94,24 +85,31 @@ export function TimelinePostCard({
   locale,
   currentUserId,
   onVoteUpdated,
-  onReplyAdded,
 }: TimelinePostCardProps) {
+  const router = useRouter();
   const isPt = locale === "pt-BR";
-  const kindBadge = getKindBadge(post.kind, isPt);
   const categoryName = isPt ? post.categoryNamePt : post.categoryNameEn;
+  const authorLabel = post.authorDisplayName || post.authorUsername || "V";
+  const summaryText = stripMarkdownSummary(post.body);
 
   const [voting, setVoting] = useState(false);
+  // TODO(backend): persistir bookmark de posts da timeline quando existir tabela de post_bookmarks
+  const [savedLocal, setSavedLocal] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [comments, setComments] = useState<ForumPostItem[]>([]);
-  const [replyText, setReplyText] = useState("");
-  const [replySending, setReplySending] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const inFlightVote = useRef(false);
-  const authorLabel = post.authorDisplayName || post.authorUsername || "VX";
 
-  const handleToggleVote = async () => {
+  const stop = (e: MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleOpenPost = () => {
+    router.push(`/forum/${post.id}`);
+  };
+
+  const handleToggleVote = async (e: MouseEvent) => {
+    e.stopPropagation();
     if (inFlightVote.current) return;
     inFlightVote.current = true;
     setVoting(true);
@@ -132,306 +130,331 @@ export function TimelinePostCard({
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = async (e: MouseEvent) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/forum/${post.id}`;
     try {
-      const shareUrl = `${window.location.origin}/forum/${post.id}`;
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: post.title, url: shareUrl });
+        return;
+      }
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setActionFeedback(
-        isPt ? "Não foi possível copiar o link." : "Could not copy link."
-      );
+      // User cancelled share sheet or clipboard denied
     }
   };
 
-  const handleToggleComments = async () => {
-    const next = !commentsOpen;
-    setCommentsOpen(next);
-    if (next && comments.length === 0) {
-      setCommentsLoading(true);
-      const detail = await fetchForumTopicDetail(post.id);
-      setCommentsLoading(false);
-      if (detail.status === "found") {
-        setComments(detail.posts.slice(-5));
-      }
-    }
-  };
-
-  const handleSendComment = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = replyText.trim();
-    if (replySending || trimmed.length < 2) return;
-    setReplySending(true);
-    setActionFeedback(null);
-
+  const safeSharedHref = post.sharedUrl ? getSafeExternalHref(post.sharedUrl) : null;
+  let sharedDomain = "";
+  if (safeSharedHref) {
     try {
-      const res = await createForumPost({ topicId: post.id, body: trimmed });
-      if (res.status === "error") {
-        setActionFeedback(res.message);
-        return;
-      }
-      setComments((prev) => [...prev, res.post]);
-      setReplyText("");
-      onReplyAdded(post.id);
-    } finally {
-      setReplySending(false);
+      sharedDomain = new URL(safeSharedHref).hostname.replace(/^www\./, "");
+    } catch {
+      sharedDomain = safeSharedHref;
     }
-  };
+  }
+
+  const roleBadge =
+    post.authorRole === "admin"
+      ? "ADMIN"
+      : post.authorRole === "moderator"
+        ? "MOD"
+        : null;
 
   return (
-    <article className="rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-6 shadow-lg transition-colors hover:border-slate-700/90">
-      {/* Header: Author + Metadata */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/profile/${post.authorUsername}`}
-            className="shrink-0 transition-opacity hover:opacity-90"
-          >
-            <AuthorAvatar
-              avatarUrl={post.authorAvatarUrl}
-              name={authorLabel}
-              size="md"
-            />
-          </Link>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href={`/profile/${post.authorUsername}`}
-                className="text-sm font-semibold text-slate-100 hover:text-cyan-300"
-              >
-                {post.authorDisplayName || `@${post.authorUsername}`}
-              </Link>
-              <Link
-                href={`/profile/${post.authorUsername}`}
-                className="font-mono text-xs text-slate-500 hover:text-cyan-400"
-              >
-                @{post.authorUsername}
-              </Link>
-            </div>
-            <p className="font-mono text-[11px] text-slate-500">
-              {new Date(post.createdAt).toLocaleDateString(
-                isPt ? "pt-BR" : "en-US",
-                { day: "numeric", month: "short", year: "numeric" }
-              )}
-            </p>
-          </div>
-        </div>
+    <article
+      onClick={handleOpenPost}
+      className="cursor-pointer rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-4 transition-colors hover:border-slate-700/90 sm:p-5"
+    >
+      {/* Header: Avatar + @username + role + relative time · community + more */}
+      <div className="flex items-center gap-2.5">
+        <Link
+          href={`/profile/${post.authorUsername}`}
+          onClick={stop}
+          className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          aria-label={`@${post.authorUsername}`}
+        >
+          <AuthorAvatar avatarUrl={post.authorAvatarUrl} name={authorLabel} />
+        </Link>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span
-            className={`rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider ${kindBadge.cls}`}
-          >
-            {kindBadge.label}
-          </span>
-          <Link
-            href={`/forum?category=${post.categorySlug}`}
-            className="rounded-md border border-slate-700/80 bg-[#070b14] px-2 py-0.5 font-mono text-[10px] text-slate-300 hover:border-cyan-500/40"
-          >
-            {categoryName}
-          </Link>
-        </div>
-      </div>
-
-      {/* Title & Tags */}
-      <div className="mt-3.5">
-        <h3 className="text-base font-bold text-slate-100 sm:text-lg">
-          <Link
-            href={`/forum/${post.id}`}
-            className="transition-colors hover:text-cyan-300"
-          >
-            {post.title}
-          </Link>
-        </h3>
-
-        {post.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {post.tags.map((tag) => (
-              <Link
-                key={tag}
-                href={`/forum?tag=${tag}`}
-                className="rounded border border-slate-800 bg-[#070b14] px-2 py-0.5 font-mono text-[10px] text-cyan-300/90 hover:border-cyan-500/40"
-              >
-                #{tag}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Body Preview */}
-      <div className="mt-3 line-clamp-6 text-sm text-slate-300">
-        <MarkdownView content={post.body} />
-      </div>
-
-      {/* Shared URL or Linked Catalog Resource */}
-      {(post.sharedUrl || post.linkedResource) && (
-        <div className="mt-4 space-y-2">
-          {post.linkedResource && (
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Link
-              href={`/catalog/${post.linkedResource.slug}`}
-              className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-2.5 text-xs transition-colors hover:border-emerald-400/50"
+              href={`/profile/${post.authorUsername}`}
+              onClick={stop}
+              className="truncate font-mono text-sm font-semibold text-emerald-400 hover:underline"
             >
-              <div className="min-w-0">
-                <span className="font-mono text-[10px] uppercase text-emerald-300">
-                  {isPt ? "Recurso do Catálogo" : "Catalog Resource"} ·{" "}
-                  {post.linkedResource.type}
-                </span>
-                <p className="truncate font-semibold text-slate-100">
-                  {post.linkedResource.name}
-                </p>
-              </div>
-              <span className="shrink-0 font-mono text-emerald-300">→</span>
+              @{post.authorUsername}
             </Link>
-          )}
-
-          {post.sharedUrl && (
-            <a
-              href={getSafeExternalHref(post.sharedUrl)}
-              target="_blank"
-              rel="noopener noreferrer ugc"
-              className="block truncate rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2 font-mono text-xs text-cyan-400 hover:border-cyan-500/40 hover:underline"
-            >
-              {post.sharedUrl} ↗
-            </a>
-          )}
+            {roleBadge && (
+              <span className="inline-flex h-[18px] items-center rounded border border-indigo-500/40 bg-indigo-500/15 px-1.5 font-mono text-[10px] font-semibold uppercase text-indigo-300">
+                {roleBadge}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-400">
+            <span>{formatRelativeTime(post.createdAt, isPt)}</span>
+            <span className="mx-1">·</span>
+            <span className="text-cyan-400">{categoryName}</span>
+          </p>
         </div>
-      )}
 
-      {/* Actions Bar */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 pt-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative" onClick={stop}>
           <button
             type="button"
-            disabled={voting}
-            onClick={() => void handleToggleVote()}
-            aria-pressed={post.userHasVoted}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-xs font-semibold transition-colors ${
-              post.userHasVoted
-                ? "border-cyan-500/60 bg-cyan-500/20 text-cyan-200"
-                : "border-slate-800 bg-[#070b14] text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300"
-            }`}
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-label={isPt ? "Mais opções" : "More options"}
+            aria-expanded={menuOpen}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-200"
           >
-            <span>▲</span>
-            <span>UP</span>
-            <span>({post.voteCount})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void handleToggleComments()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-[#070b14] px-3 py-1.5 font-mono text-xs text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
-          >
-            <span>
-              {post.replyCount} {isPt ? "comentários" : "comments"}
+            <span aria-hidden="true" className="text-lg font-bold leading-none">
+              ⋯
             </span>
           </button>
 
-          <Link
-            href={`/forum/${post.id}`}
-            className="rounded-lg border border-slate-800 bg-[#070b14] px-3 py-1.5 font-mono text-xs text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
-          >
-            {isPt ? "Abrir discussão" : "Open thread"} →
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void handleShare()}
-            className="rounded-lg border border-slate-800 bg-[#070b14] px-2.5 py-1.5 font-mono text-[11px] text-slate-400 transition-colors hover:border-slate-700 hover:text-slate-200"
-          >
-            {copied
-              ? isPt
-                ? "Link copiado!"
-                : "Link copied!"
-              : isPt
-                ? "Compartilhar"
-                : "Share"}
-          </button>
-
-          {currentUserId !== post.authorId && (
-            <ReportButton
-              targetType="topic"
-              targetId={post.id}
-              locale={locale}
-            />
+          {menuOpen && (
+            <div className="absolute right-0 top-11 z-20 min-w-[168px] rounded-xl border border-slate-800 bg-[#070b14] p-1.5 shadow-xl">
+              <button
+                type="button"
+                onClick={(e) => {
+                  setMenuOpen(false);
+                  void handleShare(e);
+                }}
+                className="flex min-h-[40px] w-full items-center rounded-lg px-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-800/70"
+              >
+                {isPt ? "Copiar link" : "Copy link"}
+              </button>
+              {currentUserId !== post.authorId && (
+                <div className="px-1 py-0.5">
+                  <ReportButton
+                    targetType="topic"
+                    targetId={post.id}
+                    locale={locale}
+                  />
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      {actionFeedback && (
-        <p className="mt-2 text-xs text-amber-300">{actionFeedback}</p>
+      {/* Title + 2-line Summary */}
+      <h3 className="mt-2.5 text-base font-semibold leading-snug text-slate-100">
+        <Link
+          href={`/forum/${post.id}`}
+          onClick={stop}
+          className="hover:text-cyan-300 focus:outline-none focus-visible:underline"
+        >
+          {post.title}
+        </Link>
+      </h3>
+
+      {summaryText && (
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-400">
+          {summaryText}
+        </p>
       )}
 
-      {/* Inline Quick Comments */}
-      {commentsOpen && (
-        <div className="mt-4 space-y-3 border-t border-slate-800/80 pt-3">
-          {commentsLoading ? (
-            <p className="font-mono text-xs text-slate-500">
-              {isPt ? "Carregando comentários..." : "Loading comments..."}
-            </p>
-          ) : comments.length === 0 ? (
-            <p className="text-xs text-slate-500">
-              {isPt
-                ? "Nenhum comentário ainda. Seja o primeiro!"
-                : "No comments yet. Be the first!"}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {comments.map((c) => (
-                <div
-                  key={c.id}
-                  className="rounded-xl border border-slate-800/80 bg-[#070b14] px-3.5 py-2.5 text-xs"
-                >
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <Link
-                      href={`/profile/${c.authorUsername}`}
-                      className="inline-flex items-center gap-2 font-semibold text-cyan-300 hover:underline"
-                    >
-                      <AuthorAvatar
-                        avatarUrl={c.authorAvatarUrl}
-                        name={c.authorDisplayName || c.authorUsername}
-                        size="sm"
-                      />
-                      <span>@{c.authorUsername}</span>
-                    </Link>
-                    <span className="font-mono text-slate-500">
-                      {new Date(c.createdAt).toLocaleDateString(
-                        isPt ? "pt-BR" : "en-US"
-                      )}
-                    </span>
-                  </div>
-                  <p className="mt-1 whitespace-pre-line text-slate-300">
-                    {c.body}
-                  </p>
-                </div>
-              ))}
+      {/* Embedded Resource Mini-Card */}
+      {post.linkedResource ? (
+        <Link
+          href={`/catalog/${post.linkedResource.slug}`}
+          onClick={stop}
+          className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-800 bg-[#070b14] p-2.5 transition-colors hover:border-cyan-500/40"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 font-mono text-sm font-bold text-cyan-300">
+            {post.linkedResource.name.slice(0, 1).toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-slate-100">
+              {post.linkedResource.name}
             </div>
-          )}
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              {post.linkedResource.pricingModel && (
+                <span className="inline-flex h-[22px] items-center rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2 font-mono text-[11px] font-semibold text-emerald-400">
+                  {getPricingModelLabel(post.linkedResource.pricingModel, locale)}
+                </span>
+              )}
+              {post.linkedResource.requiresCreditCard === "no" && (
+                <span className="inline-flex h-[22px] items-center rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2 font-mono text-[11px] font-semibold text-emerald-400">
+                  {getResourceTagLabel("no_card", locale)}
+                </span>
+              )}
+            </div>
+          </div>
+          <span className="shrink-0 text-slate-400" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-[18px] w-[18px]"
+            >
+              <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+            </svg>
+          </span>
+        </Link>
+      ) : safeSharedHref ? (
+        <a
+          href={safeSharedHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={stop}
+          className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-800 bg-[#070b14] p-2.5 transition-colors hover:border-cyan-500/40"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 font-mono text-sm font-bold text-cyan-300">
+            {(sharedDomain || "L").slice(0, 1).toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-slate-100">
+              {sharedDomain}
+            </div>
+            <div className="truncate font-mono text-[11px] text-slate-400">
+              {safeSharedHref}
+            </div>
+          </div>
+          <span className="shrink-0 text-slate-400" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-[18px] w-[18px]"
+            >
+              <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+            </svg>
+          </span>
+        </a>
+      ) : null}
 
-          {!post.isLocked && (
-            <form onSubmit={handleSendComment} className="flex gap-2">
-              <input
-                type="text"
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                maxLength={4000}
-                placeholder={
-                  isPt ? "Escreva um comentário rápido..." : "Write a quick comment..."
-                }
-                className="flex-1 rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={replySending || replyText.trim().length < 2}
-                className="rounded-xl bg-cyan-500 px-3.5 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
-              >
-                {replySending ? "..." : isPt ? "Comentar" : "Reply"}
-              </button>
-            </form>
-          )}
+      {/* Tags */}
+      {post.tags.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {post.tags.slice(0, 4).map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex h-[22px] items-center rounded-md border border-slate-800 bg-[#070b14]/70 px-2 font-mono text-[11px] font-medium text-slate-400"
+            >
+              #{tag}
+            </span>
+          ))}
         </div>
+      )}
+
+      {/* Footer Action Bar */}
+      <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-1">
+        <button
+          type="button"
+          disabled={voting}
+          onClick={(e) => void handleToggleVote(e)}
+          aria-pressed={post.userHasVoted}
+          aria-label={isPt ? "Votar na publicação" : "Upvote post"}
+          className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-50 ${
+            post.userHasVoted
+              ? "text-cyan-400"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[18px] w-[18px]"
+          >
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+          <span>{post.voteCount}</span>
+        </button>
+
+        <Link
+          href={`/forum/${post.id}#comments`}
+          onClick={stop}
+          aria-label={isPt ? "Comentários" : "Comments"}
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-slate-400 transition-colors hover:text-slate-200"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[18px] w-[18px]"
+          >
+            <path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z" />
+          </svg>
+          <span>{post.replyCount}</span>
+        </Link>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSavedLocal((prev) => !prev);
+          }}
+          aria-pressed={savedLocal}
+          aria-label={isPt ? "Salvar" : "Save"}
+          className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 transition-colors ${
+            savedLocal
+              ? "text-cyan-400"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill={savedLocal ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[18px] w-[18px]"
+          >
+            <path d="M6 3h12v18l-6-4-6 4z" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => void handleShare(e)}
+          aria-label={isPt ? "Compartilhar" : "Share"}
+          className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 rounded-lg px-2 text-xs transition-colors ${
+            copied
+              ? "text-emerald-400"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[18px] w-[18px]"
+          >
+            <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />
+          </svg>
+          {copied && <span>{isPt ? "Copiado" : "Copied"}</span>}
+        </button>
+      </div>
+
+      {actionFeedback && (
+        <p className="mt-1.5 text-xs text-amber-300" onClick={stop}>
+          {actionFeedback}
+        </p>
       )}
     </article>
   );
