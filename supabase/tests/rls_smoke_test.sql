@@ -39,6 +39,9 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000c2', 'bob@x.test',   '{"username":"Bad Name!"}');
 update public.profiles set role = 'admin'     where id = '00000000-0000-0000-0000-0000000000a1';
 update public.profiles set role = 'moderator' where id = '00000000-0000-0000-0000-0000000000b1';
+-- Backdate test member accounts past the 24h forum posting barrier
+update public.profiles set created_at = now() - interval '2 days'
+  where id in ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000c2');
 
 do $$ begin
   assert (select role from public.profiles where username = 'alice') = 'member', 'metadata must not grant role';
