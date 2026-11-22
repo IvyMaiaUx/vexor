@@ -82,6 +82,29 @@ $$;
 revoke all on function public.post_has_active_replies(uuid) from public, anon;
 grant execute on function public.post_has_active_replies(uuid) to authenticated;
 
+create or replace function public.is_valid_parent_post(
+  p_topic_id       uuid,
+  p_parent_post_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_parent_post_id is null
+     or exists (
+       select 1
+         from public.posts parent
+        where parent.id = p_parent_post_id
+          and parent.topic_id = p_topic_id
+          and parent.status = 'published'
+          and parent.deleted_at is null
+     );
+$$;
+revoke all on function public.is_valid_parent_post(uuid, uuid) from public, anon;
+grant execute on function public.is_valid_parent_post(uuid, uuid) to authenticated;
+
 create or replace function public.is_notification_target_active(
   p_topic_id uuid,
   p_post_id  uuid
@@ -294,16 +317,7 @@ create policy posts_insert_member on public.posts
          and t.deleted_at is null
          and (not t.is_locked or (select public.is_moderator()))
     )
-    and (
-      parent_post_id is null
-      or exists (
-        select 1 from public.posts parent
-         where parent.id = posts.parent_post_id
-           and parent.topic_id = posts.topic_id
-           and parent.status = 'published'
-           and parent.deleted_at is null
-      )
-    )
+    and public.is_valid_parent_post(posts.topic_id, posts.parent_post_id)
   );
 
 create policy posts_update_owner on public.posts

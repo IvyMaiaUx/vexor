@@ -275,7 +275,11 @@ do $ begin
 end $;
 
 -- Comments: parent comment with active reply stays selectable as placeholder; leaf comment disappears
-select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.reset();
+-- Avoid the 30s forum posting cooldown between author1's topic and comment in the same test transaction
+update public.topics set created_at = now() - interval '2 minutes'
+  where author_id = '00000000-0000-0000-0000-0000000000d1';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
 select pg_temp.expect('author creates parent comment',
   $q$insert into public.posts (topic_id, body)
      select id, 'Parent comment body' from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, true);
