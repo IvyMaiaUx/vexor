@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import type { SupportedLocale } from "@/config/site";
 import { useAuthStore } from "@/features/auth/use-auth-store";
+import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type {
   ProfileTab,
   ProfileViewData,
 } from "./types";
+
+type ExtendedProfileTab = ProfileTab | "saved";
 
 interface ProfileTabsProps {
   data: ProfileViewData;
@@ -17,25 +20,76 @@ interface ProfileTabsProps {
 }
 
 export function ProfileTabs({ data, locale, dict }: ProfileTabsProps) {
-  const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
+  const [activeTab, setActiveTab] = useState<ExtendedProfileTab>("topics");
   const { signOut } = useAuthStore();
+  const { bookmarkedSlugs, allResources } = useCatalogStore();
   const { profile, isCurrentUser, stats, badges, topics, replies, contributions } =
     data;
 
   const isPt = locale === "pt-BR";
+  const savedResources = allResources.filter((r) =>
+    bookmarkedSlugs.includes(r.slug)
+  );
 
   return (
     <div className="space-y-6">
       {/* Tab Navigation */}
       <div className="no-scrollbar flex overflow-x-auto border-b border-slate-800 pb-px">
-        <nav className="flex space-x-2" aria-label="Profile Tabs">
+        <nav className="flex w-full min-w-max gap-1" aria-label="Profile Tabs">
+          <button
+            type="button"
+            onClick={() => setActiveTab("topics")}
+            className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors sm:flex-initial ${
+              activeTab === "topics"
+                ? "border-cyan-400 font-semibold text-cyan-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <span>Posts</span>
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 font-mono text-[10px] text-slate-300">
+              {topics.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("contributions")}
+            className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors sm:flex-initial ${
+              activeTab === "contributions"
+                ? "border-cyan-400 font-semibold text-cyan-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <span>{isPt ? "Recursos" : "Resources"}</span>
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 font-mono text-[10px] text-slate-300">
+              {contributions.length}
+            </span>
+          </button>
+
+          {isCurrentUser && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("saved")}
+              className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors sm:flex-initial ${
+                activeTab === "saved"
+                  ? "border-cyan-400 font-semibold text-cyan-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span>{isPt ? "Salvos" : "Saved"}</span>
+              <span className="rounded-full bg-slate-800 px-2 py-0.5 font-mono text-[10px] text-slate-300">
+                {savedResources.length}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setActiveTab("overview")}
-            className={`whitespace-nowrap border-b-2 px-4 py-3 font-mono text-xs font-semibold transition-colors ${
+            className={`flex min-h-[44px] items-center justify-center whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors ${
               activeTab === "overview"
-                ? "border-cyan-400 text-cyan-300"
-                : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                ? "border-cyan-400 font-semibold text-cyan-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
             {dict.profilePage.tabs.overview}
@@ -43,46 +97,16 @@ export function ProfileTabs({ data, locale, dict }: ProfileTabsProps) {
 
           <button
             type="button"
-            onClick={() => setActiveTab("topics")}
-            className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-3 font-mono text-xs font-semibold transition-colors ${
-              activeTab === "topics"
-                ? "border-cyan-400 text-cyan-300"
-                : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
-            }`}
-          >
-            <span>{dict.profilePage.tabs.topics}</span>
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
-              {topics.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveTab("replies")}
-            className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-3 font-mono text-xs font-semibold transition-colors ${
+            className={`flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors ${
               activeTab === "replies"
-                ? "border-cyan-400 text-cyan-300"
-                : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                ? "border-cyan-400 font-semibold text-cyan-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
             <span>{dict.profilePage.tabs.replies}</span>
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 font-mono text-[10px] text-slate-300">
               {replies.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("contributions")}
-            className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-3 font-mono text-xs font-semibold transition-colors ${
-              activeTab === "contributions"
-                ? "border-cyan-400 text-cyan-300"
-                : "border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200"
-            }`}
-          >
-            <span>{dict.profilePage.tabs.contributions}</span>
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
-              {contributions.length}
             </span>
           </button>
 
@@ -637,6 +661,46 @@ export function ProfileTabs({ data, locale, dict }: ProfileTabsProps) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === "saved" && isCurrentUser && (
+        <div className="space-y-3">
+          {savedResources.length === 0 ? (
+            <div className="rounded-2xl border border-slate-800/80 bg-[#0d1322]/70 p-8 text-center">
+              <p className="text-sm text-slate-300">
+                {isPt
+                  ? "Você ainda não salvou recursos nos favoritos."
+                  : "You have not bookmarked any resources yet."}
+              </p>
+              <Link
+                href="/catalog"
+                className="mt-4 inline-flex min-h-[44px] items-center rounded-xl bg-cyan-500 px-5 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+              >
+                {isPt ? "Explorar catálogo" : "Explore catalog"}
+              </Link>
+            </div>
+          ) : (
+            savedResources.map((res) => (
+              <Link
+                key={res.slug}
+                href={`/catalog/${res.slug}`}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-4 transition-colors hover:border-cyan-500/40"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-100">
+                    {res.name}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-400">
+                    {isPt ? res.description_pt : res.description_en}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono text-xs font-semibold text-cyan-400">
+                  {dict.catalogSection.viewDetails} →
+                </span>
+              </Link>
+            ))
+          )}
         </div>
       )}
     </div>

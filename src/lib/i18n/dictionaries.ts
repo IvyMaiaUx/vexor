@@ -1281,7 +1281,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
       registerEyebrow: "REGISTRO DE MEMBRO",
       registerTitle: "Criar Conta na Comunidade",
       registerSubtitle:
-        "Junte-se a estudantes, analistas e especialistas em cibersegurança. Seu perfil segue os padrões de segurança do schema Supabase.",
+        "Junte-se a estudantes, analistas e especialistas em cibersegurança.",
       identifierLabel: "E-mail ou Nome de Usuário *",
       identifierPlaceholder: "analista@exemplo.com ou sec_analyst_br",
       emailLabel: "E-mail *",
@@ -2684,7 +2684,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
       registerEyebrow: "MEMBER REGISTRATION",
       registerTitle: "Create a Community Account",
       registerSubtitle:
-        "Join cybersecurity students, analysts, and specialists. Your profile adheres to the Supabase schema security constraints.",
+        "Join cybersecurity students, analysts, and specialists.",
       identifierLabel: "Email or Username *",
       identifierPlaceholder: "analyst@example.com or sec_analyst_br",
       emailLabel: "Email *",

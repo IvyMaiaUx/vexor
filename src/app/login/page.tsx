@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { siteConfig } from "@/config/site";
-import { Footer } from "@/components/layout/footer";
-import { Header } from "@/components/layout/header";
 import { loginWithSupabase } from "@/features/auth/login-service";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { EMAIL_REGEX } from "@/features/auth/validation";
@@ -15,13 +13,15 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { locale, setLocale } = useCatalogStore();
+  const { locale } = useCatalogStore();
   const { user, setAuthenticatedSession, signOut } = useAuthStore();
 
   const dict = useMemo(() => getDictionary(locale), [locale]);
+  const isPt = locale === "pt-BR";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -88,145 +88,204 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header locale={locale} onLocaleChange={setLocale} dict={dict} />
+    <div className="flex min-h-screen flex-col bg-[#070b14]">
+      {/* Minimal Auth Header with official Vexor logo + Criar conta */}
+      <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-[#070b14]/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
+          <Link
+            href="/"
+            className="flex items-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          >
+            <Image
+              src={siteConfig.logoHorizontalPath}
+              alt={siteConfig.name}
+              width={150}
+              height={64}
+              priority
+              className="h-9 w-auto shrink-0 object-contain drop-shadow-[0_0_14px_rgba(34,211,238,0.28)] sm:h-10"
+            />
+          </Link>
+          <Link
+            href="/register"
+            className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-cyan-400 transition-colors hover:text-cyan-300"
+          >
+            {dict.nav.signUp}
+          </Link>
+        </div>
+      </header>
 
-      <main className="flex flex-1 items-center justify-center bg-cyber-grid py-8 sm:py-16">
-        <div className="mx-auto w-full max-w-md px-4 sm:px-6">
-          {/* Card Container */}
-          <div className="rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-5 shadow-[0_0_50px_rgba(6,182,212,0.08)] sm:p-8">
-            <div className="text-center">
-              <div className="mx-auto mb-3 flex justify-center">
-                <Image
-                  src={siteConfig.logoIconPath}
-                  alt={siteConfig.name}
-                  width={56}
-                  height={56}
-                  className="h-14 w-14 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.35)]"
+      <main className="flex flex-1 flex-col items-center justify-center bg-cyber-grid px-4 py-8 sm:py-14">
+        <div className="w-full max-w-md">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/35 bg-cyan-500/10 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-cyan-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+              {dict.auth.loginEyebrow}
+            </span>
+            <h1 className="mt-3.5 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
+              {dict.auth.loginTitle}
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              {dict.auth.loginSubtitle}
+            </p>
+          </div>
+
+          {user ? (
+            <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-6 text-center">
+              <p className="font-mono text-xs font-semibold uppercase text-emerald-300">
+                {dict.auth.alreadySignedInTitle}
+              </p>
+              <p className="mt-2 text-sm text-slate-300">
+                {dict.auth.alreadySignedInBody(user.username)}
+              </p>
+              <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+                <Link
+                  href="/"
+                  className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+                >
+                  {dict.auth.continueToApp} →
+                </Link>
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-700 bg-[#0d1322] px-4 text-sm font-medium text-rose-300 hover:border-rose-500/40"
+                >
+                  {dict.nav.signOut}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleSubmit}
+              noValidate
+              className="mt-6 space-y-4 sm:rounded-2xl sm:border sm:border-slate-800/90 sm:bg-[#0d1322]/90 sm:p-7"
+            >
+              <div>
+                <label
+                  htmlFor="login-email"
+                  className="block text-sm font-medium text-slate-200"
+                >
+                  {dict.auth.emailLabel}
+                </label>
+                <input
+                  id="login-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={dict.auth.emailPlaceholder}
+                  className="mt-1.5 block min-h-[50px] w-full rounded-xl border border-slate-800 bg-[#0d1322] px-3.5 text-[15px] text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none sm:bg-[#070b14] sm:text-sm"
                 />
               </div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-cyan-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                {dict.auth.loginEyebrow}
-              </span>
-              <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
-                {dict.auth.loginTitle}
-              </h1>
-              <p className="mt-2 text-xs leading-relaxed text-slate-400 sm:text-sm">
-                {dict.auth.loginSubtitle}
-              </p>
-            </div>
 
-            {user ? (
-              <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-5 text-center">
-                <p className="font-mono text-xs font-semibold uppercase text-emerald-300">
-                  {dict.auth.alreadySignedInTitle}
-                </p>
-                <p className="mt-2 text-sm text-slate-300">
-                  {dict.auth.alreadySignedInBody(user.username)}
-                </p>
-                <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
-                  <Link
-                    href="/catalog"
-                    className="flex-1 rounded-xl bg-cyan-500 px-4 py-2.5 text-center text-xs font-semibold text-slate-950 hover:bg-cyan-400"
+              <div>
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="login-password"
+                    className="text-sm font-medium text-slate-200"
                   >
-                    {dict.auth.continueToApp} →
+                    {dict.auth.passwordLabel}
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="inline-flex min-h-[44px] items-center text-sm font-semibold text-cyan-400 transition-colors hover:text-cyan-300"
+                  >
+                    {dict.auth.forgotPasswordLink}
                   </Link>
+                </div>
+                <div className="flex items-center rounded-xl border border-slate-800 bg-[#0d1322] focus-within:border-cyan-500/60 sm:bg-[#070b14]">
+                  <input
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={isPt ? "Sua senha" : "Your password"}
+                    className="min-h-[50px] min-w-0 flex-1 bg-transparent px-3.5 text-[15px] text-slate-100 placeholder:text-slate-500 focus:outline-none sm:text-sm"
+                  />
                   <button
                     type="button"
-                    onClick={signOut}
-                    className="rounded-xl border border-slate-700 bg-[#070b14] px-4 py-2.5 text-xs font-medium text-rose-300 hover:border-rose-500/40"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={
+                      showPassword
+                        ? isPt
+                          ? "Ocultar senha"
+                          : "Hide password"
+                        : isPt
+                          ? "Mostrar senha"
+                          : "Show password"
+                    }
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-slate-400 hover:text-slate-200"
                   >
-                    {dict.nav.signOut}
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-5 w-5"
+                    >
+                      {showPassword ? (
+                        <>
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-6 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94" />
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19" />
+                          <path d="M1 1l22 22" />
+                        </>
+                      ) : (
+                        <>
+                          <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </>
+                      )}
+                    </svg>
                   </button>
                 </div>
               </div>
-            ) : (
-                <form
-                  onSubmit={handleSubmit}
-                  noValidate
-                  className="mt-6 space-y-4"
+
+              {errorMessage && (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-rose-500/40 bg-rose-950/30 px-3.5 py-2.5 text-xs font-medium text-rose-200"
                 >
-                  <div>
-                    <label
-                      htmlFor="login-email"
-                      className="block text-xs font-medium text-slate-200"
-                    >
-                      {dict.auth.emailLabel}
-                    </label>
-                    <input
-                      id="login-email"
-                      type="email"
-                      required
-                      disabled={isSubmitting}
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={dict.auth.emailPlaceholder}
-                      className="mt-1.5 w-full rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none disabled:opacity-60 sm:text-sm"
-                    />
-                  </div>
+                  {errorMessage}
+                </p>
+              )}
 
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <label
-                        htmlFor="login-password"
-                        className="block text-xs font-medium text-slate-200"
-                      >
-                        {dict.auth.passwordLabel}
-                      </label>
-                      <Link
-                        href="/forgot-password"
-                        className="font-mono text-xs text-cyan-400 transition-colors hover:text-cyan-300 hover:underline"
-                      >
-                        {dict.auth.forgotPasswordLink}
-                      </Link>
-                    </div>
-                    <input
-                      id="login-password"
-                      type="password"
-                      required
-                      disabled={isSubmitting}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={dict.auth.passwordPlaceholder}
-                      className="mt-1.5 w-full rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none disabled:opacity-60 sm:text-sm"
-                    />
-                  </div>
-
-                  {errorMessage && (
-                    <div className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300">
-                      {errorMessage}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full rounded-xl bg-cyan-500 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSubmitting
-                      ? dict.auth.signingInButton
-                      : dict.auth.signInButton}
-                  </button>
-                </form>
-            )}
-
-            <div className="mt-6 border-t border-slate-800 pt-5 text-center text-xs text-slate-400">
-              {dict.auth.noAccountPrompt}{" "}
-              <Link
-                href="/register"
-                className="font-semibold text-cyan-400 hover:text-cyan-300"
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-cyan-500 px-5 text-base font-bold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400 disabled:opacity-50"
               >
-                {dict.auth.createAccountLink} →
-              </Link>
-            </div>
-          </div>
+                {isSubmitting
+                  ? isPt
+                    ? "Entrando..."
+                    : "Signing in..."
+                  : dict.nav.signIn}
+              </button>
+
+              <p className="pt-1 text-center text-sm text-slate-400">
+                {isPt ? "Ainda não faz parte?" : "New to Vexor?"}{" "}
+                <Link
+                  href="/register"
+                  className="inline-flex min-h-[44px] items-center font-semibold text-cyan-400 hover:text-cyan-300"
+                >
+                  {isPt ? "Criar conta grátis →" : "Create free account →"}
+                </Link>
+              </p>
+            </form>
+          )}
         </div>
       </main>
 
-      <Footer locale={locale} dict={dict} />
+      {/* Single-line Ethical Use Footer */}
+      <footer className="px-4 pb-5 pt-2 text-center text-xs text-slate-500">
+        {isPt
+          ? "Uso ético e defensivo · Conteúdo para fins educacionais e pesquisa autorizada."
+          : "Ethical & defensive use · Content for educational and authorized research purposes."}
+      </footer>
     </div>
   );
 }

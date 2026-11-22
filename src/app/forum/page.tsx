@@ -43,6 +43,42 @@ function ForumContent() {
 
   const [topics, setTopics] = useState<ForumTopicItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
+  // TODO(backend): persistir inscrição em comunidades quando existir tabela community_memberships
+  const [joinedCommunitySlugs, setJoinedCommunitySlugs] = useState<string[]>([
+    "blue-team",
+  ]);
+  // TODO(backend): carregar sugestões reais de membros e persistir follow quando existir tabela follows
+  const [followedSuggestions, setFollowedSuggestions] = useState<string[]>([]);
+
+  const isPt = locale === "pt-BR";
+
+  const toggleJoinCommunity = (slug: string) => {
+    setJoinedCommunitySlugs((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
+    );
+  };
+
+  const toggleFollowSuggestion = (username: string) => {
+    setFollowedSuggestions((prev) =>
+      prev.includes(username)
+        ? prev.filter((u) => u !== username)
+        : [...prev, username]
+    );
+  };
+
+  // TODO(backend): substituir por sugestões reais de membros via Supabase quando houver endpoint/RPC
+  const suggestedPeople = [
+    {
+      username: "matheus",
+      initial: "M",
+      specialty: "Pentester · OSINT",
+    },
+    {
+      username: "carol",
+      initial: "C",
+      specialty: "DFIR · Malware",
+    },
+  ];
   const [totalPages, setTotalPages] = useState(1);
   const [tags, setTags] = useState<ForumTagItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -173,80 +209,216 @@ function ForumContent() {
       <Header locale={locale} onLocaleChange={setLocale} dict={dict} />
 
       <main className="flex-1">
-        {/* Page Header */}
-        <section className="border-b border-slate-800/80 bg-cyber-grid py-12 sm:py-16">
+        {/* Page Header + Comunidades (Explorar) */}
+        <section className="border-b border-slate-800/80 bg-cyber-grid py-6 sm:py-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+            <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="font-mono text-xs font-semibold uppercase tracking-widest text-cyan-400">
-                  {dict.forumPage.eyebrow}
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-400">
+                  {isPt ? "EXPLORAR" : "EXPLORE"}
                 </p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl">
-                  {dict.forumPage.title}
+                <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-50 sm:text-4xl">
+                  {isPt ? "Comunidades" : "Communities"}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400 sm:text-base">
-                  {dict.forumPage.subtitle}
-                </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <Link
-                  href="/forum/new"
-                  className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400"
+              <Link
+                href="/forum/new"
+                className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl bg-cyan-500 px-4 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400 sm:px-5"
+              >
+                + {dict.forumPage.newTopicCta}
+              </Link>
+            </div>
+
+            {/* Search Input */}
+            <label className="mt-4 flex min-h-[48px] items-center gap-2.5 rounded-xl border border-slate-800 bg-[#0d1322] px-3.5 text-slate-400 focus-within:border-cyan-500/60">
+              <span aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-[18px] w-[18px]"
                 >
-                  + {dict.forumPage.newTopicCta}
-                </Link>
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) =>
+                  updateUrlParams({ q: e.target.value.trim() || null })
+                }
+                placeholder={
+                  isPt
+                    ? "Buscar pessoas, tags e comunidades"
+                    : "Search people, tags, and communities"
+                }
+                aria-label={
+                  isPt
+                    ? "Buscar pessoas, tags e comunidades"
+                    : "Search people, tags, and communities"
+                }
+                className="min-w-0 flex-1 bg-transparent text-[15px] text-slate-100 placeholder:text-slate-500 focus:outline-none sm:text-sm"
+              />
+            </label>
+
+            {/* EM ALTA (Trending Tags) */}
+            {tags.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                  {isPt ? "EM ALTA" : "TRENDING"}
+                </p>
+                <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+                  {tags.slice(0, 10).map((tag) => {
+                    const active = selectedTag === tag.slug;
+                    return (
+                      <button
+                        key={tag.slug}
+                        type="button"
+                        onClick={() =>
+                          updateUrlParams({ tag: active ? null : tag.slug })
+                        }
+                        className={`inline-flex min-h-[40px] shrink-0 items-center rounded-full border px-3.5 text-xs font-medium transition-colors ${
+                          active
+                            ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-300"
+                            : "border-slate-800 bg-[#0d1322] text-slate-300 hover:border-slate-700"
+                        }`}
+                      >
+                        #{tag.slug}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* SUAS COMUNIDADES + SUGERIDOS PARA SEGUIR (2 columns on lg, stacked on mobile) */}
+            <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-12">
+              <div className="lg:col-span-7">
+                <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                  {isPt ? "SUAS COMUNIDADES" : "YOUR COMMUNITIES"}
+                </p>
+                <div className="divide-y divide-slate-800/70 rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 px-4">
+                  {categories.slice(0, 6).map((cat) => {
+                    const joined = joinedCommunitySlugs.includes(cat.slug);
+                    const isSelected = selectedCategory === cat.slug;
+                    const code = (isPt ? cat.name_pt : cat.name_en)
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((w) => w[0]?.toUpperCase() ?? "")
+                      .join("");
+                    return (
+                      <div
+                        key={cat.slug}
+                        className="flex min-h-[64px] items-center gap-3 py-2.5"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateUrlParams({
+                              category: isSelected ? null : cat.slug,
+                            })
+                          }
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cyan-500/15 font-mono text-sm font-bold text-cyan-300">
+                            {code || "VX"}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`truncate text-sm font-semibold ${
+                                isSelected ? "text-cyan-300" : "text-slate-100"
+                              }`}
+                            >
+                              {isPt ? cat.name_pt : cat.name_en}
+                            </p>
+                            <p className="truncate text-xs text-slate-400">
+                              {isPt ? cat.description_pt : cat.description_en}
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleJoinCommunity(cat.slug)}
+                          aria-pressed={joined}
+                          className={`inline-flex min-h-[40px] shrink-0 items-center rounded-xl px-3.5 text-xs font-semibold transition-colors ${
+                            joined
+                              ? "border border-slate-700 bg-[#070b14] text-slate-200 hover:border-cyan-500/40"
+                              : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+                          }`}
+                        >
+                          {joined
+                            ? isPt
+                              ? "Entrou"
+                              : "Joined"
+                            : isPt
+                              ? "Entrar"
+                              : "Join"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="lg:col-span-5">
+                <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                  {isPt ? "SUGERIDOS PARA SEGUIR" : "SUGGESTED TO FOLLOW"}
+                </p>
+                <div className="divide-y divide-slate-800/70 rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 px-4">
+                  {suggestedPeople.map((person) => {
+                    const following = followedSuggestions.includes(
+                      person.username
+                    );
+                    return (
+                      <div
+                        key={person.username}
+                        className="flex min-h-[60px] items-center gap-3 py-2.5"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-500/15 font-mono text-sm font-bold text-cyan-300">
+                          {person.initial}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-mono text-sm font-semibold text-emerald-400">
+                            @{person.username}
+                          </p>
+                          <p className="truncate text-xs text-slate-400">
+                            {person.specialty}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleFollowSuggestion(person.username)}
+                          aria-pressed={following}
+                          className={`inline-flex min-h-[40px] shrink-0 items-center rounded-xl border px-3.5 text-xs font-semibold transition-colors ${
+                            following
+                              ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                              : "border-slate-700 bg-[#070b14] text-slate-200 hover:border-cyan-500/50 hover:text-cyan-300"
+                          }`}
+                        >
+                          {following
+                            ? isPt
+                              ? "Seguindo"
+                              : "Following"
+                            : isPt
+                              ? "Seguir"
+                              : "Follow"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Search & Filter Bar */}
-            <div className="mt-8 rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3.5 shadow-xl sm:p-4">
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
-                <div className="relative sm:col-span-2 lg:col-span-8">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                    className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
-                  <input
-                    type="search"
-                    value={searchQuery}
-                    onChange={(e) =>
-                      updateUrlParams({ q: e.target.value.trim() || null })
-                    }
-                    placeholder={dict.forumPage.searchPlaceholder}
-                    aria-label={dict.forumPage.searchPlaceholder}
-                    className="w-full rounded-xl border border-slate-800 bg-[#070b14] py-2.5 pl-10 pr-4 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 lg:col-span-4">
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) =>
-                      updateUrlParams({ category: e.target.value })
-                    }
-                    aria-label={dict.forumPage.allCategories}
-                    className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2.5 text-base text-slate-200 focus:border-cyan-500/60 focus:outline-none sm:text-sm"
-                  >
-                    <option value="all">{dict.forumPage.allCategories}</option>
-                    {categories.map((cat) => (
-                      <option key={cat.slug} value={cat.slug}>
-                        {locale === "pt-BR" ? cat.name_pt : cat.name_en}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
+            {/* Filter & Sort Bar for Discussions Below */}
+            <div className="mt-5 rounded-2xl border border-slate-800/90 bg-[#0d1322]/95 p-3 shadow-xl sm:p-4">
               {/* Tabs: All/Activity, Newest, Solved, Unanswered */}
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"

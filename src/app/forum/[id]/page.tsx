@@ -60,6 +60,9 @@ export default function TopicDetailPage() {
     "top"
   );
   const [actionError, setActionError] = useState<string | null>(null);
+  // TODO(backend): persistir follow de usuário quando existir tabela de follows
+  const [followingAuthor, setFollowingAuthor] = useState(false);
+  const mobileReplyInputRef = useRef<HTMLInputElement | null>(null);
 
   // Edit own topic state
   const [editingTopic, setEditingTopic] = useState(false);
@@ -421,12 +424,36 @@ export default function TopicDetailPage() {
     <div className="flex min-h-screen flex-col">
       <Header locale={locale} onLocaleChange={setLocale} dict={dict} />
 
-      <main className="flex-1 py-10 sm:py-14">
+      <main className="flex-1 py-4 pb-24 sm:py-10 lg:pb-14">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          {/* Breadcrumb Navigation */}
+          {/* Mobile Back to Feed */}
+          <div className="mb-2 sm:hidden">
+            <Link
+              href="/"
+              className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-slate-200 transition-colors hover:text-cyan-300"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5 text-cyan-400"
+              >
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+              <span>
+                {locale === "pt-BR" ? "Voltar ao feed" : "Back to feed"}
+              </span>
+            </Link>
+          </div>
+
+          {/* Breadcrumb Navigation (sm+) */}
           <nav
             aria-label="Breadcrumb"
-            className="flex flex-wrap items-center gap-2 font-mono text-xs text-slate-400"
+            className="hidden flex-wrap items-center gap-2 font-mono text-xs text-slate-400 sm:flex"
           >
             <Link
               href="/forum"
@@ -580,7 +607,7 @@ export default function TopicDetailPage() {
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
                   <Link
                     href={`/profile/${topic.authorUsername}`}
-                    className="font-medium text-slate-200 transition-colors hover:text-cyan-300 hover:underline"
+                    className="font-mono font-semibold text-emerald-400 transition-colors hover:underline"
                   >
                     @{topic.authorUsername}
                   </Link>
@@ -591,6 +618,26 @@ export default function TopicDetailPage() {
                       { year: "numeric", month: "short", day: "numeric" }
                     )}
                   </span>
+                  {user && user.id !== topic.authorId && (
+                    <button
+                      type="button"
+                      onClick={() => setFollowingAuthor((prev) => !prev)}
+                      aria-pressed={followingAuthor}
+                      className={`ml-auto inline-flex min-h-[38px] items-center rounded-xl border px-3.5 text-xs font-semibold transition-colors ${
+                        followingAuthor
+                          ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                          : "border-slate-700 bg-[#070b14] text-slate-200 hover:border-cyan-500/50 hover:text-cyan-300"
+                      }`}
+                    >
+                      {followingAuthor
+                        ? locale === "pt-BR"
+                          ? "Seguindo"
+                          : "Following"
+                        : locale === "pt-BR"
+                          ? "Seguir"
+                          : "Follow"}
+                    </button>
+                  )}
                 </div>
 
                 {/* Topic Tags (right below title & author) */}
@@ -624,7 +671,7 @@ export default function TopicDetailPage() {
           )}
 
           {/* Replies Section Header */}
-          <section className="mt-10">
+          <section id="comments" className="mt-8">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
               <h2 className="text-xl font-bold text-slate-100">
                 {dict.topicDetailPage.repliesTitle(sortedPosts.length)}
@@ -669,12 +716,18 @@ export default function TopicDetailPage() {
                   const canEditPost =
                     isOwnPost && !user?.isSuspended && !topic.isLocked;
                   const isEditingThisPost = editingPostId === post.id;
+                  // TODO(backend): suportar parent_post_id no banco para respostas aninhadas nativas
+                  const isNestedReply = /^@[a-z0-9_]{2,30}\b/i.test(
+                    post.body.trim()
+                  );
 
                   return (
                     <article
                       key={post.id}
                       id={`post-${post.id}`}
-                      className={`rounded-2xl border p-5 transition-all sm:p-6 ${
+                      className={`rounded-2xl border p-4 transition-all sm:p-6 ${
+                        isNestedReply ? "ml-6 sm:ml-10" : ""
+                      } ${
                         isAccepted
                           ? "border-emerald-500/50 bg-gradient-to-br from-[#0d1322] via-[#09151c] to-emerald-950/20 shadow-[0_0_30px_rgba(16,185,129,0.12)]"
                           : "border-slate-800/90 bg-[#0d1322]/90"
@@ -684,7 +737,7 @@ export default function TopicDetailPage() {
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/profile/${post.authorUsername}`}
-                            className="text-xs font-semibold text-slate-200 transition-colors hover:text-cyan-300 hover:underline"
+                            className="font-mono text-xs font-semibold text-emerald-400 transition-colors hover:underline"
                           >
                             @{post.authorUsername}
                           </Link>
@@ -789,30 +842,49 @@ export default function TopicDetailPage() {
                         </div>
                       )}
 
-                      {/* Vote post button */}
+                      {/* Vote & Reply actions */}
                       <div className="mt-4 flex items-center justify-between border-t border-slate-800/80 pt-3">
-                        <button
-                          type="button"
-                          onClick={() => void toggleVote(post)}
-                          disabled={isOwnPost}
-                          title={
-                            isOwnPost
-                              ? locale === "pt-BR"
-                                ? "Você não pode votar na própria resposta"
-                                : "You cannot vote on your own reply"
-                              : undefined
-                          }
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1 font-mono text-xs font-medium transition-colors ${
-                            isOwnPost
-                              ? "cursor-not-allowed border-slate-800/60 bg-[#070b14]/60 text-slate-500"
-                              : isVoted
-                                ? "border-cyan-400 bg-cyan-500/20 text-cyan-200"
-                                : "border-slate-800 bg-[#070b14] text-slate-400 hover:border-cyan-500/40 hover:text-cyan-300"
-                          }`}
-                        >
-                          <span>▲</span>
-                          <span>{post.voteCount}</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void toggleVote(post)}
+                            disabled={isOwnPost}
+                            title={
+                              isOwnPost
+                                ? locale === "pt-BR"
+                                  ? "Você não pode votar na própria resposta"
+                                  : "You cannot vote on your own reply"
+                                : undefined
+                            }
+                            className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border px-3 font-mono text-xs font-medium transition-colors ${
+                              isOwnPost
+                                ? "cursor-not-allowed border-slate-800/60 bg-[#070b14]/60 text-slate-500"
+                                : isVoted
+                                  ? "border-cyan-400 bg-cyan-500/20 text-cyan-200"
+                                  : "border-slate-800 bg-[#070b14] text-slate-400 hover:border-cyan-500/40 hover:text-cyan-300"
+                            }`}
+                          >
+                            <span>▲</span>
+                            <span>{post.voteCount}</span>
+                          </button>
+
+                          {user && !user.isSuspended && !topic.isLocked && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplyBody((prev) =>
+                                  prev.startsWith(`@${post.authorUsername} `)
+                                    ? prev
+                                    : `@${post.authorUsername} ${prev}`
+                                );
+                                mobileReplyInputRef.current?.focus();
+                              }}
+                              className="inline-flex min-h-[40px] items-center rounded-lg px-2.5 text-xs font-medium text-slate-400 transition-colors hover:text-cyan-300"
+                            >
+                              {locale === "pt-BR" ? "Responder" : "Reply"}
+                            </button>
+                          )}
+                        </div>
                         {!isOwnPost && (
                           <ReportButton
                             targetType="post"
@@ -947,6 +1019,52 @@ export default function TopicDetailPage() {
           </section>
         </div>
       </main>
+
+      {/* Fixed Bottom Mobile Comment Bar (< lg) */}
+      {user && !user.isSuspended && !topic.isLocked && (
+        <form
+          onSubmit={handleReplySubmit}
+          className="fixed inset-x-0 bottom-[74px] z-30 flex items-center gap-2 border-t border-slate-800/90 bg-[#070b14]/95 px-4 py-2.5 backdrop-blur-md lg:hidden"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-500/15 font-mono text-xs font-bold text-cyan-300"
+          >
+            {(user.displayName || user.username || "V")
+              .slice(0, 1)
+              .toUpperCase()}
+          </span>
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">
+              {locale === "pt-BR" ? "Escreva um comentário" : "Write a comment"}
+            </span>
+            <input
+              ref={mobileReplyInputRef}
+              type="text"
+              value={replyBody}
+              onChange={(e) => setReplyBody(e.target.value)}
+              maxLength={10000}
+              placeholder={
+                locale === "pt-BR"
+                  ? "Escreva um comentário…"
+                  : "Write a comment…"
+              }
+              className="min-h-[44px] w-full rounded-full border border-slate-800 bg-[#0d1322] px-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={replySubmitting || replyBody.trim().length < 2}
+            className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full bg-cyan-500 px-4 text-sm font-bold text-slate-950 transition-colors hover:bg-cyan-400 disabled:opacity-50"
+          >
+            {replySubmitting
+              ? "..."
+              : locale === "pt-BR"
+                ? "Enviar"
+                : "Send"}
+          </button>
+        </form>
+      )}
 
       <Footer locale={locale} dict={dict} />
     </div>
