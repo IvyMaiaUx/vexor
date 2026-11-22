@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
+import { useAuthStore } from "@/features/auth/use-auth-store";
 import { Pagination } from "@/features/catalog/pagination";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import {
@@ -18,12 +20,22 @@ import {
 import { TopicCard } from "@/features/forum/topic-card";
 import { useForumStore } from "@/features/forum/use-forum-store";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { createClient } from "@/lib/supabase/client";
+
+interface SuggestedMemberItem {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  subtitle: string;
+}
 
 const TOPICS_PER_PAGE = 8;
 
 function ForumContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuthStore();
   const { locale, setLocale } = useCatalogStore();
   const { categories, categoriesLoading } = useForumStore();
 
@@ -47,8 +59,10 @@ function ForumContent() {
   const [joinedCommunitySlugs, setJoinedCommunitySlugs] = useState<string[]>([
     "blue-team",
   ]);
-  // TODO(backend): carregar sugestões reais de membros e persistir follow quando existir tabela follows
+  // TODO(backend): persistir follow quando existir tabela follows
   const [followedSuggestions, setFollowedSuggestions] = useState<string[]>([]);
+  const [suggestedPeople, setSuggestedPeople] = useState<SuggestedMemberItem[]>([]);
+  const [loadingPeople, setLoadingPeople] = useState(true);
 
   const isPt = locale === "pt-BR";
 
@@ -66,19 +80,57 @@ function ForumContent() {
     );
   };
 
-  // TODO(backend): substituir por sugestões reais de membros via Supabase quando houver endpoint/RPC
-  const suggestedPeople = [
-    {
-      username: "matheus",
-      initial: "M",
-      specialty: "Pentester · OSINT",
-    },
-    {
-      username: "carol",
-      initial: "C",
-      specialty: "DFIR · Malware",
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    void supabase
+      .from("public_profiles")
+      .select("id, username, display_name, avatar_url, bio, interests")
+      .order("created_at", { ascending: false })
+      .limit(8)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const rows = (data ?? []) as Array<{
+          id: string | null;
+          username: string | null;
+          display_name: string | null;
+          avatar_url: string | null;
+          bio: string | null;
+          interests: string[] | null;
+        }>;
+        const members: SuggestedMemberItem[] = rows
+          .filter(
+            (r): r is typeof r & { id: string; username: string } =>
+              Boolean(r.id && r.username && r.id !== user?.id)
+          )
+          .slice(0, 5)
+          .map((r) => {
+            const interestsText =
+              Array.isArray(r.interests) && r.interests.length > 0
+                ? r.interests.slice(0, 2).join(" · ")
+                : null;
+            return {
+              id: r.id,
+              username: r.username,
+              displayName: r.display_name,
+              avatarUrl: r.avatar_url,
+              subtitle:
+                interestsText ||
+                r.display_name ||
+                (r.bio
+                  ? r.bio.slice(0, 48)
+                  : isPt
+                    ? "Membro Vexor"
+                    : "Vexor member"),
+            };
+          });
+        setSuggestedPeople(members);
+        setLoadingPeople(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isPt, user?.id]);
   const [totalPages, setTotalPages] = useState(1);
   const [tags, setTags] = useState<ForumTagItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -370,47 +422,84 @@ function ForumContent() {
                   {isPt ? "SUGERIDOS PARA SEGUIR" : "SUGGESTED TO FOLLOW"}
                 </p>
                 <div className="divide-y divide-slate-800/70 rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 px-4">
-                  {suggestedPeople.map((person) => {
-                    const following = followedSuggestions.includes(
-                      person.username
-                    );
-                    return (
-                      <div
-                        key={person.username}
-                        className="flex min-h-[60px] items-center gap-3 py-2.5"
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-500/15 font-mono text-sm font-bold text-cyan-300">
-                          {person.initial}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-mono text-sm font-semibold text-emerald-400">
-                            @{person.username}
-                          </p>
-                          <p className="truncate text-xs text-slate-400">
-                            {person.specialty}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => toggleFollowSuggestion(person.username)}
-                          aria-pressed={following}
-                          className={`inline-flex min-h-[40px] shrink-0 items-center rounded-xl border px-3.5 text-xs font-semibold transition-colors ${
-                            following
-                              ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
-                              : "border-slate-700 bg-[#070b14] text-slate-200 hover:border-cyan-500/50 hover:text-cyan-300"
-                          }`}
+                  {loadingPeople ? (
+                    <div className="py-5 text-center font-mono text-xs text-slate-400">
+                      {isPt ? "Carregando membros..." : "Loading members..."}
+                    </div>
+                  ) : suggestedPeople.length === 0 ? (
+                    <div className="py-5 text-center text-xs text-slate-400">
+                      {isPt
+                        ? "Nenhum outro membro encontrado ainda."
+                        : "No other members found yet."}
+                    </div>
+                  ) : (
+                    suggestedPeople.map((person) => {
+                      const following = followedSuggestions.includes(
+                        person.username
+                      );
+                      const initial = (
+                        person.displayName ||
+                        person.username ||
+                        "V"
+                      )
+                        .slice(0, 1)
+                        .toUpperCase();
+                      return (
+                        <div
+                          key={person.id}
+                          className="flex min-h-[60px] items-center gap-3 py-2.5"
                         >
-                          {following
-                            ? isPt
-                              ? "Seguindo"
-                              : "Following"
-                            : isPt
-                              ? "Seguir"
-                              : "Follow"}
-                        </button>
-                      </div>
-                    );
-                  })}
+                          <Link
+                            href={`/profile/${person.username}`}
+                            className="flex min-w-0 flex-1 items-center gap-3"
+                          >
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-cyan-500/15 font-mono text-sm font-bold text-cyan-300">
+                              {person.avatarUrl ? (
+                                <Image
+                                  src={person.avatarUrl}
+                                  alt={person.displayName || person.username}
+                                  width={40}
+                                  height={40}
+                                  unoptimized
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                initial
+                              )}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-mono text-sm font-semibold text-emerald-400 hover:underline">
+                                @{person.username}
+                              </p>
+                              <p className="truncate text-xs text-slate-400">
+                                {person.subtitle}
+                              </p>
+                            </div>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleFollowSuggestion(person.username)
+                            }
+                            aria-pressed={following}
+                            className={`inline-flex min-h-[40px] shrink-0 items-center rounded-xl border px-3.5 text-xs font-semibold transition-colors ${
+                              following
+                                ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                                : "border-slate-700 bg-[#070b14] text-slate-200 hover:border-cyan-500/50 hover:text-cyan-300"
+                            }`}
+                          >
+                            {following
+                              ? isPt
+                                ? "Seguindo"
+                                : "Following"
+                              : isPt
+                                ? "Seguir"
+                                : "Follow"}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
