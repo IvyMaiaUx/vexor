@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SupportedLocale } from "@/config/site";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useForumStore } from "@/features/forum/use-forum-store";
+import { createClient } from "@/lib/supabase/client";
 import { TimelineComposer } from "./timeline-composer";
 import { TimelinePostCard } from "./timeline-post-card";
 import { fetchTimelineFeed } from "./timeline-service";
@@ -34,6 +35,36 @@ const PRIORITY_CIRCLES: Array<{
   { slug: "ai-security", code: "IA", shortPt: "IA", shortEn: "AI" },
 ];
 
+const COMMUNITY_LAST_SEEN_KEY = "vexor_community_last_seen_v1";
+
+function readCommunityLastSeen(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(COMMUNITY_LAST_SEEN_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    const result: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof v === "string") result[k] = v;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function writeCommunityLastSeen(map: Record<string, string>): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(COMMUNITY_LAST_SEEN_KEY, JSON.stringify(map));
+  } catch {
+    // Ignore storage quota or private mode restrictions
+  }
+}
+
 export function TimelineFeed({ locale }: TimelineFeedProps) {
   const isPt = locale === "pt-BR";
   const { user } = useAuthStore();
@@ -50,6 +81,10 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [lastSeenBySlug, setLastSeenBySlug] = useState<Record<string, string>>({});
+  const [latestTopicAtBySlug, setLatestTopicAtBySlug] = useState<
+    Record<string, string>
+  >({});
 
   const sortBy: TimelineSortMode =
     feedTab === "trending" ? "trending" : "newest";
@@ -61,10 +96,89 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
     setReloadNonce((n) => n + 1);
   }, []);
 
+  useEffect(() => {
+    if (categoriesLoading || categories.length === 0) return;
+    const prioritySlugs = new Set(PRIORITY_CIRCLES.map((c) => c.slug));
+    const idToSlug = new Map<string, string>();
+    const targetCategoryIds: string[] = [];
+    for (const cat of categories) {
+      if (prioritySlugs.has(cat.slug)) {
+        idToSlug.set(cat.id, cat.slug);
+        targetCategoryIds.push(cat.id);
+      }
+    }
+    if (targetCategoryIds.length === 0) return;
+
+    let cancelled = false;
+    const supabase = createClient();
+    void supabase
+      .from("topics")
+      .select("category_id, created_at")
+      .in("category_id", targetCategoryIds)
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const latest: Record<string, string> = {};
+        for (const row of data as Array<{
+          category_id: string | null;
+          created_at: string | null;
+        }>) {
+          if (!row.category_id || !row.created_at) continue;
+          const slug = idToSlug.get(row.category_id);
+          if (slug && !latest[slug]) {
+            latest[slug] = row.created_at;
+          }
+        }
+        setLastSeenBySlug((prev) => ({
+          ...readCommunityLastSeen(),
+          ...prev,
+        }));
+        setLatestTopicAtBySlug(latest);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categories, categoriesLoading]);
+
+  const markCategorySeen = useCallback((slug: string) => {
+    const nowIso = new Date().toISOString();
+    setLastSeenBySlug((prev) => {
+      const next = { ...prev, [slug]: nowIso };
+      writeCommunityLastSeen(next);
+      return next;
+    });
+  }, []);
+
+  const handleSelectCircle = useCallback(
+    (slug: string) => {
+      setSelectedCategorySlug((prev) => {
+        const next = prev === slug ? "all" : slug;
+        if (next !== "all") {
+          markCategorySeen(next);
+          if (feedTab === "following") {
+            setFeedTab("for_you");
+          }
+        }
+        return next;
+      });
+    },
+    [feedTab, markCategorySeen]
+  );
+
   const communityCircles = useMemo(() => {
     const bySlug = new Map(categories.map((c) => [c.slug, c]));
     return PRIORITY_CIRCLES.map((item) => {
       const real = bySlug.get(item.slug);
+      const latestAt = latestTopicAtBySlug[item.slug];
+      const lastSeenAt = lastSeenBySlug[item.slug];
+      const hasNewPosts = Boolean(
+        latestAt &&
+          (!lastSeenAt ||
+            new Date(latestAt).getTime() > new Date(lastSeenAt).getTime())
+      );
       return {
         slug: item.slug,
         code: item.code,
@@ -74,9 +188,10 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
             ? item.shortEn
             : item.shortEn,
         exists: Boolean(real),
+        hasNewPosts,
       };
     });
-  }, [categories, isPt]);
+  }, [categories, isPt, lastSeenBySlug, latestTopicAtBySlug]);
 
   useEffect(() => {
     if (categoriesLoading) return;
@@ -142,6 +257,13 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
     ) {
       setItems((prev) => [newPost, ...prev]);
     }
+    if (newPost.categorySlug) {
+      setLatestTopicAtBySlug((prev) => ({
+        ...prev,
+        [newPost.categorySlug]: newPost.createdAt,
+      }));
+      markCategorySeen(newPost.categorySlug);
+    }
     setComposerOpen(false);
   };
 
@@ -187,28 +309,36 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
 
           {communityCircles.map((circle) => {
             const active = selectedCategorySlug === circle.slug;
+            const ringClasses = active
+              ? "border-cyan-400 shadow-[0_0_16px_rgba(34,211,238,0.35)]"
+              : circle.hasNewPosts
+                ? "border-cyan-400/90"
+                : "border-slate-700";
+            const innerClasses = active
+              ? "bg-cyan-500/20 text-cyan-200"
+              : circle.hasNewPosts
+                ? "bg-slate-800/80 text-cyan-300"
+                : "bg-slate-800/60 text-slate-300";
             return (
               <button
                 key={circle.slug}
                 type="button"
                 aria-pressed={active}
-                onClick={() =>
-                  setSelectedCategorySlug((prev) =>
-                    prev === circle.slug ? "all" : circle.slug
-                  )
-                }
+                onClick={() => handleSelectCircle(circle.slug)}
                 className={`flex w-16 shrink-0 flex-col items-center gap-1.5 text-center text-xs transition-colors ${
-                  active ? "font-semibold text-cyan-300" : "text-slate-400 hover:text-slate-200"
+                  active
+                    ? "font-semibold text-cyan-300"
+                    : circle.hasNewPosts
+                      ? "text-slate-200 hover:text-cyan-300"
+                      : "text-slate-400 hover:text-slate-200"
                 }`}
               >
                 <span
-                  className={`flex h-[60px] w-[60px] items-center justify-center rounded-full border-2 p-[3px] transition-colors ${
-                    active
-                      ? "border-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.28)]"
-                      : "border-cyan-500/50"
-                  }`}
+                  className={`flex h-[60px] w-[60px] items-center justify-center rounded-full border-2 p-[3px] transition-colors ${ringClasses}`}
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-full bg-cyan-500/15 font-mono text-sm font-bold text-cyan-300">
+                  <span
+                    className={`flex h-full w-full items-center justify-center rounded-full font-mono text-sm font-bold transition-colors ${innerClasses}`}
+                  >
                     {circle.code}
                   </span>
                 </span>
@@ -299,21 +429,29 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
 
         {/* Active Community Filter Pill */}
         {selectedCategorySlug !== "all" && (
-          <div className="mb-3 flex items-center justify-between rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
             <span>
-              {isPt ? "Filtrando por comunidade:" : "Filtering by community:"}{" "}
-              <strong className="font-semibold">
+              {isPt ? "Comunidade:" : "Community:"}{" "}
+              <strong className="font-semibold text-cyan-100">
                 {communityCircles.find((c) => c.slug === selectedCategorySlug)
                   ?.label ?? selectedCategorySlug}
               </strong>
             </span>
-            <button
-              type="button"
-              onClick={() => setSelectedCategorySlug("all")}
-              className="min-h-[32px] rounded-lg px-2 font-semibold text-cyan-300 hover:bg-cyan-500/15"
-            >
-              {isPt ? "Limpar" : "Clear"}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <Link
+                href={`/catalog?category=${encodeURIComponent(selectedCategorySlug)}`}
+                className="inline-flex min-h-[32px] items-center rounded-lg border border-cyan-400/40 bg-cyan-500/15 px-2.5 font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/25 hover:text-cyan-100"
+              >
+                {isPt ? "Ver no catálogo" : "View in catalog"}
+              </Link>
+              <button
+                type="button"
+                onClick={() => setSelectedCategorySlug("all")}
+                className="min-h-[32px] rounded-lg px-2 font-semibold text-slate-300 transition-colors hover:bg-slate-800/70 hover:text-slate-100"
+              >
+                {isPt ? "Limpar" : "Clear"}
+              </button>
+            </div>
           </div>
         )}
 
