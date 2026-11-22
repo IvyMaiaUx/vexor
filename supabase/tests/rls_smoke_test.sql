@@ -240,10 +240,10 @@ select pg_temp.expect('author creates topic for soft-delete test',
 select pg_temp.expect('author edits own topic and sets edited_at',
   $q$update public.topics set title = 'Soft delete test topic (edited)'
      where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, true);
-do $ begin
+do $$ begin
   assert (select edited_at is not null from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'),
     'edited_at must be populated when author edits topic';
-end $;
+end $$;
 
 -- Other regular member tries to edit or soft-delete author topic (both direct UPDATE and RPC)
 select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
@@ -261,18 +261,18 @@ select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-00000000
 select pg_temp.expect('author soft-deletes own topic via RPC',
   $q$select public.soft_delete_topic((select id from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, true);
 select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
-do $ begin
+do $$ begin
   assert (select count(*) from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1') = 0,
     'soft-deleted topic must be hidden from other members';
-end $;
+end $$;
 select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
 select pg_temp.expect('author restores own soft-deleted topic within window',
   $q$select public.restore_topic((select id from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, true);
 select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
-do $ begin
+do $$ begin
   assert (select count(*) from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1') = 1,
     'restored topic must be visible again';
-end $;
+end $$;
 
 -- Comments: parent comment with active reply stays selectable as placeholder; leaf comment disappears
 select pg_temp.reset();
@@ -286,10 +286,10 @@ select pg_temp.expect('author creates parent comment',
 select pg_temp.expect('author edits own comment and sets edited_at',
   $q$update public.posts set body = 'Parent comment body (edited)'
      where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, true);
-do $ begin
+do $$ begin
   assert (select edited_at is not null from public.posts where author_id = '00000000-0000-0000-0000-0000000000d1'),
     'edited_at must be populated when author edits comment';
-end $;
+end $$;
 
 select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
 select pg_temp.expect('other member replies to parent comment',
@@ -303,10 +303,10 @@ select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-00000000
 select pg_temp.expect('author soft-deletes parent comment with child reply',
   $q$select public.soft_delete_post((select id from public.posts where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, true);
 select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
-do $ begin
+do $$ begin
   assert (select count(*) from public.posts where author_id = '00000000-0000-0000-0000-0000000000d1' and deleted_at is not null) = 1,
     'deleted parent comment with active reply remains selectable for placeholder rendering';
-end $;
+end $$;
 -- Child author soft-deletes leaf reply -> both leaf and parent now disappear from other member view
 select pg_temp.expect('child author soft-deletes leaf reply',
   $q$select public.soft_delete_post((select id from public.posts where author_id = '00000000-0000-0000-0000-0000000000d2'))$q$, true);
