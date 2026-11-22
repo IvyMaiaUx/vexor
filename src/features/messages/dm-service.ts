@@ -423,7 +423,9 @@ export async function fetchDmConversationDetail(
         .eq("id", otherId)
         .maybeSingle(),
       msgQuery,
-      isUserBlockedByMe(otherId, { client: supabase }),
+      otherId === user.id
+        ? Promise.resolve(false)
+        : isUserBlockedByMe(otherId, { client: supabase }),
     ]);
 
     if (msgsRes.error) {
@@ -748,10 +750,9 @@ export async function searchMembersForDm(
     let query = supabase
       .from("profiles")
       .select("id, username, display_name, avatar_url, is_suspended")
-      .neq("id", user.id)
       .eq("is_suspended", false)
       .order("username", { ascending: true })
-      .limit(8);
+      .limit(10);
 
     if (sanitized) {
       query = query.ilike("username", `%${sanitized}%`);
@@ -759,7 +760,7 @@ export async function searchMembersForDm(
 
     const { data, error } = await query;
     if (error || !Array.isArray(data)) return [];
-    return (data as Array<{
+    const mapped = (data as Array<{
       id: string;
       username: string;
       display_name: string | null;
@@ -772,6 +773,8 @@ export async function searchMembersForDm(
       avatarUrl: p.avatar_url,
       isSuspended: p.is_suspended,
     }));
+    mapped.sort((a, b) => (a.id === user.id ? -1 : b.id === user.id ? 1 : 0));
+    return mapped;
   } catch {
     return [];
   }

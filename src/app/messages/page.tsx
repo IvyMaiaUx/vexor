@@ -220,13 +220,18 @@ export default function MessagesInboxPage() {
                       key={member.id}
                       className="flex items-center justify-between px-4 py-2.5 text-xs"
                     >
-                      <div>
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="font-semibold text-slate-100">
                           {member.displayName || `@${member.username}`}
                         </span>
-                        <span className="ml-2 font-mono text-slate-500">
+                        <span className="font-mono text-slate-500">
                           @{member.username}
                         </span>
+                        {member.id === user?.id && (
+                          <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-cyan-300">
+                            {isPt ? "Você" : "You"}
+                          </span>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -366,6 +371,11 @@ export default function MessagesInboxPage() {
                             <span className="font-mono text-xs text-slate-500">
                               @{conv.otherParticipant.username}
                             </span>
+                            {conv.otherParticipant.id === user?.id && (
+                              <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-cyan-300">
+                                {isPt ? "Você" : "You"}
+                              </span>
+                            )}
                             {conv.hasUnread && (
                               <span className="rounded-full bg-cyan-500 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-950">
                                 {isPt ? "Nova" : "Unread"}

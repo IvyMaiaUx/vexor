@@ -331,6 +331,9 @@ export default function ConversationDetailPage() {
     conversation?.mutedUntil &&
       new Date(conversation.mutedUntil).getTime() > renderTimestamp
   );
+  const isSelfChat = Boolean(
+    conversation && user?.id && conversation.otherParticipant.id === user.id
+  );
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -389,15 +392,27 @@ export default function ConversationDetailPage() {
                         .toUpperCase()}
                     </Link>
                     <div>
-                      <Link
-                        href={`/profile/${conversation.otherParticipant.username}`}
-                        className="text-sm font-semibold text-slate-100 hover:text-cyan-300"
-                      >
-                        {conversation.otherParticipant.displayName ||
-                          `@${conversation.otherParticipant.username}`}
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/profile/${conversation.otherParticipant.username}`}
+                          className="text-sm font-semibold text-slate-100 hover:text-cyan-300"
+                        >
+                          {conversation.otherParticipant.displayName ||
+                            `@${conversation.otherParticipant.username}`}
+                        </Link>
+                        {isSelfChat && (
+                          <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-cyan-300">
+                            {isPt ? "Você" : "You"}
+                          </span>
+                        )}
+                      </div>
                       <p className="font-mono text-[11px] text-slate-500">
                         @{conversation.otherParticipant.username}
+                        {isSelfChat
+                          ? isPt
+                            ? " · Mensagens para você mesmo"
+                            : " · Notes to yourself"
+                          : ""}
                       </p>
                     </div>
                   </div>
@@ -436,23 +451,25 @@ export default function ConversationDetailPage() {
                           ? "Silenciar"
                           : "Mute"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleToggleBlock()}
-                      className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] ${
-                        isBlockedByMe
-                          ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
-                          : "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
-                      }`}
-                    >
-                      {isBlockedByMe
-                        ? isPt
-                          ? "Desbloquear"
-                          : "Unblock"
-                        : isPt
-                          ? "Bloquear"
-                          : "Block"}
-                    </button>
+                    {!isSelfChat && (
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleBlock()}
+                        className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] ${
+                          isBlockedByMe
+                            ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                            : "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+                        }`}
+                      >
+                        {isBlockedByMe
+                          ? isPt
+                            ? "Desbloquear"
+                            : "Unblock"
+                          : isPt
+                            ? "Bloquear"
+                            : "Block"}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
