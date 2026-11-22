@@ -14,6 +14,7 @@ import type {
   TimelinePostItem,
   TimelineQueryParams,
   TimelineQueryResult,
+  TimelineUpdatePayload,
   TopicKind,
 } from "./types";
 import { validateTimelinePost } from "./validation";
@@ -22,7 +23,7 @@ import { validateTimelinePost } from "./validation";
 export type TimelineSupabaseClientLike = any;
 
 export const TIMELINE_TOPIC_SELECT_COLUMNS =
-  "id, author_id, category_id, title, body, status, is_pinned, is_locked, accepted_post_id, last_activity_at, created_at, kind, shared_url, resource_id, vote_count";
+  "id, author_id, category_id, title, body, status, is_pinned, is_locked, accepted_post_id, last_activity_at, created_at, edited_at, kind, shared_url, resource_id, vote_count";
 
 interface RawTopicRow {
   id: string;
@@ -36,6 +37,7 @@ interface RawTopicRow {
   accepted_post_id: string | null;
   last_activity_at: string;
   created_at: string;
+  edited_at?: string | null;
   kind: TopicKind;
   shared_url: string | null;
   resource_id: string | null;
@@ -102,7 +104,8 @@ export async function fetchTimelineFeed(
     let query = supabase
       .from("topics")
       .select(TIMELINE_TOPIC_SELECT_COLUMNS)
-      .eq("status", "published");
+      .eq("status", "published")
+      .is("deleted_at", null);
 
     if (params.kind && params.kind !== "all") {
       query = query.eq("kind", params.kind);
@@ -187,6 +190,7 @@ export async function fetchTimelineFeed(
         .from("posts")
         .select("topic_id")
         .eq("status", "published")
+        .is("deleted_at", null)
         .in("topic_id", topicIds),
       supabase
         .from("topic_tags")
@@ -311,6 +315,7 @@ export async function fetchTimelineFeed(
         acceptedPostId: row.accepted_post_id ?? null,
         lastActivityAt: row.last_activity_at,
         createdAt: row.created_at,
+        editedAt: row.edited_at ?? null,
       };
     });
 
@@ -592,5 +597,211 @@ export async function searchCatalogResourcesForComposer(
     return data as TimelineLinkedResource[];
   } catch {
     return [];
+  }
+}
+
+/**
+ * Updates a timeline topic authored by the current user.
+ * Enforced at the database level by RLS + BEFORE UPDATE trigger (sets edited_at).
+ */
+export async function updateTimelinePost(
+  topicId: string,
+  payload: TimelineUpdatePayload,
+  locale: SupportedLocale,
+  options?: {
+    categories?: ForumCategoryItem[];
+    client?: TimelineSupabaseClientLike;
+  }
+): Promise<
+  TimelineMutationResult<{
+    id: string;
+    categoryId: string;
+    categorySlug: string;
+    categoryNamePt: string;
+    categoryNameEn: string;
+    title: string;
+    body: string;
+    sharedUrl: string | null;
+    editedAt: string;
+  }>
+> {
+  const isPt = locale === "pt-BR";
+  const cleanTitle = payload.title.trim();
+  const cleanBody = payload.body.trim();
+  const cleanUrl = payload.sharedUrl?.trim() || null;
+
+  if (cleanTitle.length < 5 || cleanTitle.length > 200) {
+    return {
+      status: "error",
+      errorCode: "validation_error",
+      message: isPt
+        ? "O título deve ter entre 5 e 200 caracteres."
+        : "Title must be between 5 and 200 characters.",
+    };
+  }
+  if (cleanBody.length < 10 || cleanBody.length > 20000) {
+    return {
+      status: "error",
+      errorCode: "validation_error",
+      message: isPt
+        ? "O conteúdo deve ter entre 10 e 20.000 caracteres."
+        : "Content must be between 10 and 20,000 characters.",
+    };
+  }
+
+  try {
+    const supabase = getClient(options?.client);
+    const { data, error } = await supabase
+      .from("topics")
+      .update({
+        category_id: payload.categoryId,
+        title: cleanTitle,
+        body: cleanBody,
+        shared_url: cleanUrl,
+      })
+      .eq("id", topicId)
+      .is("deleted_at", null)
+      .select("id, category_id, title, body, shared_url, edited_at")
+      .maybeSingle();
+
+    if (error || !data) {
+      return {
+        status: "error",
+        errorCode: isRlsOrPermissionError(error) ? "rls_denied" : "mutation_failed",
+        message: isRlsOrPermissionError(error)
+          ? isPt
+            ? "Você não tem permissão para editar esta publicação."
+            : "You do not have permission to edit this post."
+          : error?.message ||
+            (isPt
+              ? "Não foi possível salvar a edição."
+              : "Could not save changes."),
+      };
+    }
+
+    const row = data as {
+      id: string;
+      category_id: string;
+      title: string;
+      body: string;
+      shared_url: string | null;
+      edited_at: string | null;
+    };
+    const cat = options?.categories?.find((c) => c.id === row.category_id);
+
+    return {
+      status: "success",
+      data: {
+        id: row.id,
+        categoryId: row.category_id,
+        categorySlug: cat?.slug ?? "blue-team",
+        categoryNamePt: cat?.name_pt ?? "Comunidade",
+        categoryNameEn: cat?.name_en ?? "Community",
+        title: row.title,
+        body: row.body,
+        sharedUrl: row.shared_url ?? null,
+        editedAt: row.edited_at ?? new Date().toISOString(),
+      },
+    };
+  } catch (err) {
+    return {
+      status: "error",
+      errorCode: "connection_error",
+      message:
+        err instanceof Error
+          ? err.message
+          : isPt
+            ? "Erro de conexão ao salvar edição."
+            : "Connection error while saving edit.",
+    };
+  }
+}
+
+/**
+ * Soft-deletes a topic via RPC `soft_delete_topic` (author or admin/mod).
+ */
+export async function softDeleteTimelineTopic(
+  topicId: string,
+  locale: SupportedLocale,
+  options?: { client?: TimelineSupabaseClientLike }
+): Promise<TimelineMutationResult<{ deletedAt: string }>> {
+  const isPt = locale === "pt-BR";
+  try {
+    const supabase = getClient(options?.client);
+    const { data, error } = await supabase.rpc("soft_delete_topic", {
+      p_topic_id: topicId,
+    });
+    if (error) {
+      return {
+        status: "error",
+        errorCode: isRlsOrPermissionError(error) ? "rls_denied" : "mutation_failed",
+        message: isRlsOrPermissionError(error)
+          ? isPt
+            ? "Você não tem permissão para excluir esta publicação."
+            : "You do not have permission to delete this post."
+          : error.message ||
+            (isPt
+              ? "Não foi possível excluir a publicação."
+              : "Could not delete post."),
+      };
+    }
+    return {
+      status: "success",
+      data: { deletedAt: String(data ?? new Date().toISOString()) },
+    };
+  } catch (err) {
+    return {
+      status: "error",
+      errorCode: "connection_error",
+      message:
+        err instanceof Error
+          ? err.message
+          : isPt
+            ? "Erro de conexão ao excluir publicação."
+            : "Connection error while deleting post.",
+    };
+  }
+}
+
+/**
+ * Restores a recently soft-deleted topic via RPC `restore_topic` (Undo within 60s).
+ */
+export async function restoreTimelineTopic(
+  topicId: string,
+  locale: SupportedLocale,
+  options?: { client?: TimelineSupabaseClientLike }
+): Promise<TimelineMutationResult<{ restored: true }>> {
+  const isPt = locale === "pt-BR";
+  try {
+    const supabase = getClient(options?.client);
+    const { error } = await supabase.rpc("restore_topic", {
+      p_topic_id: topicId,
+    });
+    if (error) {
+      return {
+        status: "error",
+        errorCode: isRlsOrPermissionError(error) ? "rls_denied" : "mutation_failed",
+        message: isRlsOrPermissionError(error)
+          ? isPt
+            ? "O prazo para desfazer expirou ou você não tem permissão."
+            : "Undo window expired or permission denied."
+          : error.message ||
+            (isPt
+              ? "Não foi possível restaurar a publicação."
+              : "Could not restore post."),
+      };
+    }
+    return { status: "success", data: { restored: true } };
+  } catch (err) {
+    return {
+      status: "error",
+      errorCode: "connection_error",
+      message:
+        err instanceof Error
+          ? err.message
+          : isPt
+            ? "Erro de conexão ao restaurar publicação."
+            : "Connection error while restoring post.",
+    };
   }
 }

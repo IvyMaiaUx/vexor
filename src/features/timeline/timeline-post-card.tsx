@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type MouseEvent, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import type { SupportedLocale } from "@/config/site";
 import {
   getPricingModelLabel,
@@ -18,7 +18,13 @@ interface TimelinePostCardProps {
   post: TimelinePostItem;
   locale: SupportedLocale;
   currentUserId: string | null;
+  canModerate?: boolean;
   onVoteUpdated: (topicId: string, voted: boolean, delta: number) => void;
+  onEdit?: (post: TimelinePostItem) => void;
+  onRequestDelete?: (
+    post: TimelinePostItem,
+    triggerEl: HTMLElement | null
+  ) => void;
 }
 
 function formatRelativeTime(iso: string, isPt: boolean): string {
@@ -84,7 +90,10 @@ export function TimelinePostCard({
   post,
   locale,
   currentUserId,
+  canModerate = false,
   onVoteUpdated,
+  onEdit,
+  onRequestDelete,
 }: TimelinePostCardProps) {
   const router = useRouter();
   const isPt = locale === "pt-BR";
@@ -99,6 +108,22 @@ export function TimelinePostCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const inFlightVote = useRef(false);
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const isAuthor = Boolean(currentUserId && currentUserId === post.authorId);
+  const canEdit = isAuthor && !post.isLocked;
+  const canDelete = (isAuthor && !post.isLocked) || canModerate;
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        menuTriggerRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   const stop = (e: MouseEvent) => {
     e.stopPropagation();
@@ -196,6 +221,14 @@ export function TimelinePostCard({
           </div>
           <p className="text-xs text-slate-400">
             <span>{formatRelativeTime(post.createdAt, isPt)}</span>
+            {post.editedAt && (
+              <>
+                <span className="mx-1">·</span>
+                <span className="text-slate-500">
+                  {isPt ? "editado" : "edited"}
+                </span>
+              </>
+            )}
             <span className="mx-1">·</span>
             <span className="text-cyan-400">{categoryName}</span>
           </p>
@@ -203,10 +236,12 @@ export function TimelinePostCard({
 
         <div className="relative" onClick={stop}>
           <button
+            ref={menuTriggerRef}
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
-            aria-label={isPt ? "Mais opções" : "More options"}
+            aria-label={isPt ? "Mais opções da publicação" : "Post options"}
             aria-expanded={menuOpen}
+            aria-haspopup="menu"
             className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-200"
           >
             <span aria-hidden="true" className="text-lg font-bold leading-none">
@@ -215,18 +250,48 @@ export function TimelinePostCard({
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-11 z-20 min-w-[168px] rounded-xl border border-slate-800 bg-[#070b14] p-1.5 shadow-xl">
+            <div
+              role="menu"
+              className="absolute right-0 top-11 z-20 min-w-[176px] rounded-xl border border-slate-800 bg-[#070b14] p-1.5 shadow-xl"
+            >
+              {canEdit && onEdit && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit(post);
+                  }}
+                  className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-800/70"
+                >
+                  {isPt ? "Editar" : "Edit"}
+                </button>
+              )}
+              {canDelete && onRequestDelete && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onRequestDelete(post, menuTriggerRef.current);
+                  }}
+                  className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-semibold text-rose-300 hover:bg-rose-500/15"
+                >
+                  {isPt ? "Excluir" : "Delete"}
+                </button>
+              )}
               <button
                 type="button"
+                role="menuitem"
                 onClick={(e) => {
                   setMenuOpen(false);
                   void handleShare(e);
                 }}
-                className="flex min-h-[40px] w-full items-center rounded-lg px-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-800/70"
+                className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-800/70"
               >
                 {isPt ? "Copiar link" : "Copy link"}
               </button>
-              {currentUserId !== post.authorId && (
+              {!isAuthor && !canModerate && (
                 <div className="px-1 py-0.5">
                   <ReportButton
                     targetType="topic"

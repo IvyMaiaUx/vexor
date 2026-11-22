@@ -12,6 +12,8 @@ import {
 } from "react";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
+import { ConfirmDeleteSheet } from "@/components/ui/confirm-delete-sheet";
+import { UndoToast } from "@/components/ui/undo-toast";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import { describeForumMutationError } from "@/features/forum/barrier-messages";
@@ -20,7 +22,11 @@ import {
   fetchForumTopicDetail,
   type ForumPostItem,
   type ForumTopicItem,
+  restoreForumPost,
+  restoreForumTopic,
   setAcceptedForumPost,
+  softDeleteForumPost,
+  softDeleteForumTopic,
   togglePostVote,
   updateForumPost,
   updateForumTopic,
@@ -75,6 +81,25 @@ export default function TopicDetailPage() {
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editPostBody, setEditPostBody] = useState("");
   const [editPostSaving, setEditPostSaving] = useState(false);
+
+  // Overflow menus ("⋯") + soft delete & 8s undo state
+  const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
+  const deleteTriggerRef = useRef<HTMLElement | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<
+    | { kind: "topic"; topic: ForumTopicItem }
+    | { kind: "post"; post: ForumPostItem }
+    | null
+  >(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [topicDeleted, setTopicDeleted] = useState(false);
+  const [undoState, setUndoState] = useState<
+    | { kind: "topic"; topic: ForumTopicItem }
+    | { kind: "post"; post: ForumPostItem; index: number; wasPlaceholder: boolean }
+    | null
+  >(null);
+  const [undoing, setUndoing] = useState(false);
+  const [undoError, setUndoError] = useState<string | null>(null);
 
   const inFlightReplyRef = useRef(false);
   const inFlightVotesRef = useRef<Set<string>>(new Set());
@@ -298,6 +323,120 @@ export default function TopicDetailPage() {
     }
   };
 
+  useEffect(() => {
+    if (!openMenuKey) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpenMenuKey(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [openMenuKey]);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || deleteLoading) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+
+    if (deleteTarget.kind === "topic") {
+      const res = await softDeleteForumTopic(deleteTarget.topic.id);
+      setDeleteLoading(false);
+      if (res.status === "error") {
+        setDeleteError(res.message);
+        return;
+      }
+      const deletedTopic = deleteTarget.topic;
+      setDeleteTarget(null);
+      setTopicDeleted(true);
+      setUndoError(null);
+      setUndoState({ kind: "topic", topic: deletedTopic });
+      return;
+    }
+
+    const targetPost = deleteTarget.post;
+    const res = await softDeleteForumPost(targetPost.id);
+    setDeleteLoading(false);
+    if (res.status === "error") {
+      setDeleteError(res.message);
+      return;
+    }
+
+    const idx = posts.findIndex((p) => p.id === targetPost.id);
+    if (res.hasReplies) {
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === targetPost.id
+            ? {
+                ...p,
+                authorId: null,
+                authorUsername: "",
+                authorDisplayName: undefined,
+                authorAvatarUrl: null,
+                body: "",
+                editedAt: null,
+                deletedAt: res.deletedAt,
+                isDeletedPlaceholder: true,
+              }
+            : p
+        )
+      );
+    } else {
+      setPosts((prev) => prev.filter((p) => p.id !== targetPost.id));
+    }
+    setTopic((prev) =>
+      prev ? { ...prev, replyCount: Math.max(0, prev.replyCount - 1) } : prev
+    );
+    setDeleteTarget(null);
+    setUndoError(null);
+    setUndoState({
+      kind: "post",
+      post: targetPost,
+      index: idx >= 0 ? idx : posts.length,
+      wasPlaceholder: res.hasReplies,
+    });
+  };
+
+  const handleUndoDelete = async () => {
+    if (!undoState || undoing) return;
+    setUndoing(true);
+    setUndoError(null);
+
+    if (undoState.kind === "topic") {
+      const res = await restoreForumTopic(undoState.topic.id);
+      setUndoing(false);
+      if (res.status === "error") {
+        setUndoError(res.message);
+        return;
+      }
+      setTopicDeleted(false);
+      setUndoState(null);
+      return;
+    }
+
+    const { post, index, wasPlaceholder } = undoState;
+    const res = await restoreForumPost(post.id);
+    setUndoing(false);
+    if (res.status === "error") {
+      setUndoError(res.message);
+      return;
+    }
+
+    setPosts((prev) => {
+      if (wasPlaceholder) {
+        return prev.map((p) => (p.id === post.id ? post : p));
+      }
+      if (prev.some((p) => p.id === post.id)) return prev;
+      const next = [...prev];
+      next.splice(Math.min(index, next.length), 0, post);
+      return next;
+    });
+    setTopic((prev) =>
+      prev ? { ...prev, replyCount: prev.replyCount + 1 } : prev
+    );
+    setUndoState(null);
+  };
+
   const handleReplySubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!topic || !isActiveMember || !user || inFlightReplyRef.current) {
@@ -510,22 +649,75 @@ export default function TopicDetailPage() {
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {canEditTopic && !editingTopic && (
-                  <button
-                    type="button"
-                    onClick={handleStartEditTopic}
-                    className="rounded-lg border border-slate-700 bg-[#070b14] px-3 py-1.5 font-mono text-xs text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
-                  >
-                    {locale === "pt-BR" ? "Editar tópico" : "Edit topic"}
-                  </button>
-                )}
-                {user?.id !== topic.authorId && (
-                  <ReportButton
-                    targetType="topic"
-                    targetId={topic.id}
-                    locale={locale}
-                  />
+              <div className="relative flex items-center gap-2">
+                {!editingTopic && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label={
+                        locale === "pt-BR"
+                          ? "Mais opções da publicação"
+                          : "Post options"
+                      }
+                      aria-expanded={openMenuKey === "topic"}
+                      aria-haspopup="menu"
+                      onClick={(e) => {
+                        deleteTriggerRef.current = e.currentTarget;
+                        setOpenMenuKey((prev) =>
+                          prev === "topic" ? null : "topic"
+                        );
+                      }}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-800/70 hover:text-slate-200"
+                    >
+                      <span aria-hidden="true" className="text-lg font-bold leading-none">
+                        ⋯
+                      </span>
+                    </button>
+
+                    {openMenuKey === "topic" && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 top-12 z-20 min-w-[176px] rounded-xl border border-slate-800 bg-[#070b14] p-1.5 shadow-xl"
+                      >
+                        {canEditTopic && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setOpenMenuKey(null);
+                              handleStartEditTopic();
+                            }}
+                            className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-800/70"
+                          >
+                            {locale === "pt-BR" ? "Editar" : "Edit"}
+                          </button>
+                        )}
+                        {(canEditTopic || isModerator) && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setOpenMenuKey(null);
+                              setDeleteError(null);
+                              setDeleteTarget({ kind: "topic", topic });
+                            }}
+                            className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-semibold text-rose-300 hover:bg-rose-500/15"
+                          >
+                            {locale === "pt-BR" ? "Excluir" : "Delete"}
+                          </button>
+                        )}
+                        {user?.id !== topic.authorId && !isModerator && (
+                          <div className="px-1 py-0.5">
+                            <ReportButton
+                              targetType="topic"
+                              targetId={topic.id}
+                              locale={locale}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -618,6 +810,14 @@ export default function TopicDetailPage() {
                       { year: "numeric", month: "short", day: "numeric" }
                     )}
                   </span>
+                  {topic.editedAt && (
+                    <>
+                      <span>•</span>
+                      <span className="font-mono text-[11px] text-slate-500">
+                        {locale === "pt-BR" ? "editado" : "edited"}
+                      </span>
+                    </>
+                  )}
                   {user && user.id !== topic.authorId && (
                     <button
                       type="button"
@@ -674,7 +874,9 @@ export default function TopicDetailPage() {
           <section id="comments" className="mt-8">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
               <h2 className="text-xl font-bold text-slate-100">
-                {dict.topicDetailPage.repliesTitle(sortedPosts.length)}
+                {dict.topicDetailPage.repliesTitle(
+                  sortedPosts.filter((p) => !p.isDeletedPlaceholder).length
+                )}
               </h2>
 
               {sortedPosts.length > 1 && (
@@ -715,11 +917,29 @@ export default function TopicDetailPage() {
                   const isOwnPost = Boolean(user && user.id === post.authorId);
                   const canEditPost =
                     isOwnPost && !user?.isSuspended && !topic.isLocked;
+                  const canDeletePost = canEditPost || isModerator;
                   const isEditingThisPost = editingPostId === post.id;
-                  // TODO(backend): suportar parent_post_id no banco para respostas aninhadas nativas
-                  const isNestedReply = /^@[a-z0-9_]{2,30}\b/i.test(
-                    post.body.trim()
-                  );
+                  const isNestedReply =
+                    Boolean(post.parentPostId) ||
+                    /^@[a-z0-9_]{2,30}\b/i.test(post.body.trim());
+
+                  if (post.isDeletedPlaceholder) {
+                    return (
+                      <article
+                        key={post.id}
+                        id={`post-${post.id}`}
+                        className={`rounded-2xl border border-slate-800/70 bg-[#0d1322]/50 px-4 py-3 text-sm italic text-slate-500 sm:px-6 ${
+                          isNestedReply ? "ml-6 sm:ml-10" : ""
+                        }`}
+                      >
+                        {locale === "pt-BR"
+                          ? "[comentário removido]"
+                          : "[comment removed]"}
+                      </article>
+                    );
+                  }
+
+                  const postMenuKey = `post-${post.id}`;
 
                   return (
                     <article
@@ -734,7 +954,7 @@ export default function TopicDetailPage() {
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Link
                             href={`/profile/${post.authorUsername}`}
                             className="font-mono text-xs font-semibold text-emerald-400 transition-colors hover:underline"
@@ -753,27 +973,96 @@ export default function TopicDetailPage() {
                               }
                             )}
                           </span>
+                          {post.editedAt && (
+                            <>
+                              <span className="text-xs text-slate-500">•</span>
+                              <span className="font-mono text-[11px] text-slate-500">
+                                {locale === "pt-BR" ? "editado" : "edited"}
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         {/* Badges / Management actions */}
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="relative flex flex-wrap items-center gap-2">
                           {isAccepted && (
                             <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 font-mono text-xs font-semibold text-emerald-300">
                               ✓ {dict.topicDetailPage.acceptedSolutionBadge}
                             </span>
                           )}
 
-                          {canEditPost && !isEditingThisPost && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingPostId(post.id);
-                                setEditPostBody(post.body);
-                              }}
-                              className="rounded-lg border border-slate-700 bg-[#070b14] px-2.5 py-1 font-mono text-[11px] text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300"
-                            >
-                              {locale === "pt-BR" ? "Editar" : "Edit"}
-                            </button>
+                          {!isEditingThisPost && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                aria-label={
+                                  locale === "pt-BR"
+                                    ? "Mais opções do comentário"
+                                    : "Comment options"
+                                }
+                                aria-expanded={openMenuKey === postMenuKey}
+                                aria-haspopup="menu"
+                                onClick={(e) => {
+                                  deleteTriggerRef.current = e.currentTarget;
+                                  setOpenMenuKey((prev) =>
+                                    prev === postMenuKey ? null : postMenuKey
+                                  );
+                                }}
+                                className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-800/70 hover:text-slate-200"
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className="text-lg font-bold leading-none"
+                                >
+                                  ⋯
+                                </span>
+                              </button>
+
+                              {openMenuKey === postMenuKey && (
+                                <div
+                                  role="menu"
+                                  className="absolute right-0 top-12 z-20 min-w-[168px] rounded-xl border border-slate-800 bg-[#070b14] p-1.5 shadow-xl"
+                                >
+                                  {canEditPost && (
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={() => {
+                                        setOpenMenuKey(null);
+                                        setEditingPostId(post.id);
+                                        setEditPostBody(post.body);
+                                      }}
+                                      className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-800/70"
+                                    >
+                                      {locale === "pt-BR" ? "Editar" : "Edit"}
+                                    </button>
+                                  )}
+                                  {canDeletePost && (
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={() => {
+                                        setOpenMenuKey(null);
+                                        setDeleteError(null);
+                                        setDeleteTarget({ kind: "post", post });
+                                      }}
+                                      className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-semibold text-rose-300 hover:bg-rose-500/15"
+                                    >
+                                      {locale === "pt-BR" ? "Excluir" : "Delete"}
+                                    </button>
+                                  )}
+                                  {!isOwnPost && !isModerator && (
+                                    <div className="px-1 py-0.5">
+                                      <ReportButton
+                                        targetType="post"
+                                        targetId={post.id}
+                                        locale={locale}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
 
                           {canManageAcceptedAnswer && (
@@ -1065,6 +1354,87 @@ export default function TopicDetailPage() {
           </button>
         </form>
       )}
+
+      {topicDeleted && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#070b14]/95 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#0d1322] p-6 text-center">
+            <h2 className="text-lg font-semibold text-slate-100">
+              {locale === "pt-BR"
+                ? "Publicação excluída"
+                : "Post deleted"}
+            </h2>
+            <p className="mt-1.5 text-sm text-slate-400">
+              {locale === "pt-BR"
+                ? "Você pode tocar em Desfazer abaixo nos próximos segundos ou voltar para a comunidade."
+                : "You can tap Undo below within the next few seconds or return to the community."}
+            </p>
+            <div className="mt-5 flex justify-center">
+              <Link
+                href="/forum"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-cyan-500 px-5 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+              >
+                {locale === "pt-BR" ? "Voltar ao Fórum" : "Back to Forum"}
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDeleteSheet
+        open={Boolean(deleteTarget)}
+        title={
+          deleteTarget?.kind === "topic"
+            ? locale === "pt-BR"
+              ? "Excluir esta publicação?"
+              : "Delete this post?"
+            : locale === "pt-BR"
+              ? "Excluir este comentário?"
+              : "Delete this comment?"
+        }
+        description={
+          deleteTarget?.kind === "topic"
+            ? locale === "pt-BR"
+              ? "Os comentários dela também deixam de aparecer."
+              : "Its comments will also stop appearing."
+            : undefined
+        }
+        confirmLabel={locale === "pt-BR" ? "Excluir" : "Delete"}
+        cancelLabel={locale === "pt-BR" ? "Cancelar" : "Cancel"}
+        loadingLabel={locale === "pt-BR" ? "Excluindo..." : "Deleting..."}
+        retryLabel={locale === "pt-BR" ? "Tentar novamente" : "Try again"}
+        loading={deleteLoading}
+        errorMessage={deleteError}
+        returnFocusTo={deleteTriggerRef}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
+      />
+
+      <UndoToast
+        open={Boolean(undoState)}
+        message={
+          undoState?.kind === "topic"
+            ? locale === "pt-BR"
+              ? "Publicação excluída."
+              : "Post deleted."
+            : locale === "pt-BR"
+              ? "Comentário excluído."
+              : "Comment deleted."
+        }
+        undoLabel={locale === "pt-BR" ? "Desfazer" : "Undo"}
+        dismissLabel={locale === "pt-BR" ? "Fechar aviso" : "Dismiss"}
+        retryLabel={locale === "pt-BR" ? "Tentar novamente" : "Try again"}
+        undoing={undoing}
+        errorMessage={undoError}
+        durationMs={8000}
+        onUndo={handleUndoDelete}
+        onDismiss={() => {
+          setUndoState(null);
+          setUndoError(null);
+        }}
+      />
 
       <Footer locale={locale} dict={dict} />
     </div>

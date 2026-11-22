@@ -271,7 +271,7 @@ export function AdminAuditDetailModal({
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 text-xs text-slate-400">
-              <strong className="text-slate-200">Append-Only: </strong>
+              <strong className="text-slate-200">Registro protegido: </strong>
               {t.immutableNotice}
             </div>
           </div>

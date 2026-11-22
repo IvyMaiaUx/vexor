@@ -49,6 +49,7 @@ export interface TimelinePostItem {
   acceptedPostId: string | null;
   lastActivityAt: string;
   createdAt: string;
+  editedAt?: string | null;
 }
 
 export interface TimelineQueryParams {
@@ -76,6 +77,13 @@ export interface TimelineCreatePayload {
   tagsInput?: string;
   sharedUrl?: string;
   resourceId?: string | null;
+}
+
+export interface TimelineUpdatePayload {
+  categoryId: string;
+  title: string;
+  body: string;
+  sharedUrl?: string;
 }
 
 export type TimelineMutationResult<T = TimelinePostItem> =

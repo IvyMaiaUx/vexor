@@ -23,10 +23,10 @@ export const FORUM_CATEGORY_SELECT_COLUMNS =
   "id, slug, name_en, name_pt, description_en, description_pt, scope, sort_order, is_active";
 
 export const FORUM_TOPIC_SELECT_COLUMNS =
-  "id, author_id, category_id, title, body, status, is_pinned, is_locked, accepted_post_id, last_activity_at, created_at, updated_at";
+  "id, author_id, category_id, title, body, status, is_pinned, is_locked, accepted_post_id, last_activity_at, created_at, updated_at, edited_at, deleted_at";
 
 export const FORUM_POST_SELECT_COLUMNS =
-  "id, topic_id, author_id, body, status, vote_count, created_at, updated_at";
+  "id, topic_id, author_id, body, status, vote_count, created_at, updated_at, edited_at, deleted_at, parent_post_id";
 
 export const FORUM_TAG_SELECT_COLUMNS = "id, slug, name";
 
@@ -91,6 +91,8 @@ export interface ForumTopicItem {
   createdAt: string;
   updatedAt: string;
   lastActivityAt: string;
+  editedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface ForumPostItem {
@@ -107,6 +109,10 @@ export interface ForumPostItem {
   status: "published" | "hidden" | "deleted";
   createdAt: string;
   updatedAt: string;
+  editedAt?: string | null;
+  deletedAt?: string | null;
+  parentPostId?: string | null;
+  isDeletedPlaceholder?: boolean;
 }
 
 export type ForumTabFilter = "all" | "unanswered" | "solved";
@@ -392,6 +398,7 @@ async function fetchReplyCountsByTopicIds(
     .from("posts")
     .select("topic_id")
     .eq("status", "published")
+    .is("deleted_at", null)
     .in("topic_id", topicIds);
 
   if (error || !Array.isArray(data)) {
@@ -449,29 +456,40 @@ function mapTopicRow(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastActivityAt: row.last_activity_at,
+    editedAt: (row as { edited_at?: string | null }).edited_at ?? null,
+    deletedAt: (row as { deleted_at?: string | null }).deleted_at ?? null,
   };
 }
 
 function mapPostRow(
-  row: ForumPostRow,
+  row: ForumPostRow & {
+    edited_at?: string | null;
+    deleted_at?: string | null;
+    parent_post_id?: string | null;
+  },
   acceptedPostId: string | null,
-  profilesById: Map<string, PublicProfileMeta>
+  profilesById: Map<string, PublicProfileMeta>,
+  isDeletedPlaceholder = false
 ): ForumPostItem {
   const profile = row.author_id ? profilesById.get(row.author_id) : undefined;
   return {
     id: row.id,
     topicId: row.topic_id,
-    authorId: row.author_id,
-    authorUsername: profile?.username ?? "membro",
-    authorDisplayName: profile?.displayName,
-    authorAvatarUrl: profile?.avatarUrl ?? null,
+    authorId: isDeletedPlaceholder ? null : row.author_id,
+    authorUsername: isDeletedPlaceholder ? "" : (profile?.username ?? "membro"),
+    authorDisplayName: isDeletedPlaceholder ? undefined : profile?.displayName,
+    authorAvatarUrl: isDeletedPlaceholder ? null : (profile?.avatarUrl ?? null),
     authorRole: "member",
-    body: row.body,
+    body: isDeletedPlaceholder ? "" : row.body,
     voteCount: row.vote_count,
-    isAcceptedSolution: acceptedPostId === row.id,
+    isAcceptedSolution: !isDeletedPlaceholder && acceptedPostId === row.id,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    editedAt: isDeletedPlaceholder ? null : (row.edited_at ?? null),
+    deletedAt: row.deleted_at ?? null,
+    parentPostId: row.parent_post_id ?? null,
+    isDeletedPlaceholder,
   };
 }
 
@@ -654,7 +672,8 @@ export async function queryForumTopics(
       const { data: postTopicRows, error: postTopicErr } = await supabase
         .from("posts")
         .select("topic_id")
-        .eq("status", "published");
+        .eq("status", "published")
+        .is("deleted_at", null);
 
       if (postTopicErr) {
         return {
@@ -681,7 +700,8 @@ export async function queryForumTopics(
     let query = supabase
       .from("topics")
       .select(FORUM_TOPIC_SELECT_COLUMNS, { count: "exact" })
-      .eq("status", "published");
+      .eq("status", "published")
+      .is("deleted_at", null);
 
     if (params.categorySlug && params.categorySlug !== "all") {
       const catId = categoryIdBySlug.get(params.categorySlug);
@@ -829,6 +849,7 @@ export async function fetchForumTopicDetail(
       .select(FORUM_TOPIC_SELECT_COLUMNS)
       .eq("id", topicId)
       .eq("status", "published")
+      .is("deleted_at", null)
       .maybeSingle();
 
     if (topicError) {
@@ -900,7 +921,22 @@ export async function fetchForumTopicDetail(
       }
     }
 
-    const replyCountByTopicId = new Map([[topicRow.id, postRows.length]]);
+    type ExtendedPostRow = ForumPostRow & {
+      edited_at?: string | null;
+      deleted_at?: string | null;
+      parent_post_id?: string | null;
+    };
+    const extendedRows = postRows as ExtendedPostRow[];
+    const activeCount = extendedRows.filter((p) => !p.deleted_at).length;
+    const parentIdsWithActiveReplies = new Set(
+      extendedRows
+        .filter((p) => !p.deleted_at && p.parent_post_id)
+        .map((p) => p.parent_post_id as string)
+    );
+    const visiblePostRows = extendedRows.filter(
+      (p) => !p.deleted_at || parentIdsWithActiveReplies.has(p.id)
+    );
+    const replyCountByTopicId = new Map([[topicRow.id, activeCount]]);
     const topic = mapTopicRow(
       topicRow,
       categorySlugById,
@@ -908,8 +944,13 @@ export async function fetchForumTopicDetail(
       tagsByTopicId,
       replyCountByTopicId
     );
-    const posts = postRows.map((row) =>
-      mapPostRow(row, topicRow.accepted_post_id, profilesById)
+    const posts = visiblePostRows.map((row) =>
+      mapPostRow(
+        row,
+        topicRow.accepted_post_id,
+        profilesById,
+        Boolean(row.deleted_at)
+      )
     );
 
     return {
@@ -1690,6 +1731,146 @@ export async function setAcceptedForumPost(
       errorCode: "connection_error",
       message:
         err instanceof Error ? err.message : "Failed to set accepted answer.",
+    };
+  }
+}
+
+export async function softDeleteForumTopic(
+  topicId: string,
+  options?: { client?: ForumSupabaseClientLike }
+): Promise<
+  | { status: "success"; deletedAt: string }
+  | { status: "error"; errorCode: ForumMutationErrorCode; message: string }
+> {
+  try {
+    const supabase = getClient(options?.client);
+    const { data, error } = await supabase.rpc("soft_delete_topic", {
+      p_topic_id: topicId,
+    });
+    if (error) {
+      const code = (error.code ?? "").toLowerCase();
+      return {
+        status: "error",
+        errorCode: code === "42501" ? "rls_denied" : "mutation_failed",
+        message:
+          code === "42501"
+            ? "Você não tem permissão para excluir esta publicação."
+            : error.message || "Não foi possível excluir a publicação.",
+      };
+    }
+    return {
+      status: "success",
+      deletedAt: String(data ?? new Date().toISOString()),
+    };
+  } catch (err) {
+    return {
+      status: "error",
+      errorCode: "connection_error",
+      message: err instanceof Error ? err.message : "Erro de conexão.",
+    };
+  }
+}
+
+export async function restoreForumTopic(
+  topicId: string,
+  options?: { client?: ForumSupabaseClientLike }
+): Promise<
+  | { status: "success" }
+  | { status: "error"; errorCode: ForumMutationErrorCode; message: string }
+> {
+  try {
+    const supabase = getClient(options?.client);
+    const { error } = await supabase.rpc("restore_topic", {
+      p_topic_id: topicId,
+    });
+    if (error) {
+      const code = (error.code ?? "").toLowerCase();
+      return {
+        status: "error",
+        errorCode: code === "42501" ? "rls_denied" : "mutation_failed",
+        message:
+          code === "42501"
+            ? "O prazo para desfazer expirou ou você não tem permissão."
+            : error.message || "Não foi possível restaurar a publicação.",
+      };
+    }
+    return { status: "success" };
+  } catch (err) {
+    return {
+      status: "error",
+      errorCode: "connection_error",
+      message: err instanceof Error ? err.message : "Erro de conexão.",
+    };
+  }
+}
+
+export async function softDeleteForumPost(
+  postId: string,
+  options?: { client?: ForumSupabaseClientLike }
+): Promise<
+  | { status: "success"; deletedAt: string; hasReplies: boolean }
+  | { status: "error"; errorCode: ForumMutationErrorCode; message: string }
+> {
+  try {
+    const supabase = getClient(options?.client);
+    const { data, error } = await supabase.rpc("soft_delete_post", {
+      p_post_id: postId,
+    });
+    if (error) {
+      const code = (error.code ?? "").toLowerCase();
+      return {
+        status: "error",
+        errorCode: code === "42501" ? "rls_denied" : "mutation_failed",
+        message:
+          code === "42501"
+            ? "Você não tem permissão para excluir este comentário."
+            : error.message || "Não foi possível excluir o comentário.",
+      };
+    }
+    const payload = (data ?? {}) as { deleted_at?: string; has_replies?: boolean };
+    return {
+      status: "success",
+      deletedAt: String(payload.deleted_at ?? new Date().toISOString()),
+      hasReplies: Boolean(payload.has_replies),
+    };
+  } catch (err) {
+    return {
+      status: "error",
+      errorCode: "connection_error",
+      message: err instanceof Error ? err.message : "Erro de conexão.",
+    };
+  }
+}
+
+export async function restoreForumPost(
+  postId: string,
+  options?: { client?: ForumSupabaseClientLike }
+): Promise<
+  | { status: "success" }
+  | { status: "error"; errorCode: ForumMutationErrorCode; message: string }
+> {
+  try {
+    const supabase = getClient(options?.client);
+    const { error } = await supabase.rpc("restore_post", {
+      p_post_id: postId,
+    });
+    if (error) {
+      const code = (error.code ?? "").toLowerCase();
+      return {
+        status: "error",
+        errorCode: code === "42501" ? "rls_denied" : "mutation_failed",
+        message:
+          code === "42501"
+            ? "O prazo para desfazer expirou ou você não tem permissão."
+            : error.message || "Não foi possível restaurar o comentário.",
+      };
+    }
+    return { status: "success" };
+  } catch (err) {
+    return {
+      status: "error",
+      errorCode: "connection_error",
+      message: err instanceof Error ? err.message : "Erro de conexão.",
     };
   }
 }

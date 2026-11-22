@@ -6,6 +6,7 @@ import type { ForumCategoryItem } from "@/features/forum/forum-service";
 import {
   createTimelinePost,
   searchCatalogResourcesForComposer,
+  updateTimelinePost,
 } from "./timeline-service";
 import type {
   TimelineLinkedResource,
@@ -17,6 +18,8 @@ interface TimelineComposerProps {
   locale: SupportedLocale;
   categories: ForumCategoryItem[];
   onCreated: (post: TimelinePostItem) => void;
+  editingPost?: TimelinePostItem | null;
+  onUpdated?: (post: TimelinePostItem) => void;
 }
 
 const KIND_OPTIONS: Array<{
@@ -38,24 +41,35 @@ export function TimelineComposer({
   locale,
   categories,
   onCreated,
+  editingPost = null,
+  onUpdated,
 }: TimelineComposerProps) {
   const isPt = locale === "pt-BR";
+  const isEditing = Boolean(editingPost);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const [kind, setKind] = useState<TopicKind>("discussion");
-  const [categoryId, setCategoryId] = useState<string>("");
+  const [kind, setKind] = useState<TopicKind>(editingPost?.kind ?? "discussion");
+  const [categoryId, setCategoryId] = useState<string>(
+    editingPost?.categoryId ?? ""
+  );
   const effectiveCategoryId = categoryId || categories[0]?.id || "";
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [tagsInput, setTagsInput] = useState("");
-  const [sharedUrl, setSharedUrl] = useState("");
+  const [title, setTitle] = useState(editingPost?.title ?? "");
+  const [body, setBody] = useState(editingPost?.body ?? "");
+  const [tagsInput, setTagsInput] = useState(
+    editingPost?.tags?.join(", ") ?? ""
+  );
+  const [sharedUrl, setSharedUrl] = useState(editingPost?.sharedUrl ?? "");
   const [resourceSearch, setResourceSearch] = useState("");
   const [resourceOptions, setResourceOptions] = useState<
     TimelineLinkedResource[]
   >([]);
   const [selectedResource, setSelectedResource] =
-    useState<TimelineLinkedResource | null>(null);
-  const [showExtras, setShowExtras] = useState(false);
+    useState<TimelineLinkedResource | null>(
+      editingPost?.linkedResource ?? null
+    );
+  const [showExtras, setShowExtras] = useState(
+    Boolean(editingPost?.sharedUrl)
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -102,6 +116,31 @@ export function TimelineComposer({
     setSubmitting(true);
 
     try {
+      if (editingPost) {
+        const result = await updateTimelinePost(
+          editingPost.id,
+          {
+            categoryId: effectiveCategoryId,
+            title: kind === "note" && !title.trim() ? editingPost.title : title,
+            body,
+            sharedUrl,
+          },
+          locale,
+          { categories }
+        );
+
+        if (result.status === "error") {
+          setErrorMessage(result.message);
+          return;
+        }
+
+        onUpdated?.({
+          ...editingPost,
+          ...result.data,
+        });
+        return;
+      }
+
       const result = await createTimelinePost(
         {
           kind,
@@ -400,12 +439,20 @@ export function TimelineComposer({
           className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-cyan-500 px-5 text-sm font-bold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-colors hover:bg-cyan-400 disabled:opacity-50"
         >
           {submitting
-            ? isPt
-              ? "Publicando..."
-              : "Publishing..."
-            : isPt
-              ? "Publicar na Timeline"
-              : "Publish to Timeline"}
+            ? isEditing
+              ? isPt
+                ? "Salvando..."
+                : "Saving..."
+              : isPt
+                ? "Publicando..."
+                : "Publishing..."
+            : isEditing
+              ? isPt
+                ? "Salvar alterações"
+                : "Save changes"
+              : isPt
+                ? "Publicar na Timeline"
+                : "Publish to Timeline"}
         </button>
       </div>
     </form>

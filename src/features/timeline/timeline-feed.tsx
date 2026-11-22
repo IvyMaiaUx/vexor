@@ -2,14 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ConfirmDeleteSheet } from "@/components/ui/confirm-delete-sheet";
+import { UndoToast } from "@/components/ui/undo-toast";
 import type { SupportedLocale } from "@/config/site";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useForumStore } from "@/features/forum/use-forum-store";
 import { createClient } from "@/lib/supabase/client";
 import { TimelineComposer } from "./timeline-composer";
 import { TimelinePostCard } from "./timeline-post-card";
-import { fetchTimelineFeed } from "./timeline-service";
+import {
+  fetchTimelineFeed,
+  restoreTimelineTopic,
+  softDeleteTimelineTopic,
+} from "./timeline-service";
 import type {
   TimelineCursor,
   TimelinePostItem,
@@ -67,12 +73,23 @@ function writeCommunityLastSeen(map: Record<string, string>): void {
 
 export function TimelineFeed({ locale }: TimelineFeedProps) {
   const isPt = locale === "pt-BR";
-  const { user } = useAuthStore();
+  const { user, isModerator } = useAuthStore();
   const { categories, categoriesLoading } = useForumStore();
 
   const [feedTab, setFeedTab] = useState<FeedTab>("for_you");
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>("all");
   const [composerOpen, setComposerOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<TimelinePostItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TimelinePostItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteTriggerRef = useRef<HTMLElement | null>(null);
+  const [undoState, setUndoState] = useState<{
+    post: TimelinePostItem;
+    index: number;
+  } | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  const [undoError, setUndoError] = useState<string | null>(null);
 
   const [items, setItems] = useState<TimelinePostItem[]>([]);
   const [nextCursor, setNextCursor] = useState<TimelineCursor | null>(null);
@@ -116,6 +133,7 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
       .select("category_id, created_at")
       .in("category_id", targetCategoryIds)
       .eq("status", "published")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50)
       .then(({ data }) => {
@@ -265,6 +283,61 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
       markCategorySeen(newPost.categorySlug);
     }
     setComposerOpen(false);
+  };
+
+  const handleUpdated = (updated: TimelinePostItem) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === updated.id ? updated : item))
+    );
+    setEditingPost(null);
+    setComposerOpen(false);
+  };
+
+  const handleRequestDelete = (
+    post: TimelinePostItem,
+    triggerEl: HTMLElement | null
+  ) => {
+    deleteTriggerRef.current = triggerEl;
+    setDeleteError(null);
+    setDeleteTarget(post);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || deleteLoading) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    const res = await softDeleteTimelineTopic(deleteTarget.id, locale);
+    setDeleteLoading(false);
+    if (res.status === "error") {
+      setDeleteError(res.message);
+      return;
+    }
+    const target = deleteTarget;
+    const idx = items.findIndex((p) => p.id === target.id);
+    setItems((prev) => prev.filter((p) => p.id !== target.id));
+    setDeleteTarget(null);
+    setUndoError(null);
+    setUndoState({ post: target, index: idx >= 0 ? idx : 0 });
+  };
+
+  const handleUndoDelete = async () => {
+    if (!undoState || undoing) return;
+    setUndoing(true);
+    setUndoError(null);
+    const res = await restoreTimelineTopic(undoState.post.id, locale);
+    setUndoing(false);
+    if (res.status === "error") {
+      setUndoError(res.message);
+      return;
+    }
+    const { post, index } = undoState;
+    setItems((prev) => {
+      if (prev.some((p) => p.id === post.id)) return prev;
+      const next = [...prev];
+      next.splice(Math.min(index, next.length), 0, post);
+      return next;
+    });
+    setUndoState(null);
   };
 
   const handleVoteUpdated = (topicId: string, voted: boolean, delta: number) => {
@@ -519,7 +592,13 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
                 post={item}
                 locale={locale}
                 currentUserId={user?.id ?? null}
+                canModerate={isModerator}
                 onVoteUpdated={handleVoteUpdated}
+                onEdit={(post) => {
+                  setEditingPost(post);
+                  setComposerOpen(true);
+                }}
+                onRequestDelete={handleRequestDelete}
               />
             ))}
 
@@ -545,19 +624,30 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
         )}
       </div>
 
-      {/* Full-Screen / Modal Composer */}
+      {/* Full-Screen / Modal Composer (Create & Edit) */}
       {composerOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={isPt ? "Nova publicação" : "New post"}
+          aria-label={
+            editingPost
+              ? isPt
+                ? "Editar publicação"
+                : "Edit post"
+              : isPt
+                ? "Nova publicação"
+                : "New post"
+          }
           className="fixed inset-0 z-50 flex flex-col bg-[#070b14] sm:items-center sm:justify-center sm:bg-slate-950/80 sm:p-4 sm:backdrop-blur-sm"
         >
           <div className="flex h-full w-full flex-col overflow-hidden bg-[#070b14] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl sm:border sm:border-slate-800">
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800/90 bg-[#0d1322]/90 px-2 sm:px-4">
               <button
                 type="button"
-                onClick={() => setComposerOpen(false)}
+                onClick={() => {
+                  setComposerOpen(false);
+                  setEditingPost(null);
+                }}
                 aria-label={isPt ? "Fechar" : "Close"}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-300 hover:bg-slate-800/70 hover:text-slate-100"
               >
@@ -575,21 +665,68 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
                 </svg>
               </button>
               <span className="text-base font-semibold text-slate-100">
-                {isPt ? "Nova publicação" : "New post"}
+                {editingPost
+                  ? isPt
+                    ? "Editar publicação"
+                    : "Edit post"
+                  : isPt
+                    ? "Nova publicação"
+                    : "New post"}
               </span>
               <span className="w-11" aria-hidden="true" />
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden">
               <TimelineComposer
+                key={editingPost?.id ?? "new"}
                 locale={locale}
                 categories={categories}
+                editingPost={editingPost}
                 onCreated={handleCreated}
+                onUpdated={handleUpdated}
               />
             </div>
           </div>
         </div>
       )}
+
+      <ConfirmDeleteSheet
+        open={Boolean(deleteTarget)}
+        title={isPt ? "Excluir esta publicação?" : "Delete this post?"}
+        description={
+          isPt
+            ? "Os comentários dela também deixam de aparecer."
+            : "Its comments will also stop appearing."
+        }
+        confirmLabel={isPt ? "Excluir" : "Delete"}
+        cancelLabel={isPt ? "Cancelar" : "Cancel"}
+        loadingLabel={isPt ? "Excluindo..." : "Deleting..."}
+        retryLabel={isPt ? "Tentar novamente" : "Try again"}
+        loading={deleteLoading}
+        errorMessage={deleteError}
+        returnFocusTo={deleteTriggerRef}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
+      />
+
+      <UndoToast
+        open={Boolean(undoState)}
+        message={isPt ? "Publicação excluída." : "Post deleted."}
+        undoLabel={isPt ? "Desfazer" : "Undo"}
+        dismissLabel={isPt ? "Fechar aviso" : "Dismiss"}
+        retryLabel={isPt ? "Tentar novamente" : "Try again"}
+        undoing={undoing}
+        errorMessage={undoError}
+        durationMs={8000}
+        onUndo={handleUndoDelete}
+        onDismiss={() => {
+          setUndoState(null);
+          setUndoError(null);
+        }}
+      />
     </section>
   );
 }

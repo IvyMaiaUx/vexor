@@ -1,53 +1,59 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AdminGuard } from "@/features/admin/components/admin-guard";
-import { AdminModerationDetailModal } from "@/features/admin/components/admin-moderation-detail-modal";
 import { AdminModerationDecisionModal } from "@/features/admin/components/admin-moderation-decision-modal";
+import { AdminModerationDetailModal } from "@/features/admin/components/admin-moderation-detail-modal";
 import { AdminReportModal } from "@/features/admin/components/admin-report-modal";
 import { adminDataProvider } from "@/features/admin/services/admin-provider";
-import { getModerationAvailableActions } from "@/features/admin/utils/moderation-actions";
 import type {
   AdminReport,
   ModerationAction,
   ModerationContentType,
   ModerationPriority,
-  ReportStatus,
   UnifiedModerationItem,
 } from "@/features/admin/types";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useI18n } from "@/lib/i18n/context";
 
+function formatShortDate(iso: string, locale: string): string {
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
 function AdminModerationContent() {
   const { dict, locale } = useI18n();
+  const isPt = locale === "pt-BR";
   const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const isModerator = useAuthStore((s) => s.isModerator);
   const isAdmin = useAuthStore((s) => s.isAdmin);
-
+  const canModerate = isModerator || isAdmin;
   const t = dict.adminPanel.moderationPage;
   const rt = dict.adminPanel.reportsPage;
-  const isPt = locale === "pt-BR";
-  const canModerate = isModerator || isAdmin;
 
-  // Tabs
   const [activeTab, setActiveTab] = useState<"queue" | "reports">("queue");
-
-  // Data state
   const [items, setItems] = useState<UnifiedModerationItem[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Queue filters
   const urlType = searchParams?.get("type");
   const initialType: ModerationContentType | "all" =
     urlType && ["resource", "topic", "post", "research"].includes(urlType)
       ? (urlType as ModerationContentType)
       : "all";
 
+  // Applied filters
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<ModerationContentType | "all">(
     initialType
@@ -56,25 +62,29 @@ function AdminModerationContent() {
   const [priorityFilter, setPriorityFilter] = useState<
     ModerationPriority | "all"
   >("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [authorFilter, setAuthorFilter] = useState<string>("");
   const [hasReportsFilter, setHasReportsFilter] = useState<"all" | "yes" | "no">(
     "all"
   );
   const [periodFilter, setPeriodFilter] = useState<
     "all" | "24h" | "7d" | "30d"
   >("all");
+  const [authorFilter, setAuthorFilter] = useState("");
 
-  // Reports filters
-  const [reportStatusFilter, setReportStatusFilter] = useState<
-    ReportStatus | "all"
-  >("all");
+  // Filter bottom sheet draft states
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<string>("all");
+  const [draftPriority, setDraftPriority] = useState<ModerationPriority | "all">("all");
+  const [draftReports, setDraftReports] = useState<"all" | "yes" | "no">("all");
+  const [draftPeriod, setDraftPeriod] = useState<"all" | "24h" | "7d" | "30d">("all");
+  const [draftAuthor, setDraftAuthor] = useState("");
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState<"hide" | "approve" | null>(null);
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
-  // Modal states
+  // Modals
   const [detailItem, setDetailItem] = useState<UnifiedModerationItem | null>(
     null
   );
@@ -86,7 +96,6 @@ function AdminModerationContent() {
     null
   );
 
-  // Feedback banners
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -98,7 +107,6 @@ function AdminModerationContent() {
           contentType: typeFilter,
           status: statusFilter,
           priority: priorityFilter,
-          category: categoryFilter,
           author: authorFilter,
           hasReports: hasReportsFilter,
           period: periodFilter,
@@ -106,10 +114,7 @@ function AdminModerationContent() {
         },
         { page: 1, pageSize: 100 }
       ),
-      adminDataProvider.reports.listReports(
-        { status: reportStatusFilter },
-        { page: 1, pageSize: 100 }
-      ),
+      adminDataProvider.reports.listReports({}, { page: 1, pageSize: 100 }),
     ])
       .then(([queueRes, reportsRes]) => {
         if (!active) return;
@@ -123,7 +128,6 @@ function AdminModerationContent() {
         setLoadError(t.loadError);
         setLoading(false);
       });
-
     return () => {
       active = false;
     };
@@ -131,53 +135,72 @@ function AdminModerationContent() {
     typeFilter,
     statusFilter,
     priorityFilter,
-    categoryFilter,
     authorFilter,
     hasReportsFilter,
     periodFilter,
     searchQuery,
-    reportStatusFilter,
     t.loadError,
     reloadKey,
   ]);
 
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    items.forEach((it) => {
-      if (it.category) set.add(it.category);
-    });
-    return Array.from(set).sort();
-  }, [items]);
+  useEffect(() => {
+    if (!filterSheetOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFilterSheetOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [filterSheetOpen]);
 
-  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedItems = useMemo(() => {
-    const start = (safeCurrentPage - 1) * itemsPerPage;
-    return items.slice(start, start + itemsPerPage);
-  }, [items, safeCurrentPage, itemsPerPage]);
-
-  const counts = useMemo(() => {
-    return {
+  const counts = useMemo(
+    () => ({
       total: items.length,
       pending: items.filter((it) => it.status === "pending").length,
       reported: items.filter((it) => (it.reportCount ?? 0) > 0).length,
-      escalated: items.filter(
-        (it) =>
-          it.status === "escalated" || it.status === "revision_requested"
+      openReports: reports.filter(
+        (r) => r.status === "open" || r.status === "reviewing"
       ).length,
-    };
-  }, [items]);
+    }),
+    [items, reports]
+  );
 
-  const clearFilters = () => {
-    setSearchQuery("");
-    setTypeFilter("all");
-    setStatusFilter("all");
-    setPriorityFilter("all");
-    setCategoryFilter("all");
-    setAuthorFilter("");
-    setHasReportsFilter("all");
-    setPeriodFilter("all");
-    setCurrentPage(1);
+  const hasSheetFilters =
+    statusFilter !== "all" ||
+    priorityFilter !== "all" ||
+    hasReportsFilter !== "all" ||
+    periodFilter !== "all" ||
+    authorFilter.trim().length > 0;
+
+  const openFilterSheet = () => {
+    setDraftStatus(statusFilter);
+    setDraftPriority(priorityFilter);
+    setDraftReports(hasReportsFilter);
+    setDraftPeriod(periodFilter);
+    setDraftAuthor(authorFilter);
+    setFilterSheetOpen(true);
+  };
+
+  const applyFilterSheet = () => {
+    setStatusFilter(draftStatus);
+    setPriorityFilter(draftPriority);
+    setHasReportsFilter(draftReports);
+    setPeriodFilter(draftPeriod);
+    setAuthorFilter(draftAuthor.trim().replace(/^@/, ""));
+    setFilterSheetOpen(false);
+  };
+
+  const clearSheetFilters = () => {
+    setDraftStatus("all");
+    setDraftPriority("all");
+    setDraftReports("all");
+    setDraftPeriod("all");
+    setDraftAuthor("");
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   const handleExecuteDecision = async (
@@ -200,6 +223,7 @@ function AdminModerationContent() {
     if (res.success) {
       const actionLabel = t.actionLabels[mode] || mode;
       setFeedbackMessage(`${actionLabel}: "${targetItem.title}"`);
+      setSelectedIds((prev) => prev.filter((id) => id !== targetItem.id));
       setReloadKey((prev) => prev + 1);
       setTimeout(() => setFeedbackMessage(null), 4500);
       return { success: true };
@@ -215,641 +239,710 @@ function AdminModerationContent() {
     return { success: false, error: msg };
   };
 
-  const statusBadgeStyles: Record<string, string> = {
-    pending: "border-amber-500/40 bg-amber-500/10 text-amber-300",
-    approved: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
-    published: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
-    rejected: "border-rose-500/40 bg-rose-500/10 text-rose-300",
-    hidden: "border-rose-500/40 bg-rose-500/10 text-rose-300",
-    revision_requested: "border-cyan-500/40 bg-cyan-500/10 text-cyan-300",
-    escalated: "border-purple-500/40 bg-purple-500/10 text-purple-300",
-    archived: "border-slate-700 bg-slate-800 text-slate-400",
-    deleted: "border-slate-700 bg-slate-900 text-slate-500",
+  const handleRunBulkAction = async () => {
+    if (!user || !canModerate || !bulkAction || selectedIds.length === 0) return;
+    const trimmedReason = bulkReason.trim();
+    if (bulkAction === "hide" && trimmedReason.length < 5) {
+      setActionError(
+        isPt
+          ? "Informe um motivo com pelo menos 5 caracteres."
+          : "Provide a reason with at least 5 characters."
+      );
+      return;
+    }
+
+    setBulkSubmitting(true);
+    setActionError(null);
+    const selectedItems = items.filter((it) => selectedIds.includes(it.id));
+    let successCount = 0;
+    let firstError: string | null = null;
+
+    for (const item of selectedItems) {
+      const mode: ModerationAction =
+        bulkAction === "approve"
+          ? "approve"
+          : item.contentType === "resource" || item.contentType === "research"
+            ? "reject"
+            : "hide";
+      const res = await adminDataProvider.moderation.executeAction(
+        user,
+        { id: item.id, contentType: item.contentType },
+        mode,
+        bulkAction === "hide" ? trimmedReason : undefined
+      );
+      if (res.success) {
+        successCount += 1;
+      } else if (!firstError) {
+        firstError = res.error || t.decisionModal.generalError;
+      }
+    }
+
+    setBulkSubmitting(false);
+    setBulkAction(null);
+    setBulkReason("");
+    setSelectedIds([]);
+    setReloadKey((prev) => prev + 1);
+
+    if (successCount > 0) {
+      setFeedbackMessage(
+        isPt
+          ? `${successCount} item(ns) atualizado(s) e registrado(s) na auditoria.`
+          : `${successCount} item(s) updated and logged to audit.`
+      );
+      setTimeout(() => setFeedbackMessage(null), 4500);
+    }
+    if (firstError) {
+      setActionError(firstError);
+    }
   };
 
-  const priorityBadgeStyles: Record<string, string> = {
-    critical: "border-rose-500/50 bg-rose-500/15 text-rose-300",
-    high: "border-amber-500/40 bg-amber-500/10 text-amber-300",
-    medium: "border-cyan-500/40 bg-cyan-500/10 text-cyan-300",
-    low: "border-slate-700 bg-slate-800 text-slate-300",
+  const statusBadgeClass = (status: string) => {
+    if (status === "approved" || status === "published") {
+      return "border-emerald-500/40 bg-emerald-500/10 text-emerald-400";
+    }
+    if (status === "pending") {
+      return "border-amber-500/40 bg-amber-500/10 text-amber-300";
+    }
+    if (status === "rejected" || status === "hidden" || status === "removed") {
+      return "border-rose-500/40 bg-rose-500/10 text-rose-300";
+    }
+    return "border-slate-700 bg-slate-800/80 text-slate-300";
   };
 
-  const quickActionStyle: Partial<Record<ModerationAction, { label: string; cls: string }>> = {
-    approve: {
-      label: t.approveBtn,
-      cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20",
-    },
-    reject: {
-      label: t.rejectBtn,
-      cls: "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20",
-    },
-    hide: {
-      label: t.hideBtn,
-      cls: "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20",
-    },
-    restore: {
-      label: t.restoreBtn,
-      cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20",
-    },
-    escalate: {
-      label: t.escalateBtn,
-      cls: "border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20",
-    },
+  const statusLabel = (status: string) => {
+    const mapPt: Record<string, string> = {
+      pending: "PENDENTE",
+      published: "PUBLICADO",
+      approved: "APROVADO",
+      hidden: "OCULTO",
+      rejected: "REJEITADO",
+      removed: "REMOVIDO",
+      revision_requested: "REVISÃO",
+    };
+    return isPt ? mapPt[status] || status.toUpperCase() : status.toUpperCase();
   };
 
-  const formatDate = (iso?: string) => {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleDateString(isPt ? "pt-BR" : "en-US");
+  const typeLabel = (type: ModerationContentType) => {
+    if (type === "topic") return isPt ? "Tópico do Fórum" : "Forum Topic";
+    if (type === "post") return isPt ? "Resposta" : "Reply";
+    if (type === "resource") return isPt ? "Catálogo" : "Catalog";
+    return "Research";
+  };
+
+  const secondaryActionFor = (
+    item: UnifiedModerationItem
+  ): { mode: ModerationAction; label: string } => {
+    if (
+      item.status === "pending" ||
+      item.contentType === "resource" ||
+      item.contentType === "research"
+    ) {
+      return { mode: "reject", label: isPt ? "Rejeitar" : "Reject" };
+    }
+    return { mode: "hide", label: isPt ? "Ocultar" : "Hide" };
   };
 
   return (
     <AdminGuard>
-      <div className="flex flex-col gap-6 pb-16">
-        {/* Header Hero */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-r from-[#0c1427] via-[#091020] to-[#070b14] p-6 shadow-xl sm:p-8">
-          <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
-          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs uppercase tracking-wider text-cyan-400">
-                  {t.eyebrow}
-                </span>
-              </div>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                {t.title}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm text-slate-300">
-                {t.subtitle}
-              </p>
-            </div>
-
-            {/* Summary KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 font-mono text-xs">
-                <span className="block text-[10px] text-slate-400">{t.counterTotal}</span>
-                <strong className="text-base text-cyan-400">{counts.total}</strong>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 font-mono text-xs">
-                <span className="block text-[10px] text-slate-400">{t.counterPending}</span>
-                <strong className="text-base text-amber-400">{counts.pending}</strong>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 font-mono text-xs">
-                <span className="block text-[10px] text-slate-400">{t.counterReported}</span>
-                <strong className="text-base text-rose-400">{counts.reported}</strong>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 font-mono text-xs">
-                <span className="block text-[10px] text-slate-400">{t.counterEscalated}</span>
-                <strong className="text-base text-purple-300">{counts.escalated}</strong>
-              </div>
-            </div>
-          </div>
+      <div className="space-y-3 pb-16">
+        {/* Header */}
+        <div>
+          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-slate-100">
+            {isPt ? "Moderação" : "Moderation"}
+          </h1>
+          <p className="mt-0.5 text-sm text-slate-400">
+            {isPt
+              ? `${counts.total} na fila · ${counts.pending} pendentes · ${counts.reported} com denúncias`
+              : `${counts.total} in queue · ${counts.pending} pending · ${counts.reported} reported`}
+          </p>
         </div>
 
-        {/* Feedback & Error Alerts */}
+        {/* Feedback / Error banners */}
         {feedbackMessage && (
-          <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-xs font-semibold text-emerald-300">
-            ✓ {feedbackMessage}
+          <div
+            role="status"
+            className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-300"
+          >
+            <span>{feedbackMessage}</span>
+            <button
+              type="button"
+              onClick={() => setFeedbackMessage(null)}
+              className="px-1.5 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
           </div>
         )}
         {actionError && (
-          <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-xs font-semibold text-rose-300">
-            {actionError}
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3.5 py-2.5 text-xs text-rose-200"
+          >
+            <span>{actionError}</span>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              className="px-1.5 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
           </div>
         )}
 
-        {/* Section Tabs */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+        {/* Primary Tabs: Fila / Denúncias */}
+        <div className="flex gap-2" role="tablist">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "queue"}
             onClick={() => setActiveTab("queue")}
-            className={`rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${
+            className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors ${
               activeTab === "queue"
-                ? "border border-cyan-500/40 bg-cyan-500/20 text-cyan-300"
-                : "border border-slate-800 bg-[#0c1220] text-slate-400 hover:text-slate-200"
+                ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                : "border-slate-800 bg-[#0b1220] text-slate-300 hover:border-slate-700"
             }`}
           >
-            {t.queueTab} ({items.length})
+            <span>{isPt ? "Fila" : "Queue"}</span>
+            <span className="font-mono text-xs">{counts.total}</span>
           </button>
+
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "reports"}
             onClick={() => setActiveTab("reports")}
-            className={`rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${
+            className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors ${
               activeTab === "reports"
-                ? "border border-rose-500/40 bg-rose-500/20 text-rose-300"
-                : "border border-slate-800 bg-[#0c1220] text-slate-400 hover:text-slate-200"
+                ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                : "border-slate-800 bg-[#0b1220] text-slate-300 hover:border-slate-700"
             }`}
           >
-            {t.reportsTab} ({reports.length})
+            <span>{isPt ? "Denúncias" : "Reports"}</span>
+            <span className="font-mono text-xs">{counts.openReports}</span>
           </button>
         </div>
 
         {activeTab === "queue" ? (
           <>
-            {/* Filters */}
-            <div className="rounded-2xl border border-slate-800 bg-[#0c1220] p-4 shadow-xl space-y-4">
-              <div className="flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-3">
-                <span className="text-xs font-mono text-slate-400 mr-2">
-                  {t.filterType}:
-                </span>
-                {(["all", "resource", "topic", "post", "research"] as const).map(
-                  (type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => {
-                        setTypeFilter(type);
-                        setCurrentPage(1);
-                      }}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                        typeFilter === type
-                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-                      }`}
-                    >
-                      {type === "all" ? t.allTypes : t.typeLabels[type] || type}
-                    </button>
-                  )
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Search + Filter Bottom Sheet Trigger */}
+            <div className="flex gap-2">
+              <label className="flex min-h-[48px] flex-1 items-center gap-2 rounded-xl border border-slate-800 bg-[#0b1220] px-3 text-slate-400 focus-within:border-cyan-500/60">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
                 <input
-                  type="text"
+                  type="search"
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder={t.searchPlaceholder}
-                  className="rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none sm:col-span-2"
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={
+                    isPt
+                      ? "Buscar por título, autor ou ID"
+                      : "Search by title, author, or ID"
+                  }
+                  aria-label={isPt ? "Buscar" : "Search"}
+                  className="w-full min-w-0 bg-transparent text-[15px] text-slate-100 placeholder:text-slate-500 focus:outline-none"
                 />
+              </label>
 
-                <input
-                  type="text"
-                  value={authorFilter}
-                  onChange={(e) => {
-                    setAuthorFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder={t.authorPlaceholder}
-                  className="rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
-                />
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  aria-label={t.filterStatus}
-                  className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-                >
-                  <option value="all">{t.allStatuses}</option>
-                  {Object.entries(t.statusLabels).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={priorityFilter}
-                  onChange={(e) => {
-                    setPriorityFilter(
-                      e.target.value as ModerationPriority | "all"
-                    );
-                    setCurrentPage(1);
-                  }}
-                  aria-label={t.filterPriority}
-                  className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-                >
-                  <option value="all">{t.allPriorities}</option>
-                  {Object.entries(t.priorityLabels).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => {
-                    setCategoryFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  aria-label={t.filterCategory}
-                  className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-                >
-                  <option value="all">{t.allCategories}</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={hasReportsFilter}
-                  onChange={(e) => {
-                    setHasReportsFilter(
-                      e.target.value as "all" | "yes" | "no"
-                    );
-                    setCurrentPage(1);
-                  }}
-                  aria-label={t.filterReports}
-                  className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-                >
-                  <option value="all">{t.allReports}</option>
-                  <option value="yes">{t.withReportsOnly}</option>
-                  <option value="no">{t.withoutReportsOnly}</option>
-                </select>
-
-                <select
-                  value={periodFilter}
-                  onChange={(e) => {
-                    setPeriodFilter(
-                      e.target.value as "all" | "24h" | "7d" | "30d"
-                    );
-                    setCurrentPage(1);
-                  }}
-                  aria-label={t.filterPeriod}
-                  className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-                >
-                  <option value="all">{t.allPeriods}</option>
-                  <option value="24h">{t.period24h}</option>
-                  <option value="7d">{t.period7d}</option>
-                  <option value="30d">{t.period30d}</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-                >
-                  {t.clearFiltersBtn}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={openFilterSheet}
+                aria-label={isPt ? "Filtros" : "Filters"}
+                className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-[#0b1220] text-slate-200 transition-colors hover:border-cyan-500/50 hover:text-cyan-300"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]" aria-hidden="true">
+                  <path d="M3 5h18M6 12h12M10 19h4" />
+                </svg>
+                {hasSheetFilters && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-cyan-400"
+                  />
+                )}
+              </button>
             </div>
 
-            {/* Loading / Error / Empty / Table */}
+            {/* Type Chips */}
+            <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+              {(
+                [
+                  { id: "all", pt: "Todos", en: "All" },
+                  { id: "resource", pt: "Catálogo", en: "Catalog" },
+                  { id: "topic", pt: "Fórum", en: "Forum" },
+                  { id: "post", pt: "Respostas", en: "Replies" },
+                  { id: "research", pt: "Research", en: "Research" },
+                ] as const
+              ).map((chip) => {
+                const active = typeFilter === chip.id;
+                return (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => setTypeFilter(chip.id)}
+                    className={`inline-flex min-h-[40px] shrink-0 items-center rounded-full border px-3.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                        : "border-slate-800 bg-[#0b1220] text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    {isPt ? chip.pt : chip.en}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Compact Queue Cards */}
             {loading ? (
-              <div className="rounded-2xl border border-slate-800 bg-[#0c1220] p-10 text-center text-xs font-mono text-slate-400">
-                Carregando fila de moderação...
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-32 animate-pulse rounded-2xl border border-slate-800 bg-[#0b1220]/70"
+                  />
+                ))}
               </div>
             ) : loadError ? (
-              <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-8 text-center space-y-3">
-                <p className="text-sm text-rose-300">{loadError}</p>
+              <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-6 text-center">
+                <p className="text-sm text-rose-200">{loadError}</p>
                 <button
                   type="button"
                   onClick={() => setReloadKey((k) => k + 1)}
-                  className="rounded-xl border border-rose-500/40 bg-rose-600/20 px-4 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-600/30"
+                  className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-rose-500/20 px-4 text-xs font-semibold text-rose-200"
                 >
-                  {t.retryBtn}
+                  {isPt ? "Tentar novamente" : "Retry"}
                 </button>
               </div>
-            ) : paginatedItems.length === 0 ? (
-              <div className="rounded-2xl border border-slate-800 bg-[#0c1220] p-10 text-center text-sm text-slate-400">
-                {t.emptyState}
+            ) : items.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-800 bg-[#0b1220]/50 p-10 text-center text-sm text-slate-400">
+                {isPt
+                  ? "Nenhum item encontrado para os filtros selecionados."
+                  : "No items found for the selected filters."}
               </div>
             ) : (
-              <>
-                {/* Desktop Table */}
-                <div className="hidden lg:block overflow-x-auto rounded-2xl border border-slate-800 bg-[#0c1220] shadow-xl">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-800 bg-[#070b14] text-[11px] font-mono uppercase tracking-wider text-slate-400">
-                        <th className="px-4 py-3">{t.typeCol}</th>
-                        <th className="px-4 py-3">{t.titleCol}</th>
-                        <th className="px-4 py-3">{t.authorCol}</th>
-                        <th className="px-4 py-3">{t.priorityCol}</th>
-                        <th className="px-4 py-3">{t.reportsCol}</th>
-                        <th className="px-4 py-3">{t.updatedCol}</th>
-                        <th className="px-4 py-3">{t.statusCol}</th>
-                        <th className="px-4 py-3 text-right">{t.actionsCol}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/70 text-xs">
-                      {paginatedItems.map((item) => {
-                        const available = getModerationAvailableActions(item);
-                        const quickActions = available.slice(0, 2);
-                        return (
-                          <tr
-                            key={`${item.contentType}-${item.id}`}
-                            className="hover:bg-slate-900/40 transition-colors"
-                          >
-                            <td className="px-4 py-3.5 font-mono text-[11px] text-cyan-300 whitespace-nowrap">
-                              {t.typeLabels[item.contentType] || item.contentType}
-                            </td>
-                            <td className="px-4 py-3.5 max-w-xs">
-                              <p className="font-semibold text-slate-100 truncate">
-                                {item.title}
-                              </p>
-                              {item.flagReason && (
-                                <p className="mt-0.5 text-[11px] text-slate-400 truncate">
-                                  {item.flagReason}
-                                </p>
-                              )}
-                              {item.incomplete && (
-                                <span className="mt-1 inline-block rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[10px] text-amber-300">
-                                  {t.incompleteBadge}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3.5 font-mono text-slate-300 whitespace-nowrap">
-                              @{item.authorUsername}
-                            </td>
-                            <td className="px-4 py-3.5 whitespace-nowrap">
-                              {item.priority ? (
-                                <span
-                                  className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase ${
-                                    priorityBadgeStyles[item.priority] || ""
-                                  }`}
-                                >
-                                  {t.priorityLabels[item.priority] || item.priority}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                            <td className="px-4 py-3.5 font-mono text-slate-300 whitespace-nowrap">
-                              {item.reportCount ?? 0}
-                            </td>
-                            <td className="px-4 py-3.5 font-mono text-[11px] text-slate-400 whitespace-nowrap">
-                              {formatDate(item.updatedAt || item.submittedAt)}
-                            </td>
-                            <td className="px-4 py-3.5 whitespace-nowrap">
-                              <span
-                                className={`inline-flex rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase ${
-                                  statusBadgeStyles[item.status] ||
-                                  "border-slate-700 bg-slate-800 text-slate-300"
-                                }`}
-                              >
-                                {t.statusLabels[item.status] || item.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                              <div className="inline-flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setDetailItem(item)}
-                                  className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-slate-200 hover:bg-slate-700"
-                                >
-                                  {t.reviewBtn}
-                                </button>
-                                {canModerate &&
-                                  quickActions.map((act) => {
-                                    const cfg = quickActionStyle[act];
-                                    if (!cfg) return null;
-                                    return (
-                                      <button
-                                        key={act}
-                                        type="button"
-                                        onClick={() =>
-                                          setDecisionModalState({
-                                            item,
-                                            mode: act,
-                                          })
-                                        }
-                                        className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors ${cfg.cls}`}
-                                      >
-                                        {cfg.label}
-                                      </button>
-                                    );
-                                  })}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile & Tablet Cards */}
-                <div className="grid grid-cols-1 gap-3 lg:hidden">
-                  {paginatedItems.map((item) => {
-                    const available = getModerationAvailableActions(item);
-                    return (
-                      <div
-                        key={`${item.contentType}-${item.id}`}
-                        className="rounded-2xl border border-slate-800 bg-[#0c1220] p-4 space-y-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-mono text-[11px] text-cyan-400">
-                            {t.typeLabels[item.contentType] || item.contentType}
-                          </span>
-                          <span
-                            className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase ${
-                              statusBadgeStyles[item.status] || ""
-                            }`}
-                          >
-                            {t.statusLabels[item.status] || item.status}
-                          </span>
+              <div className="space-y-3">
+                {items.map((item) => {
+                  const selected = selectedIds.includes(item.id);
+                  const secondary = secondaryActionFor(item);
+                  return (
+                    <article
+                      key={`${item.contentType}-${item.id}`}
+                      className={`rounded-2xl border p-3.5 transition-colors space-y-2 ${
+                        selected
+                          ? "border-cyan-500/60 bg-cyan-950/20"
+                          : "border-slate-800 bg-[#0b1220]"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleSelect(item.id)}
+                          aria-label={isPt ? "Selecionar item" : "Select item"}
+                          className="mt-0.5 h-[22px] w-[22px] shrink-0 accent-cyan-400"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-[11px] font-semibold text-cyan-400">
+                            {typeLabel(item.contentType)}
+                          </div>
+                          <h3 className="mt-0.5 text-[15px] font-semibold leading-snug text-slate-100">
+                            {item.title}
+                          </h3>
                         </div>
-                        <h3 className="text-sm font-bold text-slate-100">
-                          {item.title}
-                        </h3>
-                        <div className="flex flex-wrap gap-3 text-[11px] font-mono text-slate-400">
-                          <span>@{item.authorUsername}</span>
-                          <span>
-                            {t.reportsCol}: {item.reportCount ?? 0}
-                          </span>
-                          <span>
-                            {formatDate(item.updatedAt || item.submittedAt)}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800">
-                          <button
-                            type="button"
-                            onClick={() => setDetailItem(item)}
-                            className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-200"
-                          >
-                            {t.reviewBtn}
-                          </button>
-                          {canModerate &&
-                            available.slice(0, 3).map((act) => {
-                              const cfg = quickActionStyle[act];
-                              if (!cfg) return null;
-                              return (
-                                <button
-                                  key={act}
-                                  type="button"
-                                  onClick={() =>
-                                    setDecisionModalState({ item, mode: act })
-                                  }
-                                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${cfg.cls}`}
-                                >
-                                  {cfg.label}
-                                </button>
-                              );
-                            })}
-                        </div>
+                        <span
+                          className={`inline-flex h-[22px] shrink-0 items-center rounded-md border px-2 font-mono text-[10px] font-semibold ${statusBadgeClass(item.status)}`}
+                        >
+                          {statusLabel(item.status)}
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between rounded-2xl border border-slate-800 bg-[#0c1220] px-4 py-3 text-xs text-slate-400">
-                    <span>
-                      {safeCurrentPage} / {totalPages}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={safeCurrentPage <= 1}
-                        onClick={() =>
-                          setCurrentPage((p) => Math.max(1, p - 1))
-                        }
-                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1 disabled:opacity-40"
-                      >
-                        ←
-                      </button>
-                      <button
-                        type="button"
-                        disabled={safeCurrentPage >= totalPages}
-                        onClick={() =>
-                          setCurrentPage((p) => Math.min(totalPages, p + 1))
-                        }
-                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1 disabled:opacity-40"
-                      >
-                        →
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
+                      <div className="pl-8 text-xs text-slate-400">
+                        @{item.authorUsername} · {item.reportCount ?? 0}{" "}
+                        {isPt ? "denúncias" : "reports"} ·{" "}
+                        {formatShortDate(item.submittedAt, locale)}
+                      </div>
+
+                      <div className="flex gap-2 pl-8">
+                        <button
+                          type="button"
+                          onClick={() => setDetailItem(item)}
+                          className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-slate-800 bg-[#080e1a] px-3 text-sm font-medium text-slate-100 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
+                        >
+                          {isPt ? "Analisar" : "Review"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDecisionModalState({ item, mode: secondary.mode })
+                          }
+                          className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-rose-500/35 bg-rose-500/10 px-3 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/20"
+                        >
+                          {secondary.label}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </>
         ) : (
-          /* Reports Tab */
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-[#0c1220] p-4">
-              <h2 className="text-sm font-bold text-slate-100">
-                {t.reportsSectionTitle}
-              </h2>
-              <select
-                value={reportStatusFilter}
-                onChange={(e) =>
-                  setReportStatusFilter(e.target.value as ReportStatus | "all")
-                }
-                aria-label={t.filterStatus}
-                className="rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-              >
-                <option value="all">{rt.allStatuses}</option>
-                {Object.entries(rt.statusLabels).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          /* Reports Sub-tab */
+          <div className="space-y-3">
             {reports.length === 0 ? (
-              <div className="rounded-2xl border border-slate-800 bg-[#0c1220] p-10 text-center text-sm text-slate-400">
-                {t.reportsEmpty}
+              <div className="rounded-2xl border border-dashed border-slate-800 bg-[#0b1220]/50 p-10 text-center text-sm text-slate-400">
+                {isPt ? "Nenhuma denúncia registrada." : "No reports found."}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-3">
-                {reports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-[#0c1220] p-4"
-                  >
-                    <div className="space-y-1.5 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
-                        <span className="rounded border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-rose-300 uppercase">
-                          {rt.reasonLabels[report.reason] || report.reason}
-                        </span>
-                        <span className="rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-slate-300 uppercase">
-                          {report.targetType}
-                        </span>
-                        <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-cyan-300 uppercase">
-                          {rt.statusLabels[report.status] || report.status}
-                        </span>
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-100 truncate">
-                        {report.targetTitle || report.targetId}
-                      </h3>
-                      {report.details && (
-                        <p className="text-xs text-slate-300">
-                          {report.details}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-slate-400">
-                        <span>{t.reporterProtected}</span>
-                        <span>•</span>
-                        <span>{formatDate(report.createdAt)}</span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setSelectedReport(report)}
-                      className="shrink-0 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20"
-                    >
-                      {t.analyzeReportBtn}
-                    </button>
+              reports.map((report) => (
+                <article
+                  key={report.id}
+                  className="rounded-2xl border border-slate-800 bg-[#0b1220] p-4 space-y-2.5"
+                >
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex h-[22px] items-center rounded-md border border-rose-500/40 bg-rose-500/10 px-2 font-mono text-[10px] font-semibold uppercase text-rose-300">
+                      {rt.reasonLabels[report.reason]}
+                    </span>
+                    <span className="inline-flex h-[22px] items-center rounded-md border border-slate-700 bg-slate-800/80 px-2 font-mono text-[10px] font-semibold uppercase text-slate-300">
+                      {rt.targetLabels[report.targetType]}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <p className="border-l-2 border-slate-700 pl-3 text-sm text-slate-200 line-clamp-3">
+                    {report.targetSnippet ||
+                      report.targetTitle ||
+                      report.details ||
+                      "—"}
+                  </p>
+                  <div className="text-xs text-slate-400">
+                    {isPt
+                      ? "Denunciante: identidade oculta"
+                      : "Reporter: identity hidden"}{" "}
+                    · {formatShortDate(report.createdAt, locale)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReport(report)}
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-slate-700 bg-[#080e1a] text-sm font-medium text-slate-100 hover:border-cyan-500/40"
+                  >
+                    {isPt ? "Analisar denúncia" : "Review report"}
+                  </button>
+                </article>
+              ))
             )}
           </div>
         )}
+
+        {/* Fixed Bulk Selection Bar */}
+        {selectedIds.length > 0 && activeTab === "queue" && (
+          <div className="fixed inset-x-0 bottom-[72px] z-30 flex items-center gap-2 border-t border-slate-800 bg-[#080e1a]/95 px-4 py-2.5 backdrop-blur-md lg:bottom-0 lg:left-64">
+            <span className="flex-1 text-sm text-slate-200">
+              <strong className="font-semibold text-white">
+                {selectedIds.length}
+              </strong>{" "}
+              {isPt ? "selecionados" : "selected"}
+            </span>
+            <button
+              type="button"
+              disabled={bulkSubmitting}
+              onClick={() => setBulkAction("hide")}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-rose-500/35 bg-rose-500/10 px-4 text-sm font-semibold text-rose-300 hover:bg-rose-500/20 disabled:opacity-50"
+            >
+              {isPt ? "Ocultar" : "Hide"}
+            </button>
+            <button
+              type="button"
+              disabled={bulkSubmitting}
+              onClick={() => {
+                setBulkAction("approve");
+              }}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-cyan-500 px-4 text-sm font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+            >
+              {isPt ? "Aprovar" : "Approve"}
+            </button>
+          </div>
+        )}
+
+        {/* Bulk Confirm / Reason Sheet */}
+        {bulkAction && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
+            onClick={() => !bulkSubmitting && setBulkAction(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-3xl border border-slate-800 bg-[#0b1220] p-5 space-y-4 sm:rounded-3xl"
+            >
+              <h2 className="text-lg font-semibold text-slate-100">
+                {bulkAction === "hide"
+                  ? isPt
+                    ? `Ocultar ${selectedIds.length} item(ns)?`
+                    : `Hide ${selectedIds.length} item(s)?`
+                  : isPt
+                    ? `Aprovar ${selectedIds.length} item(ns)?`
+                    : `Approve ${selectedIds.length} item(s)?`}
+              </h2>
+              {bulkAction === "hide" && (
+                <label className="block text-sm text-slate-300">
+                  <span>{isPt ? "Motivo (obrigatório)" : "Reason (required)"}</span>
+                  <textarea
+                    rows={3}
+                    value={bulkReason}
+                    onChange={(e) => setBulkReason(e.target.value)}
+                    placeholder={
+                      isPt
+                        ? "Descreva o motivo desta ação para a auditoria..."
+                        : "Describe the reason for this action..."
+                    }
+                    className="mt-1.5 w-full rounded-xl border border-slate-800 bg-[#070b14] p-3 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
+                  />
+                </label>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={bulkSubmitting}
+                  onClick={() => setBulkAction(null)}
+                  className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-slate-700 bg-[#070b14] text-sm font-semibold text-slate-200"
+                >
+                  {isPt ? "Cancelar" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkSubmitting}
+                  onClick={() => void handleRunBulkAction()}
+                  className={`inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-bold disabled:opacity-50 ${
+                    bulkAction === "hide"
+                      ? "border border-rose-500/35 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+                      : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+                  }`}
+                >
+                  {bulkSubmitting
+                    ? "..."
+                    : bulkAction === "hide"
+                      ? isPt
+                        ? "Confirmar"
+                        : "Confirm"
+                      : isPt
+                        ? "Aprovar"
+                        : "Approve"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Filter Bottom Sheet */}
+        {filterSheetOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={isPt ? "Filtros de moderação" : "Moderation filters"}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
+            onClick={() => setFilterSheetOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-slate-800 bg-[#0b1220] px-5 pb-6 pt-3 shadow-2xl sm:rounded-3xl sm:p-6"
+            >
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-700 sm:hidden" />
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-100">
+                  {isPt ? "Filtros" : "Filters"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={clearSheetFilters}
+                  className="min-h-[44px] px-2 text-sm text-slate-400 hover:text-slate-200"
+                >
+                  {isPt ? "Limpar tudo" : "Clear all"}
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    {isPt ? "Situação" : "Status"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { id: "all", pt: "Todas", en: "All" },
+                      { id: "pending", pt: "Pendente", en: "Pending" },
+                      { id: "published", pt: "Publicado", en: "Published" },
+                      { id: "hidden", pt: "Oculto", en: "Hidden" },
+                      { id: "rejected", pt: "Rejeitado", en: "Rejected" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setDraftStatus(opt.id)}
+                        className={`min-h-[40px] rounded-full border px-3.5 text-sm ${
+                          draftStatus === opt.id
+                            ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                            : "border-slate-800 bg-[#080e1a] text-slate-300"
+                        }`}
+                      >
+                        {isPt ? opt.pt : opt.en}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    {isPt ? "Prioridade" : "Priority"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        { id: "all", pt: "Todas", en: "All" },
+                        { id: "high", pt: "Alta", en: "High" },
+                        { id: "medium", pt: "Média", en: "Medium" },
+                        { id: "low", pt: "Baixa", en: "Low" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setDraftPriority(opt.id)}
+                        className={`min-h-[40px] rounded-full border px-3.5 text-sm ${
+                          draftPriority === opt.id
+                            ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                            : "border-slate-800 bg-[#080e1a] text-slate-300"
+                        }`}
+                      >
+                        {isPt ? opt.pt : opt.en}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    {isPt ? "Denúncias" : "Reports"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        { id: "all", pt: "Todas", en: "All" },
+                        { id: "yes", pt: "Com denúncias", en: "With reports" },
+                        { id: "no", pt: "Sem denúncias", en: "No reports" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setDraftReports(opt.id)}
+                        className={`min-h-[40px] rounded-full border px-3.5 text-sm ${
+                          draftReports === opt.id
+                            ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                            : "border-slate-800 bg-[#080e1a] text-slate-300"
+                        }`}
+                      >
+                        {isPt ? opt.pt : opt.en}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    {isPt ? "Período" : "Period"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        { id: "all", pt: "Todo o período", en: "All time" },
+                        { id: "24h", pt: "Hoje", en: "Today" },
+                        { id: "7d", pt: "7 dias", en: "7 days" },
+                        { id: "30d", pt: "30 dias", en: "30 days" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setDraftPeriod(opt.id)}
+                        className={`min-h-[40px] rounded-full border px-3.5 text-sm ${
+                          draftPeriod === opt.id
+                            ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                            : "border-slate-800 bg-[#080e1a] text-slate-300"
+                        }`}
+                      >
+                        {isPt ? opt.pt : opt.en}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="block text-sm text-slate-200">
+                  <span>{isPt ? "Autor" : "Author"}</span>
+                  <input
+                    type="text"
+                    value={draftAuthor}
+                    onChange={(e) => setDraftAuthor(e.target.value)}
+                    placeholder={isPt ? "@usuário" : "@username"}
+                    className="mt-1.5 min-h-[48px] w-full rounded-xl border border-slate-800 bg-[#080e1a] px-3 text-[15px] text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={applyFilterSheet}
+                  className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-cyan-500 text-sm font-bold text-slate-950 hover:bg-cyan-400"
+                >
+                  {isPt ? "Aplicar filtros" : "Apply filters"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Existing Modals */}
+        {detailItem && (
+          <AdminModerationDetailModal
+            item={detailItem}
+            onClose={() => setDetailItem(null)}
+            onOpenDecision={(target, mode) => {
+              setDetailItem(null);
+              setDecisionModalState({ item: target, mode });
+            }}
+          />
+        )}
+
+        {decisionModalState && (
+          <AdminModerationDecisionModal
+            item={decisionModalState.item}
+            mode={decisionModalState.mode}
+            onClose={() => setDecisionModalState(null)}
+            onConfirm={async (item, mode, reason) => {
+              const result = await handleExecuteDecision(item, mode, reason);
+              if (result.success) {
+                setDecisionModalState(null);
+              }
+              return result;
+            }}
+          />
+        )}
+
+        {selectedReport && (
+          <AdminReportModal
+            report={selectedReport}
+            onClose={() => setSelectedReport(null)}
+            onSuccess={() => {
+              setSelectedReport(null);
+              setReloadKey((k) => k + 1);
+            }}
+          />
+        )}
       </div>
-
-      {/* Detail Modal */}
-      <AdminModerationDetailModal
-        item={detailItem}
-        onClose={() => setDetailItem(null)}
-        onOpenDecision={(item, mode) => setDecisionModalState({ item, mode })}
-        canModerate={canModerate}
-      />
-
-      {/* Decision Modal */}
-      <AdminModerationDecisionModal
-        key={
-          decisionModalState
-            ? `${decisionModalState.item.contentType}-${decisionModalState.item.id}-${decisionModalState.mode}`
-            : "decision-closed"
-        }
-        item={decisionModalState?.item ?? null}
-        mode={decisionModalState?.mode ?? null}
-        onClose={() => setDecisionModalState(null)}
-        onConfirm={handleExecuteDecision}
-      />
-
-      {/* Report Modal */}
-      <AdminReportModal
-        key={selectedReport?.id ?? "report-closed"}
-        report={selectedReport}
-        onClose={() => setSelectedReport(null)}
-        onSuccess={() => {
-          setFeedbackMessage(
-            isPt
-              ? "Resolução da denúncia registrada com sucesso."
-              : "Report resolution recorded successfully."
-          );
-          setReloadKey((k) => k + 1);
-          setTimeout(() => setFeedbackMessage(null), 4500);
-        }}
-      />
     </AdminGuard>
   );
 }
 
 export default function AdminModerationPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="p-8 text-center text-xs font-mono text-slate-400">
-          Carregando moderação...
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="h-48 animate-pulse rounded-2xl bg-[#0b1220]" />}>
       <AdminModerationContent />
     </Suspense>
   );

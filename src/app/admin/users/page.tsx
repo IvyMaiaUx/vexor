@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   adminDataProvider,
-  type AdminAuditEntry,
   type AdminUser,
   type AdminUserStatus,
   type AdminUsersSummary,
@@ -20,49 +21,45 @@ import { useI18n } from "@/lib/i18n/context";
 type PeriodFilter = "all" | "7d" | "30d" | "90d";
 
 export default function AdminUsersPage() {
-  const { dict, locale } = useI18n();
+  const { locale } = useI18n();
+  const isPt = locale === "pt-BR";
   const currentUser = useAuthStore((s) => s.user);
-  const t = dict.adminPanel.usersPage;
 
-  // Query & filter state
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<DbUserRole | "all">("all");
-  const [statusFilter, setStatusFilter] = useState<AdminUserStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<AdminUserStatus | "all">(
+    "all"
+  );
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  // Data state
   const [usersResult, setUsersResult] = useState<PaginatedResult<AdminUser>>({
     items: [],
     total: 0,
     page: 1,
-    pageSize: 5,
+    pageSize: 50,
     totalPages: 1,
   });
   const [summary, setSummary] = useState<AdminUsersSummary | null>(null);
-  const [auditEntries, setAuditEntries] = useState<AdminAuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
-  // Modals state
+  const [openMenuUserId, setOpenMenuUserId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [roleTargetUser, setRoleTargetUser] = useState<AdminUser | null>(null);
-  const [suspensionTargetUser, setSuspensionTargetUser] = useState<AdminUser | null>(null);
+  const [suspensionTargetUser, setSuspensionTargetUser] =
+    useState<AdminUser | null>(null);
 
-  // Debounce search input to avoid querying on every keystroke
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchInput.trim());
-      setPage(1);
     }, 250);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
   const fetchUsersSnapshot = useCallback(async () => {
-    const [listRes, summaryRes, auditRes] = await Promise.all([
+    const [listRes, summaryRes] = await Promise.all([
       adminDataProvider.users.listUsers(
         {
           query: debouncedQuery || undefined,
@@ -70,25 +67,20 @@ export default function AdminUsersPage() {
           status: statusFilter,
           period: periodFilter,
         },
-        { page, pageSize }
+        { page: 1, pageSize: 50 }
       ),
       adminDataProvider.users.getUsersSummary(),
-      adminDataProvider.audit.listAuditEntries(
-        { entityType: "profile" },
-        { page: 1, pageSize: 10 }
-      ),
     ]);
-    return { listRes, summaryRes, auditRes };
-  }, [debouncedQuery, roleFilter, statusFilter, periodFilter, page, pageSize]);
+    return { listRes, summaryRes };
+  }, [debouncedQuery, roleFilter, statusFilter, periodFilter]);
 
   useEffect(() => {
     let active = true;
     fetchUsersSnapshot()
-      .then(({ listRes, summaryRes, auditRes }) => {
+      .then(({ listRes, summaryRes }) => {
         if (!active) return;
         setUsersResult(listRes);
         setSummary(summaryRes);
-        setAuditEntries(auditRes.items);
         setLoadError(false);
         setLoading(false);
       })
@@ -102,700 +94,473 @@ export default function AdminUsersPage() {
     };
   }, [fetchUsersSnapshot]);
 
+  useEffect(() => {
+    if (!openMenuUserId) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenMenuUserId(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [openMenuUserId]);
+
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    setLoadError(false);
     try {
-      const { listRes, summaryRes, auditRes } = await fetchUsersSnapshot();
+      const { listRes, summaryRes } = await fetchUsersSnapshot();
       setUsersResult(listRes);
       setSummary(summaryRes);
-      setAuditEntries(auditRes.items);
+      setLoadError(false);
     } catch {
       setLoadError(true);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
   }, [fetchUsersSnapshot]);
 
-  const handleClearFilters = () => {
-    setSearchInput("");
-    setDebouncedQuery("");
-    setRoleFilter("all");
-    setStatusFilter("all");
-    setPeriodFilter("all");
-    setPage(1);
-  };
-
-  const hasActiveFilters =
-    Boolean(searchInput.trim()) ||
-    roleFilter !== "all" ||
-    statusFilter !== "all" ||
-    periodFilter !== "all";
-
   const dateFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-  });
-  const dateTimeFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: "short",
-    timeStyle: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 
-  const roleBadgeStyles: Record<string, string> = {
-    admin: "border-violet-500/40 bg-violet-500/15 text-violet-300",
-    moderator: "border-cyan-500/40 bg-cyan-500/15 text-cyan-300",
-    member: "border-slate-700 bg-slate-800/90 text-slate-300",
+  const roleLabel = (role: DbUserRole) => {
+    if (role === "admin") return "Admin";
+    if (role === "moderator") return isPt ? "Moderador" : "Moderator";
+    return isPt ? "Membro" : "Member";
   };
 
-  const summaryCards = [
-    {
-      id: "total",
-      label: t.summary.totalUsers,
-      value: summary?.totalUsers ?? 0,
-      accent: "text-white border-slate-800/90",
-    },
-    {
-      id: "active",
-      label: t.summary.activeUsers,
-      value: summary?.activeUsers ?? 0,
-      accent: "text-emerald-300 border-slate-800/90",
-    },
-    {
-      id: "suspended",
-      label: t.summary.suspendedUsers,
-      value: summary?.suspendedUsers ?? 0,
-      accent: "text-rose-300 border-slate-800/90",
-    },
-    {
-      id: "admins",
-      label: t.summary.admins,
-      value: summary?.adminUsers ?? 0,
-      accent: "text-violet-300 border-slate-800/90",
-    },
-    {
-      id: "moderators",
-      label: t.summary.moderators,
-      value: summary?.moderatorUsers ?? 0,
-      accent: "text-cyan-300 border-slate-800/90",
-    },
-  ];
+  const roleBadgeClass = (role: DbUserRole) => {
+    if (role === "admin") {
+      return "border-indigo-500/40 bg-indigo-500/15 text-indigo-300";
+    }
+    if (role === "moderator") {
+      return "border-cyan-500/40 bg-cyan-500/10 text-cyan-300";
+    }
+    return "border-slate-700 bg-slate-800/80 text-slate-300";
+  };
+
+  const totalUsers = summary?.totalUsers ?? usersResult.total;
+  const hasSheetFilters =
+    roleFilter !== "all" || statusFilter !== "all" || periodFilter !== "all";
 
   return (
     <AdminGuard requireAdmin={true}>
-      <div className="flex flex-col gap-6 pb-16">
+      <div className="space-y-3">
         {/* Header */}
-        <header className="rounded-2xl border border-slate-800/90 bg-[#091020] p-5 sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-[11px] uppercase tracking-wider text-cyan-400">
-                  {t.eyebrow}
-                </span>
-                <span className="rounded border border-violet-500/40 bg-violet-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-violet-300">
-                  ADMIN ONLY
-                </span>
-              </div>
+        <div>
+          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-slate-100">
+            {isPt ? "Usuários" : "Users"}
+          </h1>
+          <p className="mt-0.5 text-sm text-slate-400">
+            {isPt
+              ? `${totalUsers} ${totalUsers === 1 ? "conta cadastrada" : "contas cadastradas"}`
+              : `${totalUsers} registered ${totalUsers === 1 ? "account" : "accounts"}`}
+          </p>
+        </div>
 
-              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                {t.title}
-              </h1>
-              <p className="max-w-2xl text-sm text-slate-300">{t.subtitle}</p>
-            </div>
+        {/* Summary Strip */}
+        <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <span className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border border-slate-800 bg-[#0b1220] px-3.5 text-sm text-slate-300">
+            <strong className="font-mono text-slate-100">
+              {summary?.totalUsers ?? 0}
+            </strong>
+            <span>{isPt ? "total" : "total"}</span>
+          </span>
+          <span className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border border-slate-800 bg-[#0b1220] px-3.5 text-sm text-slate-300">
+            <strong className="font-mono text-emerald-400">
+              {summary?.activeUsers ?? 0}
+            </strong>
+            <span>{isPt ? "ativos" : "active"}</span>
+          </span>
+          <span className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border border-slate-800 bg-[#0b1220] px-3.5 text-sm text-slate-300">
+            <strong className="font-mono text-rose-300">
+              {summary?.suspendedUsers ?? 0}
+            </strong>
+            <span>{isPt ? "suspensos" : "suspended"}</span>
+          </span>
+          <span className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border border-slate-800 bg-[#0b1220] px-3.5 text-sm text-slate-300">
+            <strong className="font-mono text-indigo-300">
+              {summary?.adminUsers ?? 0}
+            </strong>
+            <span>admins</span>
+          </span>
+          <span className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border border-slate-800 bg-[#0b1220] px-3.5 text-sm text-slate-300">
+            <strong className="font-mono text-cyan-400">
+              {summary?.moderatorUsers ?? 0}
+            </strong>
+            <span>{isPt ? "moderadores" : "moderators"}</span>
+          </span>
+        </div>
 
-            <button
-              type="button"
-              onClick={() => void handleRefresh()}
-              disabled={loading || refreshing}
-              className="inline-flex min-h-[38px] shrink-0 items-center gap-2 self-start rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-3.5 py-2 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-            >
-              <svg
-                className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 12a9 9 0 1 1-3-6.7L21 8m0-5v5h-5"
-                />
-              </svg>
-              <span>{refreshing ? t.refreshingButton : t.refreshButton}</span>
-            </button>
-          </div>
-        </header>
+        {/* Search + Filter Button */}
+        <div className="flex gap-2">
+          <label className="flex min-h-[48px] flex-1 items-center gap-2 rounded-xl border border-slate-800 bg-[#0b1220] px-3 text-slate-400 focus-within:border-cyan-500/60">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.3-4.3" />
+            </svg>
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder={
+                isPt
+                  ? "Buscar por nome ou @username"
+                  : "Search by name or @username"
+              }
+              aria-label={isPt ? "Buscar" : "Search"}
+              className="w-full min-w-0 bg-transparent text-[15px] text-slate-100 placeholder:text-slate-500 focus:outline-none"
+            />
+          </label>
 
-        {/* Error Banner */}
-        {loadError && (
-          <div
-            role="alert"
-            className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-5 sm:flex-row sm:items-center"
+          <button
+            type="button"
+            onClick={() => setFilterSheetOpen(true)}
+            aria-label={isPt ? "Filtros" : "Filters"}
+            className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-[#0b1220] text-slate-200 transition-colors hover:border-cyan-500/50 hover:text-cyan-300"
           >
-            <div className="space-y-1">
-              <h2 className="text-sm font-semibold text-rose-200">{t.errorTitle}</h2>
-              <p className="text-xs text-rose-200/80">{t.errorMessage}</p>
-            </div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]" aria-hidden="true">
+              <path d="M3 5h18M6 12h12M10 19h4" />
+            </svg>
+            {hasSheetFilters && (
+              <span
+                aria-hidden="true"
+                className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-cyan-400"
+              />
+            )}
+          </button>
+        </div>
+
+        {/* User Cards */}
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-2xl border border-slate-800 bg-[#0b1220]/70"
+              />
+            ))}
+          </div>
+        ) : loadError ? (
+          <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-6 text-center">
+            <p className="text-sm text-rose-200">
+              {isPt
+                ? "Não foi possível carregar os usuários."
+                : "Could not load users."}
+            </p>
             <button
               type="button"
               onClick={() => void handleRefresh()}
-              className="inline-flex min-h-[38px] shrink-0 items-center justify-center rounded-xl bg-rose-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-rose-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+              className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-rose-500/20 px-4 text-xs font-semibold text-rose-200"
             >
-              {t.retryButton}
+              {isPt ? "Tentar novamente" : "Retry"}
             </button>
-          </div>
-        )}
-
-        {/* Summary Indicators */}
-        <section aria-label={t.summary.totalUsers} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {summaryCards.map((card) => (
-            <div
-              key={card.id}
-              className={`rounded-2xl border bg-[#0c1220]/90 p-4 ${card.accent}`}
-            >
-              <span className="block text-xs font-medium text-slate-400">
-                {card.label}
-              </span>
-              <div className="mt-2 font-mono text-2xl font-bold">
-                {loading ? (
-                  <span className="inline-block h-7 w-10 animate-pulse rounded bg-slate-800" />
-                ) : (
-                  card.value
-                )}
-              </div>
-            </div>
-          ))}
-        </section>
-
-        {/* Search & Filters */}
-        <section
-          aria-label={t.searchLabel}
-          className="rounded-2xl border border-slate-800/90 bg-[#0c1220]/90 p-4 sm:p-5"
-        >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="lg:col-span-2">
-              <label htmlFor="admin-users-search" className="mb-1 block text-[11px] font-medium text-slate-400">
-                {t.searchLabel}
-              </label>
-              <input
-                id="admin-users-search"
-                type="search"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder={t.searchPlaceholder}
-                className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="admin-users-role" className="mb-1 block text-[11px] font-medium text-slate-400">
-                {t.filterRole}
-              </label>
-              <select
-                id="admin-users-role"
-                value={roleFilter}
-                onChange={(e) => {
-                  setRoleFilter(e.target.value as DbUserRole | "all");
-                  setPage(1);
-                }}
-                className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-              >
-                <option value="all">{t.allRoles}</option>
-                <option value="member">{t.roleLabels.member}</option>
-                <option value="moderator">{t.roleLabels.moderator}</option>
-                <option value="admin">{t.roleLabels.admin}</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="admin-users-status" className="mb-1 block text-[11px] font-medium text-slate-400">
-                {t.filterStatus}
-              </label>
-              <select
-                id="admin-users-status"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value as AdminUserStatus | "all");
-                  setPage(1);
-                }}
-                className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-              >
-                <option value="all">{t.allStatuses}</option>
-                <option value="active">{t.statusActive}</option>
-                <option value="suspended">{t.statusSuspended}</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="admin-users-period" className="mb-1 block text-[11px] font-medium text-slate-400">
-                {t.filterPeriod}
-              </label>
-              <select
-                id="admin-users-period"
-                value={periodFilter}
-                onChange={(e) => {
-                  setPeriodFilter(e.target.value as PeriodFilter);
-                  setPage(1);
-                }}
-                className="w-full rounded-xl border border-slate-800 bg-[#070b14] px-3 py-2 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-              >
-                <option value="all">{t.allPeriods}</option>
-                <option value="7d">{t.period7d}</option>
-                <option value="30d">{t.period30d}</option>
-                <option value="90d">{t.period90d}</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 pt-3 text-xs">
-            <span className="font-mono text-slate-300">
-              {t.resultsCount(usersResult.items.length, usersResult.total)}
-            </span>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label htmlFor="admin-users-pagesize" className="text-slate-400">
-                  {t.pageSizeLabel}:
-                </label>
-                <select
-                  id="admin-users-pagesize"
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="rounded-lg border border-slate-800 bg-[#070b14] px-2.5 py-1 font-mono text-xs text-slate-200 focus:border-cyan-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                >
-                  <option value={3}>3</option>
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                </select>
-              </div>
-
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={handleClearFilters}
-                  className="rounded-lg border border-slate-700 bg-[#070b14] px-3 py-1 text-xs font-medium text-cyan-300 transition-colors hover:border-cyan-500/50 hover:text-cyan-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                >
-                  {t.clearFiltersBtn}
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Users Table / Mobile Cards */}
-        {loading ? (
-          <div className="rounded-2xl border border-slate-800 bg-[#0c1220] p-10 text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
-            <p className="mt-3 font-mono text-xs text-slate-400">
-              {t.loadingMessage}
-            </p>
           </div>
         ) : usersResult.items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-800 bg-[#0c1220] p-10 text-center">
-            <h2 className="text-sm font-semibold text-slate-200">{t.emptyTitle}</h2>
-            <p className="mt-1 text-xs text-slate-400">{t.emptyState}</p>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleClearFilters}
-                className="mt-4 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/20"
-              >
-                {t.clearFiltersBtn}
-              </button>
-            )}
+          <div className="rounded-2xl border border-dashed border-slate-800 bg-[#0b1220]/50 p-10 text-center text-sm text-slate-400">
+            {isPt ? "Nenhum usuário encontrado." : "No users found."}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-800/90 bg-[#0c1220]/90">
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-800 bg-[#080d1a] font-mono uppercase tracking-wider text-slate-400">
-                  <tr>
-                    <th scope="col" className="px-5 py-3.5">{t.userCol}</th>
-                    <th scope="col" className="px-5 py-3.5">{t.roleCol}</th>
-                    <th scope="col" className="px-5 py-3.5">{t.statusCol}</th>
-                    <th scope="col" className="px-5 py-3.5">{t.createdCol}</th>
-                    <th scope="col" className="px-5 py-3.5">{t.activityCol}</th>
-                    <th scope="col" className="px-5 py-3.5 text-right">{t.actionsCol}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/70">
-                  {usersResult.items.map((u) => {
-                    const isSelf = currentUser?.id === u.id;
-                    return (
-                      <tr
-                        key={u.id}
-                        className="transition-colors hover:bg-slate-800/30"
-                      >
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-[#070b14] font-mono text-sm font-bold text-cyan-300">
-                              {u.displayName.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-100 truncate">
-                                  {u.displayName}
-                                </span>
-                                {isSelf && (
-                                  <span className="rounded border border-cyan-500/40 bg-cyan-500/15 px-1.5 py-0.5 font-mono text-[10px] text-cyan-300">
-                                    {t.selfBadge}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="font-mono text-[11px] text-slate-400">
-                                @{u.username}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-semibold ${
-                              roleBadgeStyles[u.role] ?? roleBadgeStyles.member
-                            }`}
-                          >
-                            {t.roleLabels[u.role] ?? u.role}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-semibold ${
-                              u.isSuspended
-                                ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
-                                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                            }`}
-                          >
-                            {u.isSuspended ? t.statusSuspended : t.statusActive}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 font-mono text-slate-300">
-                          <time dateTime={u.createdAt}>
-                            {dateFormatter.format(new Date(u.createdAt))}
-                          </time>
-                        </td>
-                        <td className="px-5 py-4 font-mono text-slate-400">
-                          {u.lastActivityAt ? (
-                            <time dateTime={u.lastActivityAt}>
-                              {dateTimeFormatter.format(new Date(u.lastActivityAt))}
-                            </time>
-                          ) : (
-                            t.noActivity
-                          )}
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <div className="flex flex-wrap items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedUserId(u.id)}
-                              className="inline-flex items-center rounded-lg border border-slate-700 bg-[#070b14] px-2.5 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:border-cyan-500/50 hover:text-cyan-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                            >
-                              {t.viewDetailsBtn}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={
-                                isSelf ||
-                                (u.role === "admin" &&
-                                  !u.isSuspended &&
-                                  (summary?.activeAdminUsers ?? 1) <= 1)
-                              }
-                              onClick={() => setRoleTargetUser(u)}
-                              className="inline-flex items-center rounded-lg border border-violet-500/40 bg-violet-500/15 px-2.5 py-1.5 text-xs font-medium text-violet-200 transition-colors hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-                            >
-                              {t.changeRoleBtn}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={
-                                (isSelf && !u.isSuspended) ||
-                                (u.role === "admin" &&
-                                  !u.isSuspended &&
-                                  (summary?.activeAdminUsers ?? 1) <= 1)
-                              }
-                              onClick={() => setSuspensionTargetUser(u)}
-                              className={`inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 ${
-                                u.isSuspended
-                                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25 focus-visible:ring-emerald-400"
-                                  : "border-rose-500/40 bg-rose-500/15 text-rose-200 hover:bg-rose-500/25 focus-visible:ring-rose-400"
-                              }`}
-                            >
-                              {u.isSuspended ? t.unsuspendBtn : t.suspendBtn}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="space-y-2.5">
+            {usersResult.items.map((u) => {
+              const isSelf = Boolean(currentUser && currentUser.id === u.id);
+              const initial = (u.displayName || u.username || "V")
+                .slice(0, 1)
+                .toUpperCase();
+              const isMenuOpen = openMenuUserId === u.id;
 
-            {/* Mobile Cards */}
-            <div className="divide-y divide-slate-800/80 md:hidden">
-              {usersResult.items.map((u) => {
-                const isSelf = currentUser?.id === u.id;
-                return (
-                  <div key={u.id} className="space-y-3 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-[#070b14] font-mono text-sm font-bold text-cyan-300">
-                          {u.displayName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-semibold text-slate-100 break-words">
-                              {u.displayName}
-                            </span>
-                            {isSelf && (
-                              <span className="rounded border border-cyan-500/40 bg-cyan-500/15 px-1.5 py-0.5 font-mono text-[9px] text-cyan-300">
-                                {t.selfBadge}
-                              </span>
-                            )}
-                          </div>
-                          <span className="font-mono text-xs text-slate-400">
-                            @{u.username}
+              return (
+                <article
+                  key={u.id}
+                  className="rounded-2xl border border-slate-800 bg-[#0b1220] p-3.5 space-y-2"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-cyan-500/15 font-mono text-base font-bold text-cyan-300">
+                      {u.avatarUrl ? (
+                        <Image
+                          src={u.avatarUrl}
+                          alt={u.displayName || u.username}
+                          width={44}
+                          height={44}
+                          unoptimized
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        initial
+                      )}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate text-[15px] font-semibold text-slate-100">
+                          {u.displayName || `@${u.username}`}
+                        </span>
+                        {isSelf && (
+                          <span className="inline-flex h-[20px] items-center rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 font-mono text-[10px] font-semibold text-cyan-300">
+                            {isPt ? "Você" : "You"}
                           </span>
-                        </div>
+                        )}
                       </div>
-
-                      <span
-                        className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold ${
-                          u.isSuspended
-                            ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
-                            : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                        }`}
-                      >
-                        {u.isSuspended ? t.statusSuspended : t.statusActive}
-                      </span>
+                      <div className="truncate font-mono text-[13px] text-slate-400">
+                        @{u.username}
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                      <span
-                        className={`rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold ${
-                          roleBadgeStyles[u.role] ?? roleBadgeStyles.member
-                        }`}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        disabled={isSelf}
+                        aria-label={isPt ? "Ações do usuário" : "User actions"}
+                        aria-expanded={isMenuOpen}
+                        aria-haspopup="menu"
+                        onClick={() =>
+                          setOpenMenuUserId((prev) =>
+                            prev === u.id ? null : u.id
+                          )
+                        }
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-slate-800/70 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {t.roleLabels[u.role] ?? u.role}
-                      </span>
-                      <span className="font-mono text-[11px]">
-                        {dateFormatter.format(new Date(u.createdAt))}
-                      </span>
-                    </div>
+                        <span aria-hidden="true" className="text-lg font-bold leading-none">
+                          ⋯
+                        </span>
+                      </button>
 
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedUserId(u.id)}
-                        className="min-h-[38px] w-full rounded-xl border border-slate-700 bg-[#070b14] px-3 py-2 text-center text-xs font-medium text-slate-200 transition-colors hover:border-cyan-500/50 hover:text-cyan-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                      >
-                        {t.viewDetailsBtn}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={
-                          isSelf ||
-                          (u.role === "admin" &&
-                            !u.isSuspended &&
-                            (summary?.activeAdminUsers ?? 1) <= 1)
-                        }
-                        onClick={() => setRoleTargetUser(u)}
-                        className="min-h-[38px] w-full rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 py-2 text-center text-xs font-medium text-violet-200 transition-colors hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-                      >
-                        {t.changeRoleBtn}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={
-                          (isSelf && !u.isSuspended) ||
-                          (u.role === "admin" &&
-                            !u.isSuspended &&
-                            (summary?.activeAdminUsers ?? 1) <= 1)
-                        }
-                        onClick={() => setSuspensionTargetUser(u)}
-                        className={`min-h-[38px] w-full rounded-xl border px-3 py-2 text-center text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 ${
-                          u.isSuspended
-                            ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25 focus-visible:ring-emerald-400"
-                            : "border-rose-500/40 bg-rose-500/15 text-rose-200 hover:bg-rose-500/25 focus-visible:ring-rose-400"
-                        }`}
-                      >
-                        {u.isSuspended ? t.unsuspendBtn : t.suspendBtn}
-                      </button>
+                      {isMenuOpen && !isSelf && (
+                        <div
+                          role="menu"
+                          className="absolute right-0 top-12 z-20 min-w-[180px] rounded-xl border border-slate-800 bg-[#070b14] p-1.5 shadow-xl"
+                        >
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setOpenMenuUserId(null);
+                              setSelectedUserId(u.id);
+                            }}
+                            className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-800/70"
+                          >
+                            {isPt ? "Detalhes" : "Details"}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setOpenMenuUserId(null);
+                              setRoleTargetUser(u);
+                            }}
+                            className="flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-800/70"
+                          >
+                            {isPt ? "Alterar papel" : "Change role"}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setOpenMenuUserId(null);
+                              setSuspensionTargetUser(u);
+                            }}
+                            className={`flex min-h-[44px] w-full items-center rounded-lg px-3 text-left text-xs font-semibold ${
+                              u.isSuspended
+                                ? "text-emerald-300 hover:bg-emerald-500/15"
+                                : "text-rose-300 hover:bg-rose-500/15"
+                            }`}
+                          >
+                            {u.isSuspended
+                              ? isPt
+                                ? "Reativar conta"
+                                : "Reactivate"
+                              : isPt
+                                ? "Suspender"
+                                : "Suspend"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Pagination */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-[#080d1a] px-5 py-3.5 text-xs text-slate-400">
-              <span className="font-mono">
-                {t.pageIndicator(usersResult.page, usersResult.totalPages)}
-              </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={`inline-flex h-[22px] items-center rounded-md border px-2 font-mono text-[11px] font-semibold ${roleBadgeClass(u.role)}`}
+                    >
+                      {roleLabel(u.role)}
+                    </span>
+                    <span
+                      className={`inline-flex h-[22px] items-center rounded-md border px-2 font-mono text-[11px] font-semibold ${
+                        u.isSuspended
+                          ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                          : "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                      }`}
+                    >
+                      {u.isSuspended
+                        ? isPt
+                          ? "Suspenso"
+                          : "Suspended"
+                        : isPt
+                          ? "Ativo"
+                          : "Active"}
+                    </span>
+                    <span className="ml-auto text-xs text-slate-400">
+                      {isPt ? "desde" : "since"}{" "}
+                      {dateFormatter.format(new Date(u.createdAt))}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
 
-              <div className="flex items-center gap-2">
+        {/* Link to Access Change History */}
+        <Link
+          href="/admin/audit?entity=profile"
+          className="flex min-h-[52px] items-center justify-between rounded-2xl border border-slate-800 bg-[#0b1220] px-4 text-sm font-medium text-slate-100 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
+        >
+          <span>
+            {isPt
+              ? "Histórico de alterações de acesso"
+              : "Access change history"}
+          </span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] text-slate-400" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </Link>
+
+        {/* Filter Sheet */}
+        {filterSheetOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
+            onClick={() => setFilterSheetOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-3xl border border-slate-800 bg-[#0b1220] px-5 pb-6 pt-3 space-y-4 sm:rounded-3xl sm:p-6"
+            >
+              <div className="mx-auto h-1 w-10 rounded-full bg-slate-700 sm:hidden" />
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-100">
+                  {isPt ? "Filtros" : "Filters"}
+                </h2>
                 <button
                   type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={usersResult.page <= 1}
-                  className="rounded-lg border border-slate-800 bg-[#0c1220] px-3 py-1.5 text-xs text-slate-200 transition-colors hover:border-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                  onClick={() => {
+                    setRoleFilter("all");
+                    setStatusFilter("all");
+                    setPeriodFilter("all");
+                  }}
+                  className="min-h-[44px] px-2 text-sm text-slate-400 hover:text-slate-200"
                 >
-                  ← {t.prevPageBtn}
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPage((p) => Math.min(usersResult.totalPages, p + 1))
-                  }
-                  disabled={usersResult.page >= usersResult.totalPages}
-                  className="rounded-lg border border-slate-800 bg-[#0c1220] px-3 py-1.5 text-xs text-slate-200 transition-colors hover:border-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                >
-                  {t.nextPageBtn} →
+                  {isPt ? "Limpar tudo" : "Clear all"}
                 </button>
               </div>
+
+              <div>
+                <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  {isPt ? "Papel" : "Role"}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { id: "all", label: isPt ? "Todos" : "All" },
+                      { id: "admin", label: "Admin" },
+                      { id: "moderator", label: isPt ? "Moderador" : "Moderator" },
+                      { id: "member", label: isPt ? "Membro" : "Member" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setRoleFilter(opt.id)}
+                      className={`min-h-[40px] rounded-full border px-3.5 text-sm ${
+                        roleFilter === opt.id
+                          ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                          : "border-slate-800 bg-[#080e1a] text-slate-300"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  {isPt ? "Situação" : "Status"}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { id: "all", label: isPt ? "Todas" : "All" },
+                      { id: "active", label: isPt ? "Ativo" : "Active" },
+                      { id: "suspended", label: isPt ? "Suspenso" : "Suspended" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setStatusFilter(opt.id)}
+                      className={`min-h-[40px] rounded-full border px-3.5 text-sm ${
+                        statusFilter === opt.id
+                          ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                          : "border-slate-800 bg-[#080e1a] text-slate-300"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setFilterSheetOpen(false)}
+                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-cyan-500 text-sm font-bold text-slate-950 hover:bg-cyan-400"
+              >
+                {isPt ? "Aplicar filtros" : "Apply filters"}
+              </button>
             </div>
           </div>
         )}
 
-        {/* Audit History (Append-Only) */}
-        <section
-          aria-label={t.auditHistory.title}
-          className="rounded-2xl border border-slate-800/90 bg-[#0c1220]/90 p-5"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800/80 pb-4">
-            <div>
-              <h2 className="text-base font-bold text-white">
-                {t.auditHistory.title}
-              </h2>
-              <p className="mt-1 text-xs text-slate-400">
-                {t.auditHistory.subtitle}
-              </p>
-            </div>
-            <span className="rounded border border-cyan-500/40 bg-cyan-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-cyan-300">
-              {t.auditHistory.appendOnlyBadge}
-            </span>
-          </div>
+        {/* Existing User Modals (server-validated & audited) */}
+        {selectedUserId && (
+          <AdminUserDetailModal
+            userId={selectedUserId}
+            currentAdminId={currentUser?.id}
+            activeAdminsCount={summary?.adminUsers ?? 1}
+            onClose={() => setSelectedUserId(null)}
+            onOpenRoleModal={(u) => {
+              setSelectedUserId(null);
+              setRoleTargetUser(u);
+            }}
+            onOpenSuspensionModal={(u) => {
+              setSelectedUserId(null);
+              setSuspensionTargetUser(u);
+            }}
+          />
+        )}
 
-          {loading ? (
-            <p className="py-6 text-center font-mono text-xs text-slate-400">
-              {t.auditHistory.loading}
-            </p>
-          ) : auditEntries.length === 0 ? (
-            <p className="py-6 text-center text-xs text-slate-400">
-              {t.auditHistory.empty}
-            </p>
-          ) : (
-            <ul className="mt-4 space-y-2.5">
-              {auditEntries.map((entry) => {
-                const actionLabel =
-                  t.auditHistory.actions[entry.action] ?? entry.action;
-                const targetUsername =
-                  typeof entry.metadata?.targetUsername === "string"
-                    ? entry.metadata.targetUsername
-                    : entry.entityId;
-                const fromRole =
-                  typeof entry.metadata?.from === "string"
-                    ? entry.metadata.from
-                    : null;
-                const toRole =
-                  typeof entry.metadata?.to === "string"
-                    ? entry.metadata.to
-                    : null;
-                const reason =
-                  entry.action === "user.suspended" &&
-                  typeof entry.metadata?.reason === "string"
-                    ? entry.metadata.reason
-                    : null;
+        {roleTargetUser && (
+          <AdminUserRoleModal
+            user={roleTargetUser}
+            activeAdminsCount={summary?.adminUsers ?? 1}
+            onClose={() => setRoleTargetUser(null)}
+            onSuccess={() => {
+              setRoleTargetUser(null);
+              void handleRefresh();
+            }}
+          />
+        )}
 
-                return (
-                  <li
-                    key={entry.id}
-                    className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 text-xs"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-semibold text-cyan-300">
-                        {actionLabel}
-                      </span>
-                      <time
-                        dateTime={entry.createdAt}
-                        className="font-mono text-[11px] text-slate-400"
-                      >
-                        {dateTimeFormatter.format(new Date(entry.createdAt))}
-                      </time>
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-300">
-                      <span>
-                        <strong className="text-slate-400">
-                          {t.auditHistory.actorLabel}:
-                        </strong>{" "}
-                        @{entry.actorUsername}
-                      </span>
-                      <span>
-                        <strong className="text-slate-400">
-                          {t.auditHistory.targetLabel}:
-                        </strong>{" "}
-                        @{targetUsername}
-                      </span>
-                      {fromRole && toRole && (
-                        <span className="font-mono text-violet-300">
-                          {t.auditHistory.roleTransition(fromRole, toRole)}
-                        </span>
-                      )}
-                    </div>
-                    {reason && (
-                      <p className="mt-1.5 text-[11px] text-rose-200/90">
-                        <strong className="text-rose-300">
-                          {t.auditHistory.reasonLabel}:
-                        </strong>{" "}
-                        {reason}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        {/* User Detail Modal */}
-        <AdminUserDetailModal
-          userId={selectedUserId}
-          currentAdminId={currentUser?.id}
-          activeAdminsCount={summary?.activeAdminUsers ?? 1}
-          onClose={() => setSelectedUserId(null)}
-          onOpenRoleModal={(target) => setRoleTargetUser(target)}
-          onOpenSuspensionModal={(target) => setSuspensionTargetUser(target)}
-        />
-
-        {/* Role Change Modal */}
-        <AdminUserRoleModal
-          key={roleTargetUser?.id ?? "role-modal-closed"}
-          user={roleTargetUser}
-          activeAdminsCount={summary?.activeAdminUsers ?? 1}
-          onClose={() => setRoleTargetUser(null)}
-          onSuccess={() => {
-            void handleRefresh();
-          }}
-        />
-
-        {/* Suspension / Reactivation Modal */}
-        <AdminUserSuspensionModal
-          key={
-            suspensionTargetUser
-              ? `${suspensionTargetUser.id}-${suspensionTargetUser.isSuspended ? "s" : "a"}`
-              : "suspension-modal-closed"
-          }
-          user={suspensionTargetUser}
-          activeAdminsCount={summary?.activeAdminUsers ?? 1}
-          onClose={() => setSuspensionTargetUser(null)}
-          onSuccess={() => {
-            void handleRefresh();
-          }}
-        />
+        {suspensionTargetUser && (
+          <AdminUserSuspensionModal
+            user={suspensionTargetUser}
+            activeAdminsCount={summary?.adminUsers ?? 1}
+            onClose={() => setSuspensionTargetUser(null)}
+            onSuccess={() => {
+              setSuspensionTargetUser(null);
+              void handleRefresh();
+            }}
+          />
+        )}
       </div>
     </AdminGuard>
   );

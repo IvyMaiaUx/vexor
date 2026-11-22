@@ -1823,7 +1823,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         users: "Gestão de Usuários",
         audit: "Logs de Auditoria",
         backToSite: "Voltar à Plataforma",
-        roleAdminBadge: "ACESSO ROOT",
+        roleAdminBadge: "Admin",
         roleModBadge: "MODERADOR",
         adminOnlyBadge: "Admin",
       },
@@ -2193,7 +2193,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         auditHistory: {
           title: "Histórico de Alterações de Acesso e Situação",
           subtitle:
-            "Registro append-only das alterações de papel, suspensão e reativação.",
+            "Histórico das alterações de papel, suspensão e reativação.",
           appendOnlyBadge: "APPEND-ONLY",
           loading: "Carregando histórico...",
           empty: "Nenhuma alteração administrativa registrada ainda.",
@@ -2222,9 +2222,8 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
       },
       auditPage: {
         eyebrow: "SEGURANÇA & CONFORMIDADE",
-        title: "Central de Auditoria de Segurança",
-        subtitle:
-          "Registro somente leitura (append-only) de intervenções administrativas, alterações de papéis, moderação, suspensões e bloqueios de acesso.",
+        title: "Auditoria",
+        subtitle: "Registro somente leitura das ações administrativas.",
         refreshButton: "Atualizar registros",
         refreshingButton: "Atualizando...",
         summary: {
@@ -2285,7 +2284,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         emptyState: "Nenhum registro de auditoria encontrado para os filtros selecionados.",
         incompleteBadge: "Informação Parcial",
         immutableNotice:
-          "Registros de auditoria são estritamente append-only. A imutabilidade é garantida por triggers e políticas RLS do PostgreSQL.",
+          "Registros de auditoria são somente leitura e não podem ser alterados ou apagados.",
         severityLabels: {
           info: "Informativo",
           warning: "Aviso",
@@ -3227,7 +3226,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         users: "User Management",
         audit: "Audit Logs",
         backToSite: "Back to Platform",
-        roleAdminBadge: "ROOT ACCESS",
+        roleAdminBadge: "Admin",
         roleModBadge: "MODERATOR",
         adminOnlyBadge: "Admin",
       },
@@ -3596,7 +3595,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         auditHistory: {
           title: "Access & Status Change History",
           subtitle:
-            "Append-only log of role changes, suspensions, and reactivations.",
+            "History of role changes, suspensions, and reactivations.",
           appendOnlyBadge: "APPEND-ONLY",
           loading: "Loading history...",
           empty: "No administrative changes recorded yet.",
@@ -3627,7 +3626,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         eyebrow: "SECURITY & COMPLIANCE",
         title: "Security Audit Center",
         subtitle:
-          "Read-only (append-only) log of administrative interventions, role changes, moderation, suspensions, and access denials.",
+          "Read-only log of administrative actions.",
         refreshButton: "Refresh logs",
         refreshingButton: "Refreshing...",
         summary: {
@@ -3688,7 +3687,7 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         emptyState: "No audit logs found matching the selected filters.",
         incompleteBadge: "Partial Information",
         immutableNotice:
-          "Audit logs are strictly append-only. Immutability is enforced by PostgreSQL triggers and RLS policies.",
+          "Audit logs are strictly read-only and cannot be modified or deleted.",
         severityLabels: {
           info: "Informational",
           warning: "Warning",

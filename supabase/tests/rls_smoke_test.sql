@@ -223,5 +223,99 @@ do $$ begin
     'anon lost current_user_role()';
 end $$;
 
+-- Soft delete, edit tracking, undo restore, and threaded reply placeholder rules
+select pg_temp.reset();
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000d1', 'author1@x.test', '{"username":"author1"}'),
+  ('00000000-0000-0000-0000-0000000000d2', 'other1@x.test',  '{"username":"other1"}');
+update public.profiles set created_at = now() - interval '2 days'
+  where id in ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000d2');
+
+-- Author creates a topic, edits it (sets edited_at), and cannot be edited/deleted by another regular member
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect('author creates topic for soft-delete test',
+  $q$insert into public.topics (category_id, title, body)
+     select id, 'Soft delete test topic', 'Detailed body for soft delete and edit validation.'
+     from public.categories where slug = 'dfir'$q$, true);
+select pg_temp.expect('author edits own topic and sets edited_at',
+  $q$update public.topics set title = 'Soft delete test topic (edited)'
+     where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, true);
+do $ begin
+  assert (select edited_at is not null from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'),
+    'edited_at must be populated when author edits topic';
+end $;
+
+-- Other regular member tries to edit or soft-delete author topic (both direct UPDATE and RPC)
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
+select pg_temp.expect('other member cannot edit author topic via UPDATE',
+  $q$update public.topics set title = 'Hijacked title' where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, false);
+select pg_temp.expect('other member cannot soft-delete author topic via UPDATE',
+  $q$update public.topics set deleted_at = now() where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, false);
+select pg_temp.expect('other member cannot soft-delete author topic via RPC',
+  $q$select public.soft_delete_topic((select id from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, false);
+select pg_temp.expect('physical DELETE on topics is revoked',
+  $q$delete from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, false);
+
+-- Author soft-deletes own topic -> invisible to other member -> restores within window -> visible again
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect('author soft-deletes own topic via RPC',
+  $q$select public.soft_delete_topic((select id from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, true);
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
+do $ begin
+  assert (select count(*) from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1') = 0,
+    'soft-deleted topic must be hidden from other members';
+end $;
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect('author restores own soft-deleted topic within window',
+  $q$select public.restore_topic((select id from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, true);
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
+do $ begin
+  assert (select count(*) from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1') = 1,
+    'restored topic must be visible again';
+end $;
+
+-- Comments: parent comment with active reply stays selectable as placeholder; leaf comment disappears
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect('author creates parent comment',
+  $q$insert into public.posts (topic_id, body)
+     select id, 'Parent comment body' from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, true);
+select pg_temp.expect('author edits own comment and sets edited_at',
+  $q$update public.posts set body = 'Parent comment body (edited)'
+     where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, true);
+do $ begin
+  assert (select edited_at is not null from public.posts where author_id = '00000000-0000-0000-0000-0000000000d1'),
+    'edited_at must be populated when author edits comment';
+end $;
+
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
+select pg_temp.expect('other member replies to parent comment',
+  $q$insert into public.posts (topic_id, body, parent_post_id)
+     select topic_id, 'Child reply body', id from public.posts where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, true);
+select pg_temp.expect('other member cannot soft-delete author comment',
+  $q$select public.soft_delete_post((select id from public.posts where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, false);
+
+-- Author soft-deletes parent comment -> stays selectable for other member as placeholder because child reply is active
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect('author soft-deletes parent comment with child reply',
+  $q$select public.soft_delete_post((select id from public.posts where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, true);
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
+do $ begin
+  assert (select count(*) from public.posts where author_id = '00000000-0000-0000-0000-0000000000d1' and deleted_at is not null) = 1,
+    'deleted parent comment with active reply remains selectable for placeholder rendering';
+end $;
+-- Child author soft-deletes leaf reply -> both leaf and parent now disappear from other member view
+select pg_temp.expect('child author soft-deletes leaf reply',
+  $q$select public.soft_delete_post((select id from public.posts where author_id = '00000000-0000-0000-0000-0000000000d2'))$q$, true);
+
+-- Moderator/admin can soft-delete another user topic, CANNOT edit its content, and author CANNOT undo mod delete
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000b1');
+select pg_temp.expect('moderator cannot edit another member topic content',
+  $q$update public.topics set title = 'Mod edited title' where author_id = '00000000-0000-0000-0000-0000000000d1'$q$, false);
+select pg_temp.expect('moderator can soft-delete another member topic',
+  $q$select public.soft_delete_topic((select id from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, true);
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect('author cannot undo moderator soft-delete',
+  $q$select public.restore_topic((select id from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, false);
+
 rollback;
 \echo 'ALL RLS CHECKS PASSED'

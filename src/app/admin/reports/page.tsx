@@ -1,59 +1,112 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { AdminGuard } from "@/features/admin/components/admin-guard";
+import { AdminReportModal } from "@/features/admin/components/admin-report-modal";
+import { adminDataProvider } from "@/features/admin/services/admin-provider";
 import type {
   Report,
   ReportReason,
-  ReportStatus,
   ReportTargetType,
 } from "@/features/admin/types";
-import { AdminGuard } from "@/features/admin/components/admin-guard";
-import { adminDataProvider } from "@/features/admin/services/admin-provider";
 import { useI18n } from "@/lib/i18n/context";
-import { AdminReportModal } from "@/features/admin/components/admin-report-modal";
+
+type ReportsTab = "open" | "reviewing" | "resolved";
+
+function formatRelativeTime(iso: string, isPt: boolean): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return isPt ? "agora" : "now";
+  if (mins < 60) return isPt ? `há ${mins} min` : `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return isPt ? `há ${hours} h` : `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return isPt ? "ontem" : "yesterday";
+  return isPt ? `há ${days} d` : `${days}d ago`;
+}
 
 export default function AdminReportsPage() {
-  const { dict } = useI18n();
+  const { dict, locale } = useI18n();
+  const isPt = locale === "pt-BR";
+  const rt = dict.adminPanel.reportsPage;
 
-  const [reports, setReports] = useState<Report[]>([]);
+  const [allReports, setAllReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">("all");
+  const [activeTab, setActiveTab] = useState<ReportsTab>("open");
+  const [searchQuery, setSearchQuery] = useState("");
   const [reasonFilter, setReasonFilter] = useState<ReportReason | "all">("all");
-  const [targetFilter, setTargetFilter] = useState<ReportTargetType | "all">("all");
+  const [targetFilter, setTargetFilter] = useState<ReportTargetType | "all">(
+    "all"
+  );
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  // Selected report for modal
   const [activeReport, setActiveReport] = useState<Report | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
-
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
     adminDataProvider.reports
-      .listReports(
-        {
-          status: statusFilter,
-          reason: reasonFilter,
-          targetType: targetFilter,
-        },
-        { page: 1, pageSize: 100 }
-      )
+      .listReports({}, { page: 1, pageSize: 100 })
       .then((res) => {
         if (mounted) {
-          setReports(res.items);
+          setAllReports(res.items);
           setLoading(false);
         }
       })
       .catch(() => {
         if (mounted) setLoading(false);
       });
-
     return () => {
       mounted = false;
     };
-  }, [statusFilter, reasonFilter, targetFilter, reloadKey]);
+  }, [reloadKey]);
+
+  const counts = useMemo(
+    () => ({
+      open: allReports.filter((r) => r.status === "open").length,
+      reviewing: allReports.filter((r) => r.status === "reviewing").length,
+      resolved: allReports.filter(
+        (r) => r.status === "resolved" || r.status === "dismissed"
+      ).length,
+    }),
+    [allReports]
+  );
+
+  const targetCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    allReports.forEach((r) => {
+      const key = `${r.targetType}:${r.targetId}`;
+      map.set(key, (map.get(key) ?? 0) + 1);
+    });
+    return map;
+  }, [allReports]);
+
+  const filteredReports = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return allReports.filter((r) => {
+      if (activeTab === "open" && r.status !== "open") return false;
+      if (activeTab === "reviewing" && r.status !== "reviewing") return false;
+      if (
+        activeTab === "resolved" &&
+        r.status !== "resolved" &&
+        r.status !== "dismissed"
+      ) {
+        return false;
+      }
+      if (reasonFilter !== "all" && r.reason !== reasonFilter) return false;
+      if (targetFilter !== "all" && r.targetType !== targetFilter) return false;
+      if (!q) return true;
+      return (
+        (r.targetTitle ?? "").toLowerCase().includes(q) ||
+        (r.targetSnippet ?? "").toLowerCase().includes(q) ||
+        (r.details ?? "").toLowerCase().includes(q) ||
+        r.reason.toLowerCase().includes(q)
+      );
+    });
+  }, [allReports, activeTab, reasonFilter, targetFilter, searchQuery]);
+
+  const hasSheetFilters = reasonFilter !== "all" || targetFilter !== "all";
 
   const reasonsList: ReportReason[] = [
     "spam",
@@ -64,246 +117,341 @@ export default function AdminReportsPage() {
     "copyright",
     "other",
   ];
-
-  const targetList: ReportTargetType[] = ["topic", "post", "resource", "profile"];
-
-  const getStatusBadgeClass = (status: ReportStatus) => {
-    switch (status) {
-      case "open":
-        return "border-rose-500/40 bg-rose-500/15 text-rose-300";
-      case "reviewing":
-        return "border-amber-500/40 bg-amber-500/15 text-amber-300";
-      case "resolved":
-        return "border-emerald-500/40 bg-emerald-500/15 text-emerald-300";
-      case "dismissed":
-        return "border-slate-700 bg-slate-800 text-slate-400";
-      default:
-        return "border-slate-700 bg-slate-800 text-slate-400";
-    }
-  };
+  const targetList: ReportTargetType[] = [
+    "topic",
+    "post",
+    "resource",
+    "profile",
+  ];
 
   return (
     <AdminGuard>
-      <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <div className="space-y-3">
+        {/* Header */}
         <div>
-          <span className="font-mono text-xs uppercase tracking-wider text-rose-400">
-            {dict.adminPanel.reportsPage.eyebrow}
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {dict.adminPanel.reportsPage.title}
+          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-slate-100">
+            {isPt ? "Denúncias" : "Reports"}
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            {dict.adminPanel.reportsPage.subtitle}
+          <p className="mt-0.5 text-sm text-slate-400">
+            {isPt
+              ? "Conteúdo reportado pela comunidade."
+              : "Content reported by the community."}
           </p>
         </div>
 
         {successToast && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 font-mono text-xs text-emerald-300">
-            <span>✓</span>
+          <div
+            role="status"
+            className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-300"
+          >
             <span>{successToast}</span>
             <button
               type="button"
               onClick={() => setSuccessToast(null)}
-              className="ml-2 text-slate-400 hover:text-white"
+              className="px-1.5 text-slate-400 hover:text-white"
             >
               ✕
             </button>
           </div>
         )}
-      </div>
 
-      {/* Filter Toolbar */}
-      <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-800/80 bg-[#0c1220]/70 p-4 sm:grid-cols-3">
-        {/* Status Filter */}
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase">
-            {dict.adminPanel.reportsPage.filterStatus}
-          </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as ReportStatus | "all")}
-            className="mt-1.5 w-full rounded-xl border border-slate-700 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-          >
-            <option value="all">{dict.adminPanel.reportsPage.allStatuses}</option>
-            <option value="open">{dict.adminPanel.reportsPage.statusLabels.open}</option>
-            <option value="reviewing">{dict.adminPanel.reportsPage.statusLabels.reviewing}</option>
-            <option value="resolved">{dict.adminPanel.reportsPage.statusLabels.resolved}</option>
-            <option value="dismissed">{dict.adminPanel.reportsPage.statusLabels.dismissed}</option>
-          </select>
+        {/* Tabs: Pendentes / Em análise / Resolvidas */}
+        <div
+          role="tablist"
+          className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0"
+        >
+          {(
+            [
+              {
+                id: "open",
+                label: isPt ? "Pendentes" : "Pending",
+                count: counts.open,
+              },
+              {
+                id: "reviewing",
+                label: isPt ? "Em análise" : "Reviewing",
+                count: counts.reviewing,
+              },
+              {
+                id: "resolved",
+                label: isPt ? "Resolvidas" : "Resolved",
+                count: counts.resolved,
+              },
+            ] as const
+          ).map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors ${
+                  active
+                    ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                    : "border-slate-800 bg-[#0b1220] text-slate-300 hover:border-slate-700"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className="font-mono text-xs">{tab.count}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Reason Filter */}
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase">
-            {dict.adminPanel.reportsPage.filterReason}
+        {/* Search + Filter Button */}
+        <div className="flex gap-2">
+          <label className="flex min-h-[48px] flex-1 items-center gap-2 rounded-xl border border-slate-800 bg-[#0b1220] px-3 text-slate-400 focus-within:border-cyan-500/60">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.3-4.3" />
+            </svg>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={isPt ? "Buscar denúncia" : "Search reports"}
+              aria-label={isPt ? "Buscar" : "Search"}
+              className="w-full min-w-0 bg-transparent text-[15px] text-slate-100 placeholder:text-slate-500 focus:outline-none"
+            />
           </label>
-          <select
-            value={reasonFilter}
-            onChange={(e) => setReasonFilter(e.target.value as ReportReason | "all")}
-            className="mt-1.5 w-full rounded-xl border border-slate-700 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
+
+          <button
+            type="button"
+            onClick={() => setFilterSheetOpen(true)}
+            aria-label={isPt ? "Filtros" : "Filters"}
+            className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-[#0b1220] text-slate-200 transition-colors hover:border-cyan-500/50 hover:text-cyan-300"
           >
-            <option value="all">{dict.adminPanel.reportsPage.allReasons}</option>
-            {reasonsList.map((r) => (
-              <option key={r} value={r}>
-                {dict.adminPanel.reportsPage.reasonLabels[r]}
-              </option>
-            ))}
-          </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]" aria-hidden="true">
+              <path d="M3 5h18M6 12h12M10 19h4" />
+            </svg>
+            {hasSheetFilters && (
+              <span
+                aria-hidden="true"
+                className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-cyan-400"
+              />
+            )}
+          </button>
         </div>
 
-        {/* Target Type Filter */}
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase">
-            {dict.adminPanel.reportsPage.filterTarget}
-          </label>
-          <select
-            value={targetFilter}
-            onChange={(e) => setTargetFilter(e.target.value as ReportTargetType | "all")}
-            className="mt-1.5 w-full rounded-xl border border-slate-700 bg-[#070b14] px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-          >
-            <option value="all">{dict.adminPanel.reportsPage.allTargets}</option>
-            {targetList.map((t) => (
-              <option key={t} value={t}>
-                {dict.adminPanel.reportsPage.targetLabels[t]}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Reports Feed */}
-      <div className="space-y-4">
+        {/* Reports List */}
         {loading ? (
-          <div className="rounded-2xl border border-slate-800 bg-[#0c1220]/50 p-12 text-center text-xs text-slate-400">
-            Carregando denúncias e registros de incidentes...
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-36 animate-pulse rounded-2xl border border-slate-800 bg-[#0b1220]/70"
+              />
+            ))}
           </div>
-        ) : reports.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800/80 bg-[#0c1220]/40 p-12 text-center">
-            <span className="text-3xl">🛡️</span>
-            <p className="mt-3 text-sm font-semibold text-slate-200">
-              {dict.adminPanel.reportsPage.emptyState}
-            </p>
+        ) : filteredReports.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-800 bg-[#0b1220]/50 p-10 text-center text-sm text-slate-400">
+            {isPt
+              ? "Nenhuma denúncia nesta aba."
+              : "No reports in this tab."}
           </div>
         ) : (
-          reports.map((report) => (
-            <div
-              key={report.id}
-              className="rounded-2xl border border-slate-800 bg-[#0c1220] p-5 transition-all hover:border-slate-700"
-            >
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                <div className="space-y-2 min-w-0 flex-1">
-                  {/* Badges row */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-md border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${getStatusBadgeClass(
-                        report.status
-                      )}`}
+          <div className="space-y-3">
+            {filteredReports.map((report) => {
+              const targetCount =
+                targetCountMap.get(`${report.targetType}:${report.targetId}`) ??
+                1;
+              const excerpt =
+                report.targetSnippet ||
+                report.targetTitle ||
+                report.details ||
+                (isPt ? "Conteúdo denunciado" : "Reported content");
+
+              return (
+                <article
+                  key={report.id}
+                  className="rounded-2xl border border-slate-800 bg-[#0b1220] p-4 space-y-2.5"
+                >
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex h-[22px] items-center rounded-md border border-rose-500/40 bg-rose-950/50 px-2 font-mono text-[10px] font-semibold uppercase text-rose-300">
+                      {rt.reasonLabels[report.reason]}
+                    </span>
+                    <span className="inline-flex h-[22px] items-center rounded-md border border-slate-700 bg-slate-800/70 px-2 font-mono text-[10px] font-semibold uppercase text-slate-300">
+                      {rt.targetLabels[report.targetType]}
+                    </span>
+                    <span className="inline-flex h-[22px] items-center rounded-md border border-amber-500/40 bg-amber-950/40 px-2 font-mono text-[10px] font-semibold uppercase text-amber-300">
+                      {targetCount}{" "}
+                      {targetCount === 1
+                        ? isPt
+                          ? "DENÚNCIA"
+                          : "REPORT"
+                        : isPt
+                          ? "DENÚNCIAS"
+                          : "REPORTS"}
+                    </span>
+                  </div>
+
+                  <p className="border-l-2 border-slate-700 pl-3 text-sm leading-relaxed text-slate-100 line-clamp-3">
+                    {excerpt}
+                  </p>
+
+                  <div className="text-xs text-slate-400">
+                    {isPt
+                      ? "Denunciante: identidade oculta"
+                      : "Reporter: identity hidden"}{" "}
+                    · {formatRelativeTime(report.createdAt, isPt)}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveReport(report)}
+                      className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-rose-500/35 bg-rose-500/10 px-3 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/20"
                     >
-                      {dict.adminPanel.reportsPage.statusLabels[report.status]}
-                    </span>
-
-                    <span className="rounded-md border border-slate-700 bg-slate-800/80 px-2 py-0.5 font-mono text-[10px] text-slate-300">
-                      {dict.adminPanel.reportsPage.targetLabels[report.targetType]}
-                    </span>
-
-                    <span className="rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-mono text-[10px] text-rose-300">
-                      {dict.adminPanel.reportsPage.reasonLabels[report.reason]}
-                    </span>
-
-                    <span className="font-mono text-xs text-slate-500">
-                      ID: #{report.id}
-                    </span>
+                      {isPt ? "Remover" : "Remove"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveReport(report)}
+                      className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-slate-800 bg-[#080e1a] px-3 text-sm font-medium text-slate-200 transition-colors hover:border-slate-700"
+                    >
+                      {isPt ? "Ignorar" : "Dismiss"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveReport(report)}
+                      aria-label={isPt ? "Ver contexto" : "View context"}
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-[#080e1a] text-slate-200 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]" aria-hidden="true">
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
                   </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
 
-                  {/* Title / Target info */}
-                  <h3 className="text-base font-bold text-slate-100">
-                    {report.targetTitle || `Objeto denunciado: ${report.targetId}`}
-                  </h3>
+        {/* Filter Sheet */}
+        {filterSheetOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
+            onClick={() => setFilterSheetOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-3xl border border-slate-800 bg-[#0b1220] px-5 pb-6 pt-3 space-y-4 sm:rounded-3xl sm:p-6"
+            >
+              <div className="mx-auto h-1 w-10 rounded-full bg-slate-700 sm:hidden" />
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-100">
+                  {isPt ? "Filtros" : "Filters"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReasonFilter("all");
+                    setTargetFilter("all");
+                  }}
+                  className="min-h-[44px] px-2 text-sm text-slate-400 hover:text-slate-200"
+                >
+                  {isPt ? "Limpar tudo" : "Clear all"}
+                </button>
+              </div>
 
-                  {/* Target snippet if any */}
-                  {report.targetSnippet && (
-                    <div className="rounded-xl border border-slate-800/80 bg-[#070b14] p-3 text-xs text-slate-300">
-                      <span className="block font-semibold text-slate-400 text-[10px] uppercase">
-                        Conteúdo Denunciado:
-                      </span>
-                      <p className="mt-1 italic">&ldquo;{report.targetSnippet}&rdquo;</p>
-                    </div>
-                  )}
-
-                  {/* Reporter details */}
-                  {report.details && (
-                    <p className="text-xs text-slate-300">
-                      <strong className="text-slate-400">
-                        {dict.adminPanel.reportsPage.detailsLabel}:
-                      </strong>{" "}
-                      &ldquo;{report.details}&rdquo;
-                    </p>
-                  )}
-
-                  {/* Meta: Denunciante, Data, Resolução */}
-                  <div className="flex flex-wrap items-center gap-4 pt-2 font-mono text-xs text-slate-400 border-t border-slate-800/60">
-                    <span>
-                      {dict.adminPanel.reportsPage.reportedBy}:{" "}
-                      <span className="text-slate-300">
-                        {dict.adminPanel.moderationPage.reporterProtected}
-                      </span>
-                    </span>
-                    <span>•</span>
-                    <span>
-                      {new Date(report.createdAt).toLocaleString()}
-                    </span>
-
-                    {report.handledByUsername && (
-                      <>
-                        <span>•</span>
-                        <span className="text-emerald-400">
-                          {dict.adminPanel.reportsPage.handledBy} @{report.handledByUsername}
-                        </span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Resolution note display if resolved/dismissed */}
-                  {report.resolutionNote && (
-                    <div className="mt-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs text-emerald-200">
-                      <strong className="block font-mono text-[10px] uppercase text-emerald-400">
-                        {dict.adminPanel.reportsPage.resolutionNoteLabel}:
-                      </strong>
-                      <p className="mt-0.5">{report.resolutionNote}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action button */}
-                <div className="flex shrink-0 items-center">
+              <div>
+                <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  {isPt ? "Motivo" : "Reason"}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setActiveReport(report)}
-                    className="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:bg-cyan-400"
+                    onClick={() => setReasonFilter("all")}
+                    className={`min-h-[40px] rounded-full border px-3 text-xs ${
+                      reasonFilter === "all"
+                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                        : "border-slate-800 bg-[#080e1a] text-slate-300"
+                    }`}
                   >
-                    ⚙️ {dict.adminPanel.reportsPage.resolveBtn}
+                    {isPt ? "Todos" : "All"}
                   </button>
+                  {reasonsList.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setReasonFilter(r)}
+                      className={`min-h-[40px] rounded-full border px-3 text-xs ${
+                        reasonFilter === r
+                          ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                          : "border-slate-800 bg-[#080e1a] text-slate-300"
+                      }`}
+                    >
+                      {rt.reasonLabels[r]}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
-          ))
-        )}
-      </div>
 
-      {/* Modal de Resolução */}
-      {activeReport && (
-        <AdminReportModal
-          key={activeReport.id}
-          report={activeReport}
-          onClose={() => setActiveReport(null)}
-          onSuccess={() => {
-            setSuccessToast("Denúncia atualizada com sucesso.");
-            setReloadKey((prev) => prev + 1);
-          }}
-        />
-      )}
+              <div>
+                <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  {isPt ? "Tipo de alvo" : "Target type"}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setTargetFilter("all")}
+                    className={`min-h-[40px] rounded-full border px-3 text-xs ${
+                      targetFilter === "all"
+                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                        : "border-slate-800 bg-[#080e1a] text-slate-300"
+                    }`}
+                  >
+                    {isPt ? "Todos" : "All"}
+                  </button>
+                  {targetList.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setTargetFilter(t)}
+                      className={`min-h-[40px] rounded-full border px-3 text-xs ${
+                        targetFilter === t
+                          ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+                          : "border-slate-800 bg-[#080e1a] text-slate-300"
+                      }`}
+                    >
+                      {rt.targetLabels[t]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setFilterSheetOpen(false)}
+                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-cyan-500 text-sm font-bold text-slate-950 hover:bg-cyan-400"
+              >
+                {isPt ? "Aplicar filtros" : "Apply filters"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeReport && (
+          <AdminReportModal
+            report={activeReport}
+            onClose={() => setActiveReport(null)}
+            onSuccess={() => {
+              setActiveReport(null);
+              setSuccessToast(
+                isPt
+                  ? "Denúncia atualizada e registrada na auditoria."
+                  : "Report updated and logged to audit."
+              );
+              setReloadKey((k) => k + 1);
+              setTimeout(() => setSuccessToast(null), 4500);
+            }}
+          />
+        )}
       </div>
     </AdminGuard>
   );
