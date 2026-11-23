@@ -7,7 +7,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { siteConfig } from "@/config/site";
 import { loginWithSupabase } from "@/features/auth/login-service";
 import { useAuthStore } from "@/features/auth/use-auth-store";
-import { EMAIL_REGEX } from "@/features/auth/validation";
+import { EMAIL_REGEX, USERNAME_REGEX } from "@/features/auth/validation";
 import { useCatalogStore } from "@/features/catalog/use-catalog-store";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
@@ -40,9 +40,17 @@ export default function LoginPage() {
     }
     setErrorMessage(null);
 
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !EMAIL_REGEX.test(normalizedEmail)) {
-      setErrorMessage(dict.auth.errors.invalidEmail);
+    const normalizedIdentifier = email.trim().toLowerCase();
+    const isValidEmail = EMAIL_REGEX.test(normalizedIdentifier);
+    const isValidUsername = USERNAME_REGEX.test(
+      normalizedIdentifier.replace(/^@+/, ""),
+    );
+    const invalidIdentifierMessage = isPt
+      ? "Informe um e-mail válido ou @usuário."
+      : "Enter a valid email or @username.";
+
+    if (!normalizedIdentifier || (!isValidEmail && !isValidUsername)) {
+      setErrorMessage(invalidIdentifierMessage);
       return;
     }
 
@@ -54,14 +62,14 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       const result = await loginWithSupabase({
-        email: normalizedEmail,
+        email: normalizedIdentifier,
         password,
         nextPath: getRequestedNextPath(),
       });
 
       if (result.status === "error") {
         const errorMap = {
-          invalid_email: dict.auth.errors.invalidEmail,
+          invalid_email: invalidIdentifierMessage,
           password_too_short: dict.auth.errors.passwordLength,
           invalid_credentials: dict.auth.errors.invalidCredentials,
           rate_limited: dict.auth.errors.rateLimited,
@@ -164,16 +172,23 @@ export default function LoginPage() {
                   htmlFor="login-email"
                   className="block text-sm font-medium text-slate-200"
                 >
-                  {dict.auth.emailLabel}
+                  {isPt ? "E-mail ou @usuário" : "Email or @username"}
                 </label>
                 <input
                   id="login-email"
-                  type="email"
+                  type="text"
                   required
-                  autoComplete="email"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={dict.auth.emailPlaceholder}
+                  placeholder={
+                    isPt
+                      ? "voce@exemplo.com ou @usuario"
+                      : "you@example.com or @username"
+                  }
                   className="mt-1.5 block min-h-[50px] w-full rounded-xl border border-slate-800 bg-[#0d1322] px-3.5 text-[15px] text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none sm:bg-[#070b14] sm:text-sm"
                 />
               </div>

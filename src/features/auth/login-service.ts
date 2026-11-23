@@ -2,7 +2,7 @@ import type { SupportedLocale } from "@/config/site";
 import { getSafeRedirectPath } from "@/lib/security/redirect";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/database.types";
-import { type AuthUserProfile, EMAIL_REGEX } from "./validation";
+import { type AuthUserProfile, EMAIL_REGEX, USERNAME_REGEX } from "./validation";
 
 export interface SupabasePasswordSignInParams {
   email: string;
@@ -113,8 +113,12 @@ async function defaultFetchSessionContext(): Promise<ServerSessionPayload> {
 export async function loginWithSupabase(
   input: LoginSupabaseInput
 ): Promise<LoginSupabaseResult> {
-  const normalizedEmail = input.email.trim().toLowerCase();
-  if (!normalizedEmail || !EMAIL_REGEX.test(normalizedEmail)) {
+  const normalized = input.email.trim().toLowerCase();
+  const isEmail = EMAIL_REGEX.test(normalized);
+  const cleanedUsername = normalized.replace(/^@+/, "");
+  const isUsername = !isEmail && USERNAME_REGEX.test(cleanedUsername);
+
+  if (!normalized || (!isEmail && !isUsername)) {
     return { status: "error", errorCode: "invalid_email" };
   }
 
@@ -123,6 +127,62 @@ export async function loginWithSupabase(
   }
 
   const safeRedirectPath = getSafeRedirectPath(input.nextPath, "/catalog");
+
+  // Default browser flow: authenticate via server Route Handler (supports both email and @username safely)
+  if (!input.authClient && !input.fetchSessionContext) {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        body: JSON.stringify({
+          identifier: normalized,
+          password: input.password,
+        }),
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | {
+            status: "authenticated" | "suspended";
+            user: { id: string; email: string | null };
+            profile: ServerProfileRecord;
+          }
+        | {
+            status: "error";
+            errorCode:
+              | "invalid_email"
+              | "password_too_short"
+              | "invalid_credentials"
+              | "rate_limited"
+              | "network_error"
+              | "profile_missing";
+          }
+        | null;
+
+      if (!payload) {
+        return { status: "error", errorCode: "network_error" };
+      }
+      if (payload.status === "error") {
+        return { status: "error", errorCode: payload.errorCode };
+      }
+
+      const mappedProfile = mapServerProfileToAuthUser(
+        payload.user,
+        payload.profile
+      );
+      if (payload.status === "suspended") {
+        return { status: "suspended", profile: mappedProfile };
+      }
+      return {
+        status: "authenticated",
+        safeRedirectPath,
+        profile: mappedProfile,
+      };
+    } catch {
+      return { status: "error", errorCode: "network_error" };
+    }
+  }
+
   const authClient: SupabaseAuthSignInClient =
     input.authClient ?? createClient().auth;
   const fetchSessionContext =
@@ -130,7 +190,7 @@ export async function loginWithSupabase(
 
   try {
     const { data, error } = await authClient.signInWithPassword({
-      email: normalizedEmail,
+      email: normalized,
       password: input.password,
     });
 

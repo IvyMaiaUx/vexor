@@ -365,5 +365,22 @@ do $$ begin
     'anon can read content_policy of approved resources';
 end $$;
 
+-- Secure username login resolution (returns email ONLY with valid password; never leaks on wrong password)
+select pg_temp.reset();
+update auth.users
+   set encrypted_password = extensions.crypt('StrongPass123!', extensions.gen_salt('bf'))
+ where id = '00000000-0000-0000-0000-0000000000d1';
+select pg_temp.as_anon();
+do $$ begin
+  assert public.resolve_login_email_by_username('@author1', 'WrongPass999!') is null,
+    'wrong password must never leak email';
+  assert public.resolve_login_email_by_username('@nonexistent_user', 'StrongPass123!') is null,
+    'unknown username must return null';
+  assert public.resolve_login_email_by_username('@author1', 'StrongPass123!') = 'author1@x.test',
+    'valid @username + password resolves login email';
+  assert public.resolve_login_email_by_username('author1', 'StrongPass123!') = 'author1@x.test',
+    'valid username without @ + password resolves login email';
+end $$;
+
 rollback;
 \echo 'ALL RLS CHECKS PASSED'
