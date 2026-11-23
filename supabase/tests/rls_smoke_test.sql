@@ -382,5 +382,18 @@ do $$ begin
     'valid username without @ + password resolves login email';
 end $$;
 
+-- Public landing posts preview RPC (anon can call it; max 6 rows; excludes hidden/deleted topics)
+select pg_temp.reset(); select pg_temp.as_anon();
+do $$ begin
+  assert (select count(*) from public.get_public_landing_posts(10)) <= 6,
+    'get_public_landing_posts must clamp limit to 6';
+  assert not exists (
+    select 1
+    from public.get_public_landing_posts(6) lp
+    join public.topics t on t.id = lp.id
+    where t.status <> 'published' or t.deleted_at is not null
+  ), 'get_public_landing_posts must only return published non-deleted topics';
+end $$;
+
 rollback;
 \echo 'ALL RLS CHECKS PASSED'
