@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 // Cabeçalhos de segurança aplicados a todas as rotas.
-// CSP em Report-Only de propósito: não bloqueia nada enquanto validamos o
-// relatório de violações. Depois disso, migrar para nonce + CSP bloqueante.
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -12,7 +10,7 @@ const securityHeaders = [
     value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
   },
   {
-    key: "Content-Security-Policy-Report-Only",
+    key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
       // O Next injeta scripts inline; sem nonce ainda, 'unsafe-inline' é necessário.
@@ -25,6 +23,7 @@ const securityHeaders = [
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'",
+      "upgrade-insecure-requests",
     ].join("; "),
   },
 ];
