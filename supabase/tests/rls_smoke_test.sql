@@ -387,6 +387,9 @@ select pg_temp.reset(); select pg_temp.as_anon();
 do $$ begin
   assert (select count(*) from public.get_public_landing_posts(10)) <= 6,
     'get_public_landing_posts must clamp limit to 6';
+end $$;
+select pg_temp.reset();
+do $$ begin
   assert not exists (
     select 1
     from public.get_public_landing_posts(6) lp
