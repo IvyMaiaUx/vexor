@@ -431,6 +431,15 @@ export default function SubmitResourcePage() {
                 )}
               </div>
 
+              <div className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-200/90">
+                <strong className="font-semibold text-amber-300">
+                  {isPt ? "Critérios para IAs e modelos: " : "Criteria for AI & models: "}
+                </strong>
+                {isPt
+                  ? "envie apenas serviços documentados pelo fornecedor, descreva a finalidade e o uso autorizado, e não divulgue malware ou uso ilegal. A classificação de restrições reduzidas é definida exclusivamente pela moderação."
+                  : "submit only vendor-documented services, describe the purpose and authorized use, and never share malware or illegal use. Reduced-restriction classification is assigned exclusively by moderation."}
+              </div>
+
               {/* Multi-Step Form */}
               <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-4">
                 {step === 1 && (

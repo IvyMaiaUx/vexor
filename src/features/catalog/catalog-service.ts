@@ -2,6 +2,7 @@ import type {
   CategoryItem,
   DifficultyLevel,
   FeaturedResourceItem,
+  ResourceContentPolicy,
   ResourceCreditCardRequirement,
   ResourceLanguage,
   ResourceOptionalTag,
@@ -33,6 +34,7 @@ export type ResourceRow = Database["public"]["Tables"]["resources"]["Row"] & {
   pricing_notes?: string | null;
   tags?: ResourceStandardTag[] | null;
   course_metadata?: unknown;
+  content_policy?: ResourceContentPolicy | null;
 };
 export type ResourceInsertRow =
   Database["public"]["Tables"]["resources"]["Insert"] & {
@@ -66,6 +68,7 @@ export interface CatalogQueryParams {
   language?: ResourceLanguage | "all";
   pricingModel?: ResourcePricingModel | "all";
   requiresCreditCard?: ResourceCreditCardRequirement | "all";
+  contentPolicy?: ResourceContentPolicy | "all";
   onlyBookmarks?: boolean;
   bookmarkedIds?: string[];
   sortBy?: "newest" | "alphabetical";
@@ -182,7 +185,7 @@ export interface CatalogSupabaseError {
 export type CatalogSupabaseClientLike = any;
 
 export const RESOURCE_SELECT_COLUMNS =
-  "id, slug, name, description, description_pt, description_en, category_id, type, url, language, difficulty, author_name, submitted_by, status, published_at, created_at, pricing_model, requires_credit_card, free_tier_limits, pricing_notes, tags, course_metadata";
+  "id, slug, name, description, description_pt, description_en, category_id, type, url, language, difficulty, author_name, submitted_by, status, published_at, created_at, pricing_model, requires_credit_card, free_tier_limits, pricing_notes, tags, course_metadata, content_policy";
 
 export const CATEGORY_SELECT_COLUMNS =
   "id, slug, name_en, name_pt, description_en, description_pt, scope, sort_order, is_active";
@@ -198,6 +201,7 @@ const FORBIDDEN_RESOURCE_INSERT_KEYS = [
   "published_at",
   "created_at",
   "updated_at",
+  "content_policy",
 ] as const;
 
 function sanitizeIlikeTerm(term: string): string {
@@ -275,6 +279,7 @@ export function mapResourceRow(
     pricingNotes: row.pricing_notes ?? null,
     tags: Array.isArray(row.tags) ? row.tags : [],
     courseMetadata: parseCourseMetadata(row.course_metadata),
+    contentPolicy: row.content_policy === "reduced" ? "reduced" : "standard",
   };
 }
 
@@ -372,6 +377,10 @@ export async function queryCatalogResources(
 
     if (params.type && params.type !== "all") {
       query = query.eq("type", params.type);
+    }
+
+    if (params.contentPolicy && params.contentPolicy !== "all") {
+      query = query.eq("content_policy", params.contentPolicy);
     }
 
     if (params.difficulty && params.difficulty !== "all") {

@@ -29,6 +29,11 @@ export function AdminModerationDetailModal({
   const [recipientJustification, setRecipientJustification] = useState("");
   const [recipientFeedback, setRecipientFeedback] = useState<string | null>(null);
   const [recipientBusy, setRecipientBusy] = useState(false);
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyFeedback, setPolicyFeedback] = useState<string | null>(null);
+  const [localPolicy, setLocalPolicy] = useState<"standard" | "reduced" | null>(
+    null
+  );
 
   const researchTlp =
     item?.contentType === "research" && typeof item.metadata?.tlp === "string"
@@ -326,6 +331,103 @@ export function AdminModerationDetailModal({
                     <span>Abrir link em nova guia (rel=noopener noreferrer) ↗</span>
                   </a>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Admin/Mod Content Policy control for Catalog Resources */}
+          {item.contentType === "resource" && canModerate && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-amber-300">
+                  {locale === "pt-BR"
+                    ? "Política de conteúdo (IA / Modelos)"
+                    : "Content Policy (AI / Models)"}
+                </span>
+                <span className="font-mono text-[11px] text-slate-400">
+                  {(localPolicy ??
+                    (item.metadata?.content_policy === "reduced"
+                      ? "reduced"
+                      : "standard")) === "reduced"
+                    ? locale === "pt-BR"
+                      ? "Restrições reduzidas"
+                      : "Reduced restrictions"
+                    : locale === "pt-BR"
+                      ? "Padrão"
+                      : "Standard"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(["standard", "reduced"] as const).map((policy) => {
+                  const active =
+                    (localPolicy ??
+                      (item.metadata?.content_policy === "reduced"
+                        ? "reduced"
+                        : "standard")) === policy;
+                  return (
+                    <button
+                      key={policy}
+                      type="button"
+                      disabled={policySaving}
+                      onClick={async () => {
+                        setPolicySaving(true);
+                        setPolicyFeedback(null);
+                        try {
+                          const res = await fetch("/api/admin/moderation", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              id: item.id,
+                              contentType: "resource",
+                              action: "set_content_policy",
+                              contentPolicy: policy,
+                            }),
+                          });
+                          if (!res.ok) {
+                            setPolicyFeedback(
+                              locale === "pt-BR"
+                                ? "Não foi possível atualizar a política."
+                                : "Could not update content policy."
+                            );
+                          } else {
+                            setLocalPolicy(policy);
+                            setPolicyFeedback(
+                              locale === "pt-BR"
+                                ? "Política atualizada e registrada na auditoria."
+                                : "Policy updated and logged to audit."
+                            );
+                          }
+                        } catch {
+                          setPolicyFeedback(
+                            locale === "pt-BR"
+                              ? "Erro de conexão."
+                              : "Connection error."
+                          );
+                        } finally {
+                          setPolicySaving(false);
+                        }
+                      }}
+                      className={`min-h-[38px] rounded-lg border px-3 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                        active
+                          ? policy === "reduced"
+                            ? "border-amber-500/60 bg-amber-500/20 text-amber-200"
+                            : "border-cyan-500/60 bg-cyan-500/15 text-cyan-200"
+                          : "border-slate-700 bg-[#070b14] text-slate-300 hover:border-slate-600"
+                      }`}
+                    >
+                      {policy === "reduced"
+                        ? locale === "pt-BR"
+                          ? "Restrições reduzidas"
+                          : "Reduced restrictions"
+                        : locale === "pt-BR"
+                          ? "Padrão"
+                          : "Standard"}
+                    </button>
+                  );
+                })}
+              </div>
+              {policyFeedback && (
+                <p className="text-[11px] text-amber-200">{policyFeedback}</p>
               )}
             </div>
           )}

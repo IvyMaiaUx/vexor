@@ -331,5 +331,39 @@ select pg_temp.expect('member cannot forge follower_id',
 select pg_temp.expect('member can unfollow',
   $q$delete from public.user_follows where follower_id = '00000000-0000-0000-0000-0000000000d1' and following_id = '00000000-0000-0000-0000-0000000000d2'$q$, true);
 
+-- Resource content_policy ('standard' | 'reduced'): only admin/moderator can set it
+select pg_temp.expect('member cannot set content_policy on resource insert',
+  $q$insert into public.resources (name, description, category_id, type, url, content_policy)
+     select 'Blocked Policy AI', 'Attempt to self-mark reduced policy.', id, 'tool', 'https://example.org/ai-blocked', 'reduced'
+     from public.categories limit 1$q$, false);
+select pg_temp.expect('member submits normal AI resource (defaults to standard)',
+  $q$insert into public.resources (name, description, category_id, type, url)
+     select 'Policy Test AI', 'Documented AI assistant for authorized lab testing.', id, 'tool', 'https://example.org/policy-ai'
+     from public.categories where slug = 'ai-security'$q$, true);
+select pg_temp.expect('member cannot update content_policy column directly',
+  $q$update public.resources set content_policy = 'reduced' where name = 'Policy Test AI'$q$, false);
+select pg_temp.expect('member cannot call set_resource_content_policy RPC',
+  $q$select public.set_resource_content_policy((select id from public.resources where name = 'Policy Test AI'), 'reduced', 'self')$q$, false);
+
+-- Moderator approves and sets content_policy = 'reduced' via moderate_resource & set_resource_content_policy
+select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-0000000000b1');
+select pg_temp.expect('moderator approves resource with reduced content_policy',
+  $q$select public.moderate_resource((select id from public.resources where name = 'Policy Test AI'), 'approved', 'verified docs', 'reduced')$q$, true);
+do $$ begin
+  assert (select content_policy from public.resources where name = 'Policy Test AI') = 'reduced',
+    'moderate_resource must update content_policy to reduced';
+end $$;
+select pg_temp.expect('moderator updates content_policy via set_resource_content_policy',
+  $q$select public.set_resource_content_policy((select id from public.resources where name = 'Policy Test AI'), 'standard', 'reverted')$q$, true);
+select pg_temp.expect('moderator sets content_policy back to reduced',
+  $q$select public.set_resource_content_policy((select id from public.resources where name = 'Policy Test AI'), 'reduced', 'confirmed')$q$, true);
+
+-- Anon can read content_policy on approved resource
+select pg_temp.reset(); select pg_temp.as_anon();
+do $$ begin
+  assert (select content_policy from public.resources where name = 'Policy Test AI') = 'reduced',
+    'anon can read content_policy of approved resources';
+end $$;
+
 rollback;
 \echo 'ALL RLS CHECKS PASSED'

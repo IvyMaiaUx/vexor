@@ -861,6 +861,7 @@ export async function handleExecuteModerationAction(
     contentType?: unknown;
     action?: unknown;
     reason?: unknown;
+    contentPolicy?: unknown;
   }
 ): Promise<HandlerResponse<AdminActionResult>> {
   const auth = await authorizeAdminRequest(supabase, "moderator");
@@ -928,6 +929,49 @@ export async function handleExecuteModerationAction(
   }
 
   if (contentType === "resource") {
+    const rawContentPolicy = payload.contentPolicy;
+    const validContentPolicy =
+      rawContentPolicy === "reduced" || rawContentPolicy === "standard"
+        ? rawContentPolicy
+        : undefined;
+
+    if (action === "set_content_policy") {
+      if (!validContentPolicy) {
+        return {
+          status: 400,
+          body: {
+            error: "contentPolicy must be 'standard' or 'reduced'.",
+            code: "validation_error",
+          },
+        };
+      }
+      const { error: policyErr } = await (supabase as unknown as {
+        rpc: (
+          fn: string,
+          args: Record<string, unknown>
+        ) => Promise<{ error: { code?: string; message?: string } | null }>;
+      }).rpc("set_resource_content_policy", {
+        p_resource_id: id,
+        p_content_policy: validContentPolicy,
+        p_reason: trimmedReason || null,
+      });
+      if (policyErr) {
+        const mapped = mapSupabaseAdminError(
+          policyErr,
+          "Failed to update resource content policy."
+        );
+        return {
+          status: mapped.httpStatus,
+          body: {
+            success: false,
+            error: mapped.message,
+            statusCode: mapped.httpStatus,
+          },
+        };
+      }
+      return { status: 200, body: { success: true, statusCode: 200 } };
+    }
+
     let decision: ResourceStatus | null = null;
     if (action === "approve") decision = "approved";
     else if (action === "reject") decision = "rejected";
@@ -957,6 +1001,7 @@ export async function handleExecuteModerationAction(
       p_resource_id: id,
       p_decision: decision,
       p_reason: trimmedReason || undefined,
+      ...(validContentPolicy ? { p_content_policy: validContentPolicy } : {}),
     });
 
     if (error) {

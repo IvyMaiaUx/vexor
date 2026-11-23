@@ -40,6 +40,8 @@ export function ResourceCard({
   const description = isPt ? resource.description_pt : resource.description_en;
   const isPending = resource.status === "pending";
   const showPricing = shouldShowPricingBadges(resource);
+  const showReducedPolicy =
+    resource.status === "approved" && resource.contentPolicy === "reduced";
   const initial = (resource.name || "V").slice(0, 1).toUpperCase();
 
   const sourceLine = resource.authorName
@@ -116,6 +118,25 @@ export function ResourceCard({
           {isPending && (
             <span className="inline-flex h-[22px] items-center rounded-md border border-amber-500/40 bg-amber-500/15 px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
               {dict.catalogSection.pendingBadge}
+            </span>
+          )}
+          {showReducedPolicy && (
+            <span className="inline-flex h-[22px] items-center gap-1 rounded-md border border-amber-500/35 bg-amber-500/10 px-2 font-mono text-[11px] font-medium text-amber-300">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3 w-3 shrink-0"
+              >
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>{isPt ? "Restrições reduzidas" : "Reduced restrictions"}</span>
             </span>
           )}
           {showPricing && resource.pricingModel && (

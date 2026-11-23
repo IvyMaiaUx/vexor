@@ -19,6 +19,8 @@ export type ResourceLanguage = "en" | "pt-BR" | "multilingual" | "other";
 
 export type ResourceStatus = "pending" | "approved" | "rejected" | "archived";
 
+export type ResourceContentPolicy = "standard" | "reduced";
+
 export type ResourcePricingModel = "free" | "freemium" | "paid";
 
 export type ResourceCreditCardRequirement =
@@ -71,6 +73,7 @@ export interface FeaturedResourceItem {
   freeTierLimits?: string | null;
   pricingNotes?: string | null;
   tags?: ResourceStandardTag[];
+  contentPolicy?: ResourceContentPolicy;
 }
 
 export interface FeaturedTopicItem {

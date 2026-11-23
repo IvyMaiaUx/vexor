@@ -60,6 +60,7 @@ function CatalogContent() {
     searchParams?.get("language") ?? searchParams?.get("lang") ?? "all";
   const selectedPricing = searchParams?.get("pricing") ?? "all";
   const noCardOnly = searchParams?.get("noCard") === "1";
+  const reducedPolicyOnly = searchParams?.get("policy") === "reduced";
   const onlyBookmarks =
     searchParams?.get("bookmarks") === "true" ||
     searchParams?.get("bookmarks") === "1";
@@ -76,7 +77,7 @@ function CatalogContent() {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState<number>(0);
 
-  const currentQueryKey = `${activeTab}|${searchQuery}|${effectiveCategory}|${excludeCategory ?? ""}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${selectedPricing}|${noCardOnly}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${reloadNonce}|${categories.length}`;
+  const currentQueryKey = `${activeTab}|${searchQuery}|${effectiveCategory}|${excludeCategory ?? ""}|${selectedType}|${selectedDifficulty}|${selectedLanguage}|${selectedPricing}|${noCardOnly}|${reducedPolicyOnly}|${onlyBookmarks}|${bookmarkedIds.join(",")}|${sortBy}|${reloadNonce}|${categories.length}`;
   const isLoading = categoriesLoading || loadedKey !== currentQueryKey;
 
   const updateUrlParams = useCallback(
@@ -117,6 +118,7 @@ function CatalogContent() {
         language: selectedLanguage as ResourceLanguage | "all",
         pricingModel: selectedPricing as ResourcePricingModel | "all",
         requiresCreditCard: noCardOnly ? "no" : "all",
+        contentPolicy: reducedPolicyOnly ? "reduced" : "all",
         onlyBookmarks,
         bookmarkedIds,
         sortBy,
@@ -161,6 +163,7 @@ function CatalogContent() {
     isPt,
     noCardOnly,
     onlyBookmarks,
+    reducedPolicyOnly,
     reloadNonce,
     searchQuery,
     selectedDifficulty,
@@ -285,6 +288,13 @@ function CatalogContent() {
         onRemove: () => updateUrlParams({ noCard: null }),
       });
     }
+    if (reducedPolicyOnly) {
+      chips.push({
+        key: "policy",
+        label: isPt ? "Restrições reduzidas" : "Reduced restrictions",
+        onRemove: () => updateUrlParams({ policy: null }),
+      });
+    }
     return chips;
   }, [
     activeTab,
@@ -295,6 +305,7 @@ function CatalogContent() {
     isPt,
     locale,
     noCardOnly,
+    reducedPolicyOnly,
     selectedDifficulty,
     selectedLanguage,
     selectedPricing,
@@ -453,6 +464,41 @@ function CatalogContent() {
             >
               {isPt ? "IAs e Modelos" : "AI & Models"}
             </button>
+
+            {activeTab === "ai" && !onlyBookmarks && (
+              <button
+                type="button"
+                aria-pressed={reducedPolicyOnly}
+                onClick={() =>
+                  updateUrlParams({
+                    policy: reducedPolicyOnly ? null : "reduced",
+                  })
+                }
+                className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors ${
+                  reducedPolicyOnly
+                    ? "border-amber-500/60 bg-amber-500/15 text-amber-300"
+                    : "border-slate-800 bg-[#0d1322] text-slate-300 hover:border-amber-500/40 hover:text-amber-300"
+                }`}
+              >
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3.5 w-3.5 shrink-0"
+                >
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <span>
+                  {isPt ? "Restrições reduzidas" : "Reduced restrictions"}
+                </span>
+              </button>
+            )}
 
             <button
               type="button"
