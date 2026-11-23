@@ -20,6 +20,10 @@ import {
 import { TopicCard } from "@/features/forum/topic-card";
 import { useForumStore } from "@/features/forum/use-forum-store";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import {
+  fetchFollowingIds,
+  toggleFollowUser,
+} from "@/features/profile/follow-service";
 import { createClient } from "@/lib/supabase/client";
 
 interface SuggestedMemberItem {
@@ -59,8 +63,8 @@ function ForumContent() {
   const [joinedCommunitySlugs, setJoinedCommunitySlugs] = useState<string[]>([
     "blue-team",
   ]);
-  // TODO(backend): persistir follow quando existir tabela follows
-  const [followedSuggestions, setFollowedSuggestions] = useState<string[]>([]);
+  const [followedUserIds, setFollowedUserIds] = useState<string[]>([]);
+  const [followBusyIds, setFollowBusyIds] = useState<string[]>([]);
   const [suggestedPeople, setSuggestedPeople] = useState<SuggestedMemberItem[]>([]);
   const [loadingPeople, setLoadingPeople] = useState(true);
 
@@ -72,12 +76,35 @@ function ForumContent() {
     );
   };
 
-  const toggleFollowSuggestion = (username: string) => {
-    setFollowedSuggestions((prev) =>
-      prev.includes(username)
-        ? prev.filter((u) => u !== username)
-        : [...prev, username]
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void fetchFollowingIds(user.id).then((ids) => {
+      if (!cancelled) setFollowedUserIds(ids);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const toggleFollowSuggestion = async (targetUserId: string) => {
+    if (followBusyIds.includes(targetUserId)) return;
+    const currentlyFollowing = followedUserIds.includes(targetUserId);
+    setFollowBusyIds((prev) => [...prev, targetUserId]);
+    setFollowedUserIds((prev) =>
+      currentlyFollowing
+        ? prev.filter((id) => id !== targetUserId)
+        : [...prev, targetUserId]
     );
+    const res = await toggleFollowUser(targetUserId, currentlyFollowing, locale);
+    setFollowBusyIds((prev) => prev.filter((id) => id !== targetUserId));
+    if (res.status === "error") {
+      setFollowedUserIds((prev) =>
+        currentlyFollowing
+          ? [...prev, targetUserId]
+          : prev.filter((id) => id !== targetUserId)
+      );
+    }
   };
 
   useEffect(() => {
@@ -434,9 +461,7 @@ function ForumContent() {
                     </div>
                   ) : (
                     suggestedPeople.map((person) => {
-                      const following = followedSuggestions.includes(
-                        person.username
-                      );
+                      const following = followedUserIds.includes(person.id);
                       const initial = (
                         person.displayName ||
                         person.username ||
@@ -478,8 +503,9 @@ function ForumContent() {
                           </Link>
                           <button
                             type="button"
+                            disabled={followBusyIds.includes(person.id)}
                             onClick={() =>
-                              toggleFollowSuggestion(person.username)
+                              void toggleFollowSuggestion(person.id)
                             }
                             aria-pressed={following}
                             className={`inline-flex min-h-[40px] shrink-0 items-center rounded-xl border px-3.5 text-xs font-semibold transition-colors ${

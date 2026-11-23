@@ -2,10 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SupportedLocale } from "@/config/site";
+import { useAuthStore } from "@/features/auth/use-auth-store";
 import type { AuthUserProfile } from "@/features/auth/validation";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
+import {
+  fetchFollowStats,
+  fetchUserTopicsCount,
+  toggleFollowUser,
+} from "./follow-service";
 import type { ProfileStats } from "./types";
 
 interface ProfileHeaderProps {
@@ -26,9 +32,44 @@ export function ProfileHeader({
   onOpenEdit,
 }: ProfileHeaderProps) {
   const isPt = locale === "pt-BR";
+  const currentUser = useAuthStore((s) => s.user);
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
-  // TODO(backend): persistir follow de usuário quando existir tabela de follows
   const [following, setFollowing] = useState(false);
+  const [followPending, setFollowPending] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [realTopicsCount, setRealTopicsCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      fetchFollowStats(profile.id, currentUser?.id),
+      fetchUserTopicsCount(profile.id),
+    ]).then(([followStats, topicsCnt]) => {
+      if (!active) return;
+      setFollowersCount(followStats.followersCount);
+      setFollowingCount(followStats.followingCount);
+      setFollowing(followStats.isFollowing);
+      setRealTopicsCount(topicsCnt);
+    });
+    return () => {
+      active = false;
+    };
+  }, [profile.id, currentUser?.id]);
+
+  const handleToggleFollow = async () => {
+    if (followPending || isCurrentUser) return;
+    setFollowPending(true);
+    const prev = following;
+    setFollowing(!prev);
+    setFollowersCount((c) => Math.max(0, c + (prev ? -1 : 1)));
+    const res = await toggleFollowUser(profile.id, prev, locale);
+    setFollowPending(false);
+    if (res.status === "error") {
+      setFollowing(prev);
+      setFollowersCount((c) => Math.max(0, c + (prev ? 1 : -1)));
+    }
+  };
 
   const imgError = Boolean(
     profile.avatarUrl && failedAvatarUrl === profile.avatarUrl
@@ -52,9 +93,7 @@ export function ProfileHeader({
       member: "MEMBER",
     }[profile.role] ?? "MEMBER";
 
-  // TODO(backend): carregar contadores reais de seguidores e seguindo da tabela follows
-  const followersCount = 0;
-  const followingCount = 0;
+  const displayedTopicsCount = realTopicsCount ?? stats.topicsCount;
 
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-800/90 bg-[#0d1322]/95">
@@ -126,7 +165,8 @@ export function ProfileHeader({
             ) : !isCurrentUser ? (
               <button
                 type="button"
-                onClick={() => setFollowing((prev) => !prev)}
+                disabled={followPending}
+                onClick={() => void handleToggleFollow()}
                 aria-pressed={following}
                 className={`inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold transition-colors ${
                   following
@@ -181,7 +221,7 @@ export function ProfileHeader({
         <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <span>
             <strong className="font-semibold text-slate-100">
-              {stats.topicsCount}
+              {displayedTopicsCount}
             </strong>{" "}
             <span className="text-slate-400">posts</span>
           </span>

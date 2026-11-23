@@ -321,5 +321,15 @@ select pg_temp.reset(); select pg_temp.as_user('00000000-0000-0000-0000-00000000
 select pg_temp.expect('author cannot undo moderator soft-delete',
   $q$select public.restore_topic((select id from public.topics where author_id = '00000000-0000-0000-0000-0000000000d1'))$q$, false);
 
+-- User follows (followers / following)
+select pg_temp.expect('member can follow another active member',
+  $q$insert into public.user_follows (following_id) values ('00000000-0000-0000-0000-0000000000d2')$q$, true);
+select pg_temp.expect('member cannot follow self',
+  $q$insert into public.user_follows (following_id) values ('00000000-0000-0000-0000-0000000000d1')$q$, false);
+select pg_temp.expect('member cannot forge follower_id',
+  $q$insert into public.user_follows (follower_id, following_id) values ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-0000000000b1')$q$, false);
+select pg_temp.expect('member can unfollow',
+  $q$delete from public.user_follows where follower_id = '00000000-0000-0000-0000-0000000000d1' and following_id = '00000000-0000-0000-0000-0000000000d2'$q$, true);
+
 rollback;
 \echo 'ALL RLS CHECKS PASSED'

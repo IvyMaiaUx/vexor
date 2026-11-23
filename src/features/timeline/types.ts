@@ -55,6 +55,7 @@ export interface TimelinePostItem {
 export interface TimelineQueryParams {
   kind?: TopicKind | "all";
   categorySlug?: string;
+  authorIds?: string[];
   sortBy?: TimelineSortMode;
   cursor?: TimelineCursor | null;
   offset?: number;

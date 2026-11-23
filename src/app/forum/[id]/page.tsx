@@ -34,6 +34,10 @@ import {
 import { MarkdownView } from "@/features/forum/markdown-view";
 import { useForumStore } from "@/features/forum/use-forum-store";
 import { validateNewReply } from "@/features/forum/validation";
+import {
+  fetchFollowStats,
+  toggleFollowUser,
+} from "@/features/profile/follow-service";
 import { ReportButton } from "@/features/reports/report-modal";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
@@ -66,8 +70,31 @@ export default function TopicDetailPage() {
     "top"
   );
   const [actionError, setActionError] = useState<string | null>(null);
-  // TODO(backend): persistir follow de usuário quando existir tabela de follows
   const [followingAuthor, setFollowingAuthor] = useState(false);
+  const [followAuthorBusy, setFollowAuthorBusy] = useState(false);
+
+  useEffect(() => {
+    if (!topic?.authorId || !user?.id || topic.authorId === user.id) return;
+    let cancelled = false;
+    void fetchFollowStats(topic.authorId, user.id).then((stats) => {
+      if (!cancelled) setFollowingAuthor(stats.isFollowing);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [topic?.authorId, user?.id]);
+
+  const handleToggleFollowAuthor = async () => {
+    if (!topic?.authorId || followAuthorBusy) return;
+    setFollowAuthorBusy(true);
+    const prev = followingAuthor;
+    setFollowingAuthor(!prev);
+    const res = await toggleFollowUser(topic.authorId, prev, locale);
+    setFollowAuthorBusy(false);
+    if (res.status === "error") {
+      setFollowingAuthor(prev);
+    }
+  };
   const mobileReplyInputRef = useRef<HTMLInputElement | null>(null);
 
   // Edit own topic state
@@ -821,7 +848,8 @@ export default function TopicDetailPage() {
                   {user && user.id !== topic.authorId && (
                     <button
                       type="button"
-                      onClick={() => setFollowingAuthor((prev) => !prev)}
+                      disabled={followAuthorBusy}
+                      onClick={() => void handleToggleFollowAuthor()}
                       aria-pressed={followingAuthor}
                       className={`ml-auto inline-flex min-h-[38px] items-center rounded-xl border px-3.5 text-xs font-semibold transition-colors ${
                         followingAuthor

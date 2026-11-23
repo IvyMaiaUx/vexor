@@ -111,6 +111,13 @@ export async function fetchTimelineFeed(
       query = query.eq("kind", params.kind);
     }
 
+    if (params.authorIds) {
+      if (params.authorIds.length === 0) {
+        return { status: "success", items: [], nextCursor: null, hasMore: false };
+      }
+      query = query.in("author_id", params.authorIds);
+    }
+
     if (params.categorySlug && params.categorySlug !== "all") {
       const cat = categoryBySlug.get(params.categorySlug);
       if (!cat) {

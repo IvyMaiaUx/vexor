@@ -8,6 +8,7 @@ import { UndoToast } from "@/components/ui/undo-toast";
 import type { SupportedLocale } from "@/config/site";
 import { useAuthStore } from "@/features/auth/use-auth-store";
 import { useForumStore } from "@/features/forum/use-forum-store";
+import { fetchFollowingIds } from "@/features/profile/follow-service";
 import { createClient } from "@/lib/supabase/client";
 import { TimelineComposer } from "./timeline-composer";
 import { TimelinePostCard } from "./timeline-post-card";
@@ -98,6 +99,7 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [followingIds, setFollowingIds] = useState<string[] | null>(null);
   const [lastSeenBySlug, setLastSeenBySlug] = useState<Record<string, string>>({});
   const [latestTopicAtBySlug, setLatestTopicAtBySlug] = useState<
     Record<string, string>
@@ -106,8 +108,28 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
   const sortBy: TimelineSortMode =
     feedTab === "trending" ? "trending" : "newest";
 
-  const currentKey = `${feedTab}|${selectedCategorySlug}|${categories.length}|${reloadNonce}`;
-  const loading = categoriesLoading || loadedKey !== currentKey;
+  const followingKey =
+    feedTab === "following"
+      ? followingIds === null
+        ? "pending"
+        : followingIds.join(",")
+      : "all";
+  const currentKey = `${feedTab}|${followingKey}|${selectedCategorySlug}|${categories.length}|${reloadNonce}`;
+  const loading =
+    categoriesLoading ||
+    (feedTab === "following" && followingIds === null) ||
+    loadedKey !== currentKey;
+
+  useEffect(() => {
+    if (feedTab !== "following" || !user?.id) return;
+    let cancelled = false;
+    void fetchFollowingIds(user.id).then((ids) => {
+      if (!cancelled) setFollowingIds(ids);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [feedTab, user?.id, reloadNonce]);
 
   const reloadFeed = useCallback(() => {
     setReloadNonce((n) => n + 1);
@@ -213,11 +235,13 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
 
   useEffect(() => {
     if (categoriesLoading) return;
+    if (feedTab === "following" && followingIds === null) return;
     let cancelled = false;
     void fetchTimelineFeed(
       {
         kind: "all",
         categorySlug: selectedCategorySlug,
+        authorIds: feedTab === "following" ? (followingIds ?? []) : undefined,
         sortBy,
         pageSize: 10,
       },
@@ -241,7 +265,7 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
     return () => {
       cancelled = true;
     };
-  }, [categories, categoriesLoading, currentKey, isPt, selectedCategorySlug, sortBy]);
+  }, [categories, categoriesLoading, currentKey, feedTab, followingIds, isPt, selectedCategorySlug, sortBy]);
 
   const handleLoadMore = async () => {
     if (loadingMore || !hasMore) return;
@@ -250,6 +274,7 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
       {
         kind: "all",
         categorySlug: selectedCategorySlug,
+        authorIds: feedTab === "following" ? (followingIds ?? []) : undefined,
         sortBy,
         cursor: sortBy === "newest" ? nextCursor : null,
         offset: sortBy !== "newest" ? items.length : undefined,
@@ -529,8 +554,7 @@ export function TimelineFeed({ locale }: TimelineFeedProps) {
         )}
 
         {/* 4. Feed Content */}
-        {feedTab === "following" ? (
-          // TODO(backend): conectar aba "Seguindo" à relação de usuários seguidos quando existir no Supabase
+        {feedTab === "following" && followingIds !== null && followingIds.length === 0 ? (
           <div className="rounded-2xl border border-slate-800/90 bg-[#0d1322]/90 p-8 text-center">
             <p className="text-sm font-medium text-slate-200">
               {isPt
