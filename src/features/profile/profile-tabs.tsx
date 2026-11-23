@@ -644,9 +644,6 @@ export function ProfileTabs({ data, locale, dict }: ProfileTabsProps) {
                       {dict.profilePage.settings.mfaSubtitle}
                     </p>
                   </div>
-                  <span className="rounded border border-indigo-500/40 bg-indigo-500/10 px-2.5 py-1 font-mono text-[10px] font-semibold text-indigo-300">
-                    {dict.profilePage.settings.mfaBadge}
-                  </span>
                 </div>
               </div>
             </div>

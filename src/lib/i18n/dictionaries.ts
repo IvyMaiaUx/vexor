@@ -477,7 +477,6 @@ export interface Dictionary {
       suspendedStatus: string;
       mfaTitle: string;
       mfaSubtitle: string;
-      mfaBadge: string;
       signOutButton: string;
     };
     emptyStates: {
@@ -1670,7 +1669,6 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         suspendedStatus: "Suspensa",
         mfaTitle: "Autenticação em Duas Etapas (2FA)",
         mfaSubtitle: "Camada adicional de proteção para sua conta Vexor.",
-        mfaBadge: "Disponível via Supabase Auth na integração",
         signOutButton: "Encerrar Sessão",
       },
       emptyStates: {
@@ -3073,7 +3071,6 @@ const dictionaries: Record<SupportedLocale, Dictionary> = {
         suspendedStatus: "Suspended",
         mfaTitle: "Two-Factor Authentication (2FA)",
         mfaSubtitle: "Additional layer of protection for your Vexor account.",
-        mfaBadge: "Available via Supabase Auth integration",
         signOutButton: "Sign Out",
       },
       emptyStates: {
